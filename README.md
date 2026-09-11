@@ -1,12 +1,6 @@
 # verified-kernel
 
-A PyTorch-facing matmul op backed by a hand-written CUDA kernel.
-
-This is the baseline artifact for the verified-kernel direction: the shape of
-thing the framework should eventually *generate*. **Nothing here is formally
-verified.** Correctness is currently argued by `tests/test_matmul.py` comparing
-against `torch.matmul` — which is exactly the test-based gate the verification
-work is meant to replace.
+Verified kernel uses neuro-symbolic AI to build kernels from pytorch source. 
 
 ## Layout
 
