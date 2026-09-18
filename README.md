@@ -5,11 +5,8 @@ Verified kernel uses neuro-symbolic AI to build kernels from pytorch source.
 ## Layout
 
 ```
-csrc/matmul.cu          tiled fp32 kernel + launcher
-csrc/matmul.cpp         argument validation + pybind11 module
 verified_kernel/        Python package
-  matmul.py             matmul() interface, autograd wrapper
-  _extension.py         AOT-or-JIT extension loader
+  matmul.py             Triton matmul kernel, interface, autograd wrapper
 tests/test_matmul.py    correctness vs torch.matmul
 bench/bench_matmul.py   wall-clock comparison vs torch.matmul
 ```
@@ -22,7 +19,7 @@ import verified_kernel
 
 A = torch.randn(512, 256, device="cuda")
 B = torch.randn(256, 128, device="cuda")
-C = verified_kernel.matmul(A, B)   # calls the CUDA kernel
+C = verified_kernel.matmul(A, B)   # calls the Triton kernel
 ```
 
 `matmul` is an autograd `Function`, so it works inside a training graph. The
@@ -37,14 +34,11 @@ raises. Non-contiguous operands are copied. No batching, no mixed precision, no
 
 ## Building
 
-No install step is required: the extension JIT-compiles on first call via
-`torch.utils.cpp_extension.load` and is cached in the Torch extensions dir. Set
-`VERIFIED_KERNEL_VERBOSE_BUILD=1` to see the compiler invocation.
-
-For an ahead-of-time build:
+No separate C++/CUDA build is required. Triton JIT-compiles the Python kernel on
+first use and caches it.
 
 ```bash
-pip install -e .          # requires a CUDA toolkit matching your torch build
+pip install -e .
 ```
 
 ## Testing and benchmarking
@@ -61,13 +55,11 @@ different order than cuBLAS, so agreement is never bitwise.
 
 ## Kernel notes
 
-`matmul_tiled_kernel` is the textbook shared-memory tiling: a 16×16 block
-computes a 16×16 output tile, staging the matching A and B tiles in shared
-memory so each loaded element is reused 16 times. Out-of-range lanes stage
-zeros, which keeps the inner loop branch-free and keeps every thread reaching
-both `__syncthreads()` barriers regardless of matrix size.
+The Triton kernel computes a 16×16 output tile per program. It masks boundary
+loads and stores, so dimensions do not need to be multiples of 16, and it uses
+`input_precision="ieee"` so the fp32 reference is not compared against TF32
+math.
 
 It is not competitive with cuBLAS — no register tiling, no vectorized loads, no
 double buffering, no tensor cores. It is meant to be simple enough to state a
 specification about.
-

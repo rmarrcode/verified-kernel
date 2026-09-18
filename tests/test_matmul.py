@@ -1,4 +1,4 @@
-"""Correctness tests for the tiled CUDA matmul against torch.matmul.
+"""Correctness tests for the tiled Triton matmul against torch.matmul.
 
 The reference is ``torch.matmul`` with TF32 disabled, so both sides accumulate
 in true fp32 and the only remaining difference is summation order.
@@ -114,4 +114,3 @@ def test_rejects_bad_inputs(case: str) -> None:
     make_a, make_b, message = BAD_INPUTS[case]
     with pytest.raises(RuntimeError, match=message):
         verified_kernel.matmul(make_a(), make_b())
-
