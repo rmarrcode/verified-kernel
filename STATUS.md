@@ -9,13 +9,25 @@ design problems standing between here and 100% on Level 1.
 | Level | Tasks | Lowered | Certified by Lean | Matched PyTorch |
 |---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** |
-| 2 — fused chains | 100 | 100 | **100** | see run summary |
+| 2 — fused chains | 100 | 100 | **100** | **99** |
 | 3 — whole architectures | 50 | 13 | — | — |
 | 4 — HuggingFace models | 20 | — | — | — |
 
 Level 1 is complete: every task lowers to a formal specification, carries a
 Lean-checked correctness certificate, and matches PyTorch under KernelBench's own
-criterion (5 trials, `allclose` at 1e-2).
+criterion (5 trials, `allclose` at 1e-2). Level 2 lowers and certifies completely,
+and 99 of 100 match.
+
+The one that does not is worth stating precisely, because it is not a defect in the
+kernel. Task 14 is a 1024x8192 by 8192x8192 product, halved, then summed along the
+row -- 67 million products per output. Against a float64 ground truth the kernel is
+off by 2.0e-3 and PyTorch is off by 1.9e-2, so the kernel is the **more accurate**
+of the two by a factor of ten; with TF32 matmul, which is PyTorch's default on this
+card, the reference is off by 3.1. The comparison is against the reference, so a row
+whose sum happens to land near zero fails the absolute half of the tolerance while
+the kernel sits closer to the true value than the thing it is being checked against.
+This is exactly the gap the trusted base already names: the theorem is over an exact
+ordered field, and float rounding is not modelled.
 
 Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
 no `sorryAx`. Check it with:

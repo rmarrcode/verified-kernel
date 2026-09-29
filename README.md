@@ -147,11 +147,14 @@ was derived), **certified** (Lean accepted the correctness certificate), and
 | Level | Tasks | Lowered | Certified by Lean | Matched PyTorch |
 |---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** |
-| 2 — fused chains | 100 | 100 | **100** | see `STATUS.md` |
+| 2 — fused chains | 100 | 100 | **100** | **99** |
 | 3 — whole architectures | 50 | 13 | — | — |
 | 4 — HuggingFace models | 20 | — | — | — |
 
-Level 1 is complete. Level 2 needed one new idea -- `stages_correct`, a
+Level 1 is complete. Level 2 lowers and certifies completely; 99 of 100 match, and
+the exception is a case where the kernel is ten times *closer* to a float64 ground
+truth than the PyTorch reference it is being compared against (`STATUS.md` has the
+numbers). Level 2 needed one new idea -- `stages_correct`, a
 compositionality theorem over a *list* of stages -- and a compiler that walks a
 traced graph emitting them; each non-pointwise node is lowered by the *same* Level 1
 frontend and relocated into the chain's buffer numbering, so a convolution in a
