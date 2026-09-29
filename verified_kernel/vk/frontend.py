@@ -1045,6 +1045,176 @@ def _subst_slot(e: S.SE, slot: int, f: Callable[[S.SE], S.SE]) -> S.SE:
     raise Unsupported(f"cannot substitute in {type(e).__name__}")
 
 
+# ---------------------------------------------------------------------------
+# Max / min reductions
+# ---------------------------------------------------------------------------
+
+MAXPOOL = (nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d)
+
+
+def clamp_hi(e: I.IE, hi) -> I.IE:
+    """`min(e, hi)` using truncating subtraction: `e - (e - hi)`.
+
+    Needs no `min` node, and `Nat` subtraction already clamps below at zero, so a
+    coordinate built as `o*s - p + k*d` and passed through this is clamped into
+    `[0, hi]` by construction. That is what lets a max reduction avoid masking
+    entirely: every lane reads a real element.
+    """
+    hi_e = hi if isinstance(hi, I.IE) else I.Lit(hi)
+    return I.Sub(e, I.Sub(e, hi_e))
+
+
+def clamp_lo(e: I.IE, lo: I.IE) -> I.IE:
+    """`max(e, lo)` using truncating subtraction: `e + (lo - e)`."""
+    return I.Add(e, I.Sub(lo, e))
+
+
+def clamp_tap(o_d: I.IE, stride_d: int, pad_d: int, dil_d: int, Din_d: int,
+              kk_d: I.IE) -> I.IE:
+    """Clamp a pooling tap index so its coordinate is a valid position *of this
+    window*, and return that coordinate.
+
+    Clamping the coordinate directly is only sound for a contiguous window. With
+    dilation the window is the strided set `{ws, ws+d, ws+2d, ...}`, and a coordinate
+    clamped to `0` need not be a member of it -- which is exactly how the dilated
+    pooling tasks came out wrong before. Clamping the *tap index* into
+    `[lo, hi]` instead keeps the result on the stride:
+
+        lo = ceil((pad - o*s) / d)      smallest tap with coordinate >= 0
+        hi = (Din-1 + pad - o*s) / d    largest tap with coordinate <= Din-1
+
+    `Nat` subtraction saturating at zero is what makes `lo` come out as `0` when the
+    window already starts inside the input.
+    """
+    base = o_d * I.Lit(stride_d)
+    lo = (I.Lit(pad_d) - base + I.Lit(dil_d - 1)) // I.Lit(dil_d)
+    hi = (I.Lit(Din_d - 1 + pad_d) - base) // I.Lit(dil_d)
+    kc = clamp_hi(clamp_lo(kk_d, lo), hi)
+    return base + kc * I.Lit(dil_d) - I.Lit(pad_d)
+
+
+def lower_maxmin(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower `torch.max(x, dim=d)[0]` / `torch.min(x, dim=d)[0]`.
+
+    `min` is not a separate family: `min xs = -max (-xs)`, so it is the max family
+    with the body and the post-step negated.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    with torch.no_grad():
+        out_val = model(*example_args)
+    x = example_args[0]
+    if not isinstance(x, torch.Tensor):
+        raise Unsupported("input is not a tensor")
+
+    kind: Optional[str] = None
+    dim: Optional[int] = None
+    for node in gm.graph.nodes:
+        if node.op in ("call_function", "call_method"):
+            tgt = node.target
+            nm = tgt if isinstance(tgt, str) else getattr(tgt, "__name__", str(tgt))
+            if nm in ("max", "min") or tgt in (torch.max, torch.min):
+                if kind is not None:
+                    raise Unsupported("more than one max/min")
+                kind = "max" if nm == "max" else "min"
+                dim = _kw(node, "dim", 1, None)
+                if dim is None:
+                    raise Unsupported("max/min without a dim is a full reduction")
+            elif tgt is operator.getitem:
+                if node.args[1] != 0:
+                    raise Unsupported("max/min returns (values, indices); "
+                                      "only values are handled")
+            else:
+                raise Unsupported(f"{tgt!r} alongside max/min")
+        elif node.op == "call_module":
+            raise Unsupported("module call alongside max/min")
+    if kind is None:
+        raise Unsupported("no max/min reduction")
+
+    sx = tuple(x.shape)
+    d = dim if dim >= 0 else dim + len(sx)
+    outer, K, inner = _prod(sx[:d]), sx[d], _prod(sx[d + 1:])
+    if out_val.numel() != outer * inner:
+        raise Unsupported(f"expected {outer*inner} outputs, got {out_val.numel()}")
+
+    idx = ((I.Pid() // I.Lit(inner)) * I.Lit(K) + I.Rk()) * I.Lit(inner) \
+          + I.Pid() % I.Lit(inner)
+    body: S.SE = S.Inp(0) if kind == "max" else S.lit(0) - S.Inp(0)
+    post: S.SE = S.Inp(0) if kind == "max" else S.lit(0) - S.Inp(0)
+    return Lowered(
+        family="maxred", body=body, arity=1,
+        out_size=out_val.numel(), out_shape=tuple(out_val.shape),
+        tensor_arg_index=[0],
+        K=K, offs=[idx], post_offs=[I.Lit(0)], post=post,
+        notes=[f"{kind} over dim {d} of {sx}: outer={outer} K={K} inner={inner}"
+               + (", via -max(-x)" if kind == "min" else "")])
+
+
+def lower_maxpool(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower max pooling.
+
+    PyTorch pads with `-inf`, i.e. takes the max over the *valid* taps. This kernel
+    instead **clamps** each tap to a valid tap of the same window (see `clamp_tap`),
+    so it duplicates an in-window value rather than inventing one, and a max does not
+    notice duplicates. No masking, hence no need for an identity element that an
+    ordered field does not have.
+
+    Establishing that the clamp lands inside the window is this function's
+    obligation, not the kernel theorem's: it is a fact about what the PyTorch module
+    means, which is where the frontend's unproved responsibility always lies. It is
+    also where this went wrong first — clamping the coordinate instead of the tap is
+    sound only for an undilated window.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    pool = None
+    for node in gm.graph.nodes:
+        if node.op == "call_module":
+            sub = gm.get_submodule(node.target)
+            if isinstance(sub, MAXPOOL):
+                if pool is not None:
+                    raise Unsupported("more than one pooling layer")
+                pool = sub
+            else:
+                raise Unsupported(f"module {type(sub).__name__} alongside pooling")
+        elif node.op in ("call_function", "call_method"):
+            raise Unsupported(f"{node.target!r} alongside pooling")
+    if pool is None:
+        raise Unsupported("no max-pooling module")
+    if getattr(pool, "ceil_mode", False):
+        raise Unsupported("ceil_mode pooling")
+    if getattr(pool, "return_indices", False):
+        raise Unsupported("return_indices pooling")
+
+    x = example_args[0]
+    with torch.no_grad():
+        y = model(*example_args)
+    sx = tuple(x.shape)
+    rank = len(sx) - 2
+    N, C = sx[0], sx[1]
+    Din, Dout = list(sx[2:]), list(y.shape[2:])
+    Dk = list(_tup(pool.kernel_size, rank))
+    stride = _tup(pool.stride if pool.stride is not None else pool.kernel_size, rank)
+    pad = _tup(pool.padding, rank)
+    dil = _tup(getattr(pool, "dilation", 1), rank)
+
+    q = I.Pid()
+    oc = unpack(q, [N, C] + Dout)
+    n, c, o = oc[0], oc[1], oc[2:]
+    kk = unpack(I.Rk(), Dk)
+
+    in_spatial = [clamp_tap(o[dd], stride[dd], pad[dd], dil[dd], Din[dd], kk[dd])
+                  for dd in range(rank)]
+
+    off = pack([n, c] + in_spatial, [N, C] + Din)
+    return Lowered(
+        family="maxred", body=S.Inp(0), arity=1,
+        out_size=y.numel(), out_shape=tuple(y.shape), tensor_arg_index=[0],
+        K=_prod(Dk), offs=[off], post_offs=[I.Lit(0)], post=S.Inp(0),
+        notes=[f"maxpool{rank}d: N={N} C={C} k={tuple(Dk)} stride={stride} "
+               f"pad={pad} dil={dil}; coordinates clamped rather than masked"])
+
+
 AVGPOOL = (nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d)
 
 
@@ -1244,7 +1414,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
-    lower_rownorm, lower_broadcast_pointwise]
+    lower_maxpool, lower_maxmin, lower_rownorm, lower_broadcast_pointwise]
 
 
 def lower(model: nn.Module, example_args: List[Any]) -> Tuple[Optional[Lowered], List[str]]:

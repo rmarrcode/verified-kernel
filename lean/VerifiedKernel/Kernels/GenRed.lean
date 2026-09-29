@@ -53,19 +53,26 @@ def IE.evalQK (q k : Nat) : IE → Nat
 /-- `k = iv 0 * block + col`: the reduction index this lane covers this iteration. -/
 def kIE (block : Nat) : IE := .add (.mul (.iv 0) (.lit block)) .col
 
-/-- Backend-side reading: replace the placeholder by the lane/step decomposition. -/
-def IE.instK (block : Nat) : IE → IE
-  | .rk => kIE block
+/-- Backend-side reading: replace the placeholder by an arbitrary expression.
+
+Substituting the lane/step decomposition gives an ordinary tiled reduction;
+substituting a *clamped* decomposition gives one where every lane reads a genuine
+element, which is what lets a max reduction dispense with masking. -/
+def IE.instWith (r : IE) : IE → IE
+  | .rk => r
   | .pid a => .pid a
   | .lit n => .lit n
   | .row => .row
   | .col => .col
   | .iv k => .iv k
-  | .add a b => .add (a.instK block) (b.instK block)
-  | .mul a b => .mul (a.instK block) (b.instK block)
-  | .sub a b => .sub (a.instK block) (b.instK block)
-  | .divi a b => .divi (a.instK block) (b.instK block)
-  | .modi a b => .modi (a.instK block) (b.instK block)
+  | .add a b => .add (instWith r a) (instWith r b)
+  | .mul a b => .mul (instWith r a) (instWith r b)
+  | .sub a b => .sub (instWith r a) (instWith r b)
+  | .divi a b => .divi (instWith r a) (instWith r b)
+  | .modi a b => .modi (instWith r a) (instWith r b)
+
+/-- The standard substitution: the lane/step decomposition. -/
+def IE.instK (block : Nat) : IE → IE := IE.instWith (kIE block)
 
 variable {α : Type} [ExactScalar α]
 
@@ -76,10 +83,10 @@ at `k = kb*block + j`.
 This is the crux of the generalisation. It holds for *any* `qkOnly` map -- affine,
 div/mod, nested -- so convolution's index unpacking is licensed by the same lemma
 as a plain axis reduction's. -/
-theorem IE.instK_eval {block : Nat} {env : Env α} {q kb : Nat} (j : Nat)
-    (hpid : env.pid 0 = q) (hiv : env.ivs 0 = kb) :
+theorem IE.instWith_eval {env : Env α} {q : Nat} (r : IE) (i j : Nat)
+    (hpid : env.pid 0 = q) :
     ∀ (e : IE), e.qkOnly = true →
-      (e.instK block).eval env 0 j = e.evalQK q (kb * block + j) := by
+      (IE.instWith r e).eval env i j = e.evalQK q (r.eval env i j) := by
   intro e
   induction e with
   | pid x =>
@@ -87,10 +94,7 @@ theorem IE.instK_eval {block : Nat} {env : Env α} {q kb : Nat} (j : Nat)
     have hx : x = 0 := by simpa [IE.qkOnly] using h
     subst hx
     exact hpid
-  | rk =>
-    intro _
-    show env.ivs 0 * block + j = kb * block + j
-    rw [hiv]
+  | rk => intro _; rfl
   | lit n => intro _; rfl
   | row => intro h; exact absurd h (by simp [IE.qkOnly])
   | col => intro h; exact absurd h (by simp [IE.qkOnly])
@@ -98,23 +102,23 @@ theorem IE.instK_eval {block : Nat} {env : Env α} {q kb : Nat} (j : Nat)
   | add x y hx hy =>
     intro h
     simp only [IE.qkOnly, Bool.and_eq_true] at h
-    simp only [IE.instK, IE.eval, IE.evalQK, hx h.1, hy h.2]
+    simp only [IE.instWith, IE.eval, IE.evalQK, hx h.1, hy h.2]
   | mul x y hx hy =>
     intro h
     simp only [IE.qkOnly, Bool.and_eq_true] at h
-    simp only [IE.instK, IE.eval, IE.evalQK, hx h.1, hy h.2]
+    simp only [IE.instWith, IE.eval, IE.evalQK, hx h.1, hy h.2]
   | sub x y hx hy =>
     intro h
     simp only [IE.qkOnly, Bool.and_eq_true] at h
-    simp only [IE.instK, IE.eval, IE.evalQK, hx h.1, hy h.2]
+    simp only [IE.instWith, IE.eval, IE.evalQK, hx h.1, hy h.2]
   | divi x y hx hy =>
     intro h
     simp only [IE.qkOnly, Bool.and_eq_true] at h
-    simp only [IE.instK, IE.eval, IE.evalQK, hx h.1, hy h.2]
+    simp only [IE.instWith, IE.eval, IE.evalQK, hx h.1, hy h.2]
   | modi x y hx hy =>
     intro h
     simp only [IE.qkOnly, Bool.and_eq_true] at h
-    simp only [IE.instK, IE.eval, IE.evalQK, hx h.1, hy h.2]
+    simp only [IE.instWith, IE.eval, IE.evalQK, hx h.1, hy h.2]
 
 /-- Index maps are generated as a list; this bridges to the `Nat → IE` the family
 takes, so a generated certificate can discharge well-formedness with a single
@@ -129,6 +133,18 @@ theorem IE.qkOnly_getD (l : List IE) (h : l.all (fun e => e.qkOnly) = true) :
     cases b with
     | zero => simpa [List.getD_cons_zero] using h.1
     | succ b' => simpa [List.getD_cons_succ] using ih h.2 b'
+
+/-- The original statement, recovered by substituting the lane/step decomposition. -/
+theorem IE.instK_eval {block : Nat} {env : Env α} {q kb : Nat} (j : Nat)
+    (hpid : env.pid 0 = q) (hiv : env.ivs 0 = kb) :
+    ∀ (e : IE), e.qkOnly = true →
+      (e.instK block).eval env 0 j = e.evalQK q (kb * block + j) := by
+  intro e he
+  have h := IE.instWith_eval (env := env) (q := q) (kIE block) 0 j hpid e he
+  rw [show (kIE block).eval env 0 j = kb * block + j from by
+        show env.ivs 0 * block + j = kb * block + j
+        rw [hiv]] at h
+  exact h
 
 /-! ## The family -/
 

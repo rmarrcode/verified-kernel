@@ -55,7 +55,7 @@ class Instance:
                 b = choose_block_red(st.K)
                 out.append((b, (st.K + b - 1) // b, nout))
             return out
-        if self.low.family == "genred":
+        if self.low.family in ("genred", "maxred"):
             return [(self.block, self.nkb, self.out_size)]
         return [(self.block, 1, self.out_size)]
 
@@ -78,6 +78,12 @@ class Instance:
                 assert b > 0 and st.K <= nkb * b, (
                     f"{self.key}: stage {i+1} loop {nkb}x{b} does not cover "
                     f"the reduced axis of extent {st.K}")
+            return
+        if self.low.family == "maxred":
+            assert self.low.K > 0, f"{self.key}: a max over nothing is undefined"
+            assert self.low.K <= self.nkb * self.block, (
+                f"{self.key}: loop {self.nkb}x{self.block} does not cover "
+                f"the reduced axis of extent {self.low.K}")
             return
         if self.low.family == "pointwise":
             assert self.out_size <= self.nblocks * self.block, (
@@ -129,6 +135,9 @@ def emit_lean(instances: List[Instance]) -> str:
         if low.family == "pipeline":
             out += _emit_pipeline(inst)
             continue
+        if low.family == "maxred":
+            out += _emit_maxred(inst)
+            continue
         if low.family == "genred":
             from . import ie as I
             out += [
@@ -163,6 +172,7 @@ def emit_lean(instances: List[Instance]) -> str:
                 f"def {k}_kernel : ReduceKernel :=",
                 f"  {{ name := \"{k}\", arity := {low.arity}, block := {k}_block",
                 f"  , nkb := {k}_nkb, nout := {inst.out_size}",
+                f"  , init := FE.zeroC",
                 f"  , step := {k}_g.step {k}_block",
                 f"  , stored := {k}_g.stored {k}_block }}",
                 "",
@@ -228,6 +238,49 @@ def _genred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
     ]
 
 
+def _emit_maxred(inst: "Instance") -> List[str]:
+    """A max (or min) reduction. No `inRange`: this family clamps its index maps so
+    every lane reads a genuine element, which is how it avoids needing an identity
+    for `max` -- an ordered field has none, and adding one would make the axioms
+    inconsistent."""
+    from . import ie as I
+    k, low = inst.key, inst.low
+    block = choose_block_red(low.K)
+    nkb = (low.K + block - 1) // block
+    return [
+        f"-- {k}: max reduction, {low.arity} input(s), {inst.out_size} outputs,"
+        f" extent {low.K}",
+        f"--   {'; '.join(low.notes)}",
+        f"def {k}_g : MaxRed :=",
+        f"  {{ nout := {inst.out_size}, K := {low.K}",
+        f"  , offs := fun b => ({I.lean_list(low.offs)}).getD b (IE.lit 0)",
+        f"  , body := {low.body.to_lean()}",
+        f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
+        f"  , post := {low.post.to_lean()}",
+        f"  , nInp := {low.arity} }}",
+        f"def {k}_block : Nat := {block}",
+        f"def {k}_nkb : Nat := {nkb}",
+        "",
+        f"theorem {k}_wf : {k}_g.Wf :=",
+        f"  {{ offs_ok := IE.qkOnly_getD _ (by decide)",
+        f"  , post_ok := IE.qkOnly_getD _ (by decide) }}",
+        "",
+        f"/-- Correctness certificate for {k}. -/",
+        f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
+        f"    Implements ({k}_g.prog {k}_block {k}_nkb) ({k}_g.spec (α := α)) :=",
+        f"  MaxRed.prog_implements {k}_g {k}_block {k}_nkb {k}_wf"
+        f" (by decide) (by decide) (by decide)",
+        "",
+        f"def {k}_kernel : ReduceKernel :=",
+        f"  {{ name := \"{k}\", arity := {low.arity}, block := {k}_block",
+        f"  , nkb := {k}_nkb, nout := {inst.out_size}",
+        f"  , init := {k}_g.seed",
+        f"  , step := {k}_g.step {k}_block",
+        f"  , stored := {k}_g.stored {k}_block }}",
+        "",
+    ]
+
+
 def _emit_pipeline(inst: "Instance") -> List[str]:
     """A two-stage pipeline: both stages certified, plus the locality obligation
     that licenses composing them.
@@ -282,12 +335,12 @@ def _emit_pipeline(inst: "Instance") -> List[str]:
         "",
         f"def {k}_s1_kernel : ReduceKernel :=",
         f"  {{ name := \"{k}_s1\", arity := {s1.arity}, block := {k}_s1_block,"
-        f" nkb := {k}_s1_nkb, nout := {low.n1},"
+        f" nkb := {k}_s1_nkb, nout := {low.n1}, init := FE.zeroC,"
         f" step := {k}_s1_g.step {k}_s1_block,"
         f" stored := {k}_s1_g.stored {k}_s1_block }}",
         f"def {k}_s2_kernel : ReduceKernel :=",
         f"  {{ name := \"{k}_s2\", arity := {s2.arity}, block := {k}_s2_block,"
-        f" nkb := {k}_s2_nkb, nout := {inst.out_size},"
+        f" nkb := {k}_s2_nkb, nout := {inst.out_size}, init := FE.zeroC,"
         f" step := {k}_s2_g.step {k}_s2_block,"
         f" stored := {k}_s2_g.stored {k}_s2_block }}",
         f"def {k}_kernel : PipelineKernel :=",

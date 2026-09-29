@@ -165,6 +165,10 @@ structure ReduceKernel where
   block  : Nat
   nkb    : Nat
   nout   : Nat
+  /-- the accumulator's starting value. Zero for a sum; for a max it is the element
+  at reduction index 0 -- a genuine element, since a max has no identity to start
+  from. -/
+  init   : FE
   step   : FE
   stored : FE
 
@@ -178,7 +182,9 @@ def ReduceKernel.renderBody (k : ReduceKernel) : String :=
   s!"def {k.name}_kernel(out_ptr, {inPtrs k.arity}):\n" ++
   -- The accumulator must start as a *tile*: a loop-carried value in Triton keeps
   -- one type across iterations, so seeding it with a scalar would not compile.
-  s!"    _acc0 = tl.zeros([{k.block}], dtype=tl.float32)\n" ++
+  -- Adding `tl.zeros` broadcasts a scalar seed to the tile width.
+  s!"    _acc0 = tl.zeros([{k.block}], dtype=tl.float32) + (" ++
+    renderPFE .flat k.block (emitFE .flat 1 k.block k.init) ++ ")\n" ++
   s!"    for _lv0 in range(0, {k.nkb}):\n" ++
   s!"        _acc0 = {stepS}\n" ++
   s!"    _v = {storedS}\n" ++

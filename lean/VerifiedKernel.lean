@@ -8,5 +8,6 @@ import VerifiedKernel.Loop
 import VerifiedKernel.Kernels.Elementwise
 import VerifiedKernel.Kernels.Reduce
 import VerifiedKernel.Kernels.GenRed
+import VerifiedKernel.Kernels.MaxRed
 import VerifiedKernel.Pipeline
 import VerifiedKernel.Render

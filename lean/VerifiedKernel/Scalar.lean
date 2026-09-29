@@ -158,6 +158,146 @@ theorem sum_add_sum (n m : Nat) (f : Nat → α) :
     simp only [sum_succ]
     rw [ih, add_assoc]
 
+/-! ### Order facts, for max/min reductions
+
+A masked *sum* is easy: excluded lanes contribute `zero`, the additive identity. A
+masked *max* has no identity to contribute -- an ordered field has no least element,
+and adding one would make these axioms inconsistent (`le bot a` for every `a` gives
+`bot ≤ bot - 1 < bot`). The framework therefore never masks a max: index maps clamp
+instead, so every lane reads a genuine element of the window, and the fold is over a
+multiset that may contain duplicates but no junk.
+
+Duplicates are why these proofs go through the *characterisation* of a maximum --
+it is an upper bound, and it is attained -- rather than through a rearrangement
+lemma. Idempotence then costs nothing. -/
+
+theorem le_max_left (a b : α) : le a (max a b) = true := by
+  unfold max
+  by_cases h : le a b = true
+  · simp [h]
+  · simp only [Bool.not_eq_true] at h
+    simp [h]
+
+theorem le_max_right (a b : α) : le b (max a b) = true := by
+  unfold max
+  by_cases h : le a b = true
+  · simp [h]
+  · simp only [Bool.not_eq_true] at h
+    simp only [h, Bool.false_eq_true, if_false]
+    rcases le_total a b with hab | hba
+    · rw [h] at hab; exact absurd hab (by simp)
+    · exact hba
+
+/-- `max` is the least upper bound. -/
+theorem max_le {a b c : α} (ha : le a c = true) (hb : le b c = true) :
+    le (max a b) c = true := by
+  unfold max
+  by_cases h : le a b = true
+  · simp only [h, if_true]; exact hb
+  · simp only [Bool.not_eq_true] at h
+    simp only [h, Bool.false_eq_true, if_false]; exact ha
+
+@[simp] theorem max_self (a : α) : max a a = a := by simp [max]
+
+/-- The max-fold: seeded with `f 0`, since there is no identity to seed with. -/
+def foldMax (n : Nat) (f : Nat → α) : α :=
+  Nat.rec (f 0) (fun k acc => max acc (f k)) n
+
+@[simp] theorem foldMax_zero (f : Nat → α) : foldMax (α := α) 0 f = f 0 := rfl
+
+@[simp] theorem foldMax_succ (n : Nat) (f : Nat → α) :
+    foldMax (n + 1) f = max (foldMax n f) (f n) := rfl
+
+/-- **The fold is an upper bound.** -/
+theorem le_foldMax {n : Nat} {f : Nat → α} : ∀ i, i < n → le (f i) (foldMax n f) = true := by
+  induction n with
+  | zero => intro i hi; exact absurd hi (Nat.not_lt_zero i)
+  | succ k ih =>
+    intro i hi
+    rw [foldMax_succ]
+    rcases Nat.lt_or_ge i k with hlt | hge
+    · exact le_trans _ _ _ (ih i hlt) (le_max_left _ _)
+    · have : i = k := Nat.le_antisymm (Nat.le_of_lt_succ hi) hge
+      subst this
+      exact le_max_right _ _
+
+/-- The seed is in the fold. -/
+theorem le_foldMax_seed {n : Nat} {f : Nat → α} : le (f 0) (foldMax n f) = true := by
+  induction n with
+  | zero => exact le_refl _
+  | succ k ih => rw [foldMax_succ]; exact le_trans _ _ _ ih (le_max_left _ _)
+
+/-- **The fold is the least such bound.** -/
+theorem foldMax_le {n : Nat} {f : Nat → α} {c : α}
+    (hseed : le (f 0) c = true) (h : ∀ i, i < n → le (f i) c = true) :
+    le (foldMax n f) c = true := by
+  induction n with
+  | zero => exact hseed
+  | succ k ih =>
+    rw [foldMax_succ]
+    exact max_le (ih (fun i hi => h i (Nat.lt_succ_of_lt hi))) (h k (Nat.lt_succ_self k))
+
+/-- A max-fold from an explicit seed. The kernel's accumulator loop has this shape:
+each lane starts from the element at reduction index 0 (a genuine element, not a
+sentinel) and folds in one element per iteration. -/
+def foldMaxFrom (s : α) (n : Nat) (g : Nat → α) : α :=
+  Nat.rec s (fun k acc => max acc (g k)) n
+
+@[simp] theorem foldMaxFrom_zero (s : α) (g : Nat → α) : foldMaxFrom s 0 g = s := rfl
+
+@[simp] theorem foldMaxFrom_succ (s : α) (n : Nat) (g : Nat → α) :
+    foldMaxFrom s (n + 1) g = max (foldMaxFrom s n g) (g n) := rfl
+
+theorem le_foldMaxFrom_seed {s : α} {n : Nat} {g : Nat → α} :
+    le s (foldMaxFrom s n g) = true := by
+  induction n with
+  | zero => exact le_refl _
+  | succ k ih => rw [foldMaxFrom_succ]; exact le_trans _ _ _ ih (le_max_left _ _)
+
+theorem le_foldMaxFrom {s : α} {n : Nat} {g : Nat → α} :
+    ∀ i, i < n → le (g i) (foldMaxFrom s n g) = true := by
+  induction n with
+  | zero => intro i hi; exact absurd hi (Nat.not_lt_zero i)
+  | succ k ih =>
+    intro i hi
+    rw [foldMaxFrom_succ]
+    rcases Nat.lt_or_ge i k with hlt | hge
+    · exact le_trans _ _ _ (ih i hlt) (le_max_left _ _)
+    · have : i = k := Nat.le_antisymm (Nat.le_of_lt_succ hi) hge
+      subst this
+      exact le_max_right _ _
+
+theorem foldMaxFrom_le {s : α} {n : Nat} {g : Nat → α} {c : α}
+    (hs : le s c = true) (h : ∀ i, i < n → le (g i) c = true) :
+    le (foldMaxFrom s n g) c = true := by
+  induction n with
+  | zero => exact hs
+  | succ k ih =>
+    rw [foldMaxFrom_succ]
+    exact max_le (ih (fun i hi => h i (Nat.lt_succ_of_lt hi))) (h k (Nat.lt_succ_self k))
+
+/-- `foldMax` is the seeded fold started at the first element. -/
+theorem foldMax_eq_from (n : Nat) (f : Nat → α) : foldMax n f = foldMaxFrom (f 0) n f := rfl
+
+/-- Two max-folds over sets that bound each other are equal. This is how a tiled,
+duplicate-containing fold is shown equal to a contiguous one. -/
+theorem foldMax_eq {n m : Nat} {f g : Nat → α}
+    (h1 : le (foldMax n f) (foldMax m g) = true)
+    (h2 : le (foldMax m g) (foldMax n f) = true) :
+    foldMax n f = foldMax m g :=
+  le_antisymm _ _ h1 h2
+
+/-! `a - (a - (c-1))` is `min a (c-1)` over `Nat`. Truncating subtraction gives
+clamping *below* for free; this is how the backend clamps *above* without needing a
+`min` node, and it is why a max reduction can avoid masking entirely -- every lane,
+in range or not, reads a genuine element of the window. -/
+
+/-- A clamped index is in range. -/
+theorem clamp_lt {a c : Nat} (hc : 0 < c) : a - (a - (c - 1)) < c := by omega
+
+/-- Clamping is the identity on indices already in range. -/
+theorem clamp_id {a c : Nat} (h : a < c) : a - (a - (c - 1)) = a := by omega
+
 /-! ### The algebra of tiled reductions
 
 A tiled reduction computes its answer in a different order and a different
