@@ -17,10 +17,9 @@ design problems standing between here and 100% on Level 1.
 Every task that lowers both certifies and runs correctly: 91 of 91, with no
 mismatch in any run of any family.
 
-The gap to 100 is **coverage**, not correctness — tasks the frontend declines to
-lower, since it refuses rather than guesses — plus 5 that are certified but whose
-present shape is one program looping a million times, and so are not worth running
-until a tree reduction exists (tasks 37, 94, 96, 98, 100).
+The gap to 100 is **coverage**, not correctness: nine tasks the frontend declines to
+lower, because it refuses rather than guesses. Nothing is left in a
+"certified but not run" state — the tree reduction retired that category.
 
 Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
 no `sorryAx`. Check it with:
