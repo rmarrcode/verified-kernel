@@ -47,6 +47,8 @@ class Lowered:
     param_paths: List[str] = field(default_factory=list)
     # `pipeline` family only: the two stages, and the intermediate buffer's size
     stages: List["Lowered"] = field(default_factory=list)
+    # `chain` family: the element count of each stage's output buffer, in order
+    sizes: List[int] = field(default_factory=list)
     n1: int = 0
     n2: int = 0
     outer: int = 1
@@ -86,6 +88,24 @@ class Unsupported(Exception):
 # Pointwise operator table
 # ---------------------------------------------------------------------------
 
+def op_name(target) -> str:
+    """The name fx would print for a call target."""
+    return target if isinstance(target, str) else getattr(target, "__name__", "")
+
+
+def table_get(table: Dict[Any, Callable], target):
+    """Look an operator up by identity, then by name.
+
+    The same operator reaches `fx` under several aliases -- `F.adaptive_avg_pool2d`
+    and `torch._C._nn.adaptive_avg_pool2d` are different objects -- and a method call
+    arrives as a bare string. Matching on the name as a fallback keeps one entry in
+    the table instead of one per spelling.
+    """
+    if target in table:
+        return table[target]
+    return table.get(op_name(target))
+
+
 def _kw(node: fx.Node, name: str, pos: int, default):
     if name in node.kwargs:
         return node.kwargs[name]
@@ -112,6 +132,20 @@ def _pointwise_functions() -> Dict[Any, Callable]:
     reg([F.softplus],
         lambda a, n: S.softplus(a[0]))
     reg([F.softsign], lambda a, n: S.softsign(a[0]))
+    reg([F.mish, getattr(torch, "mish", F.mish)], lambda a, n: S.mish(a[0]))
+    reg([F.hardswish, getattr(torch, "hardswish", F.hardswish)],
+        lambda a, n: S.hardswish(a[0]))
+    reg([F.hardsigmoid], lambda a, n: S.hardsigmoid(a[0]))
+    reg([torch.multiply], lambda a, n: S.lift(a[0]) * S.lift(a[1]))
+
+    def _const(a, n):
+        """`torch.tensor(c, device=...)` inside a forward is a constant; the device
+        is irrelevant to what it denotes."""
+        v = n.args[0] if n.args else None
+        if not isinstance(v, (int, float)):
+            raise Unsupported(f"torch.tensor of {type(v).__name__}")
+        return S.lit(v)
+    reg([torch.tensor], _const)
     reg([F.hardsigmoid], lambda a, n: S.hardsigmoid(a[0]))
     reg([F.selu, torch.selu], lambda a, n: S.selu(a[0]))
     reg([F.elu], lambda a, n: S.elu(a[0], _kw(n, "alpha", 1, 1.0)))
@@ -176,7 +210,21 @@ def _pointwise_functions() -> Dict[Any, Callable]:
     return T
 
 
-POINTWISE_FUNCS = _pointwise_functions()
+def _add_name_keys(table: Dict[Any, Callable]) -> Dict[Any, Callable]:
+    """Also key each entry by its operator's name.
+
+    `fx` records whichever alias the model happened to call, and the aliases are
+    distinct objects; the name is what they agree on.
+    """
+    for k in list(table):
+        if not isinstance(k, str):
+            nm = op_name(k)
+            if nm and nm not in table:
+                table[nm] = table[k]
+    return table
+
+
+POINTWISE_FUNCS = _add_name_keys(_pointwise_functions())
 
 # nn.Module classes that are pointwise, mapped to the same builders.
 POINTWISE_MODULES: Dict[type, Callable] = {
@@ -193,6 +241,12 @@ POINTWISE_MODULES: Dict[type, Callable] = {
     nn.Hardtanh: lambda m, a: S.hardtanh(a[0], m.min_val, m.max_val),
     nn.GELU: lambda m, a: (S.gelu_tanh(a[0]) if getattr(m, "approximate", "none") == "tanh"
                            else S.gelu_exact(a[0])),
+    nn.Mish: lambda m, a: S.mish(a[0]),
+    nn.Flatten: lambda m, a: S.lift(a[0]),
+    nn.Hardswish: lambda m, a: S.hardswish(a[0]),
+    # In inference a dropout layer is the identity; the spec is that function.
+    nn.Dropout: lambda m, a: S.lift(a[0]),
+    nn.Identity: lambda m, a: S.lift(a[0]),
 }
 
 
@@ -248,10 +302,10 @@ def lower_pointwise(model: nn.Module, example_args: List[Any]) -> Lowered:
 
         elif node.op in ("call_function", "call_method"):
             key = node.target
-            if key not in POINTWISE_FUNCS:
+            if table_get(POINTWISE_FUNCS, key) is None:
                 raise Unsupported(f"{node.op} {key!r} is not a pointwise operator")
             args = [env[a] if isinstance(a, fx.Node) else a for a in node.args]
-            env[node] = POINTWISE_FUNCS[key](args, node)
+            env[node] = table_get(POINTWISE_FUNCS, key)(args, node)
 
         elif node.op == "call_module":
             sub = gm.get_submodule(node.target)
@@ -293,14 +347,38 @@ def huber_elementwise(p, t, beta: float = 1.0) -> S.SE:
 
 @dataclass
 class RedNode:
-    """A recognised reduction: a pointwise summand, an axis, and a divisor."""
+    """A recognised reduction: a pointwise summand, an axis, a divisor, and an
+    optional function applied to the result (a `logsumexp`'s outer logarithm)."""
     body: S.SE
     dim: Optional[int]          # None means "over every element"
     divide_by: str              # "none" | "K" | "outer"
+    wrap: Optional[Any] = None
+
+
+ADAPTIVE = (nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d)
 
 
 def _reduce_functions() -> Dict[Any, Callable]:
     T: Dict[Any, Callable] = {}
+
+    def _adaptive(rank: int):
+        """`adaptive_avg_pool(x, 1)` is a mean over every spatial axis.
+
+        The *rank* comes from the operator -- a 2-D pool reduces two axes -- not from
+        `output_size`, which is a single `1` standing for all of them. Any other
+        output size is a genuine pooling with a per-cell window, and is refused here
+        rather than approximated.
+        """
+        def go(a, n):
+            out = _kw(n, "output_size", 1, None)
+            sizes = (out,) * rank if isinstance(out, int) else tuple(out)
+            if any(sz != 1 for sz in sizes):
+                raise Unsupported(f"adaptive pooling to {out}")
+            return RedNode(S.lift(a[0]), tuple(range(-rank, 0)), "K")
+        return go
+    T[F.adaptive_avg_pool1d] = _adaptive(1)
+    T[F.adaptive_avg_pool2d] = _adaptive(2)
+    T[F.adaptive_avg_pool3d] = _adaptive(3)
 
     def dim_of(node: fx.Node):
         return _kw(node, "dim", 1, None)
@@ -331,10 +409,22 @@ def _reduce_functions() -> Dict[Any, Callable]:
         return RedNode(t * (S.log(t) - x), None, "outer")
     T[F.kl_div] = _kl
 
+    def _lse(a, n):
+        d = _kw(n, "dim", 1, None)
+        if d is None:
+            raise Unsupported("logsumexp without a dim")
+        return RedNode(S.exp(S.lift(a[0])), d, "none", wrap=S.log)
+    T[torch.logsumexp] = _lse
+
+    # `x.mean(...)` traces as a `call_method` whose target is the *name*
+    for name, fn in (("sum", T[torch.sum]), ("mean", T[torch.mean]),
+                     ("logsumexp", _lse)):
+        T[name] = fn
+
     return T
 
 
-REDUCE_FUNCS = _reduce_functions()
+REDUCE_FUNCS = _add_name_keys(_reduce_functions())
 
 
 def lower_reduce(model: nn.Module, example_args: List[Any]) -> Lowered:
@@ -381,19 +471,20 @@ def lower_reduce(model: nn.Module, example_args: List[Any]) -> Lowered:
             key = node.target
             args = [env[a] if isinstance(a, fx.Node) else a for a in node.args]
             stages = [stage[a] for a in node.args if isinstance(a, fx.Node)]
-            if key in REDUCE_FUNCS:
+            if table_get(REDUCE_FUNCS, key) is not None:
                 if red is not None:
                     raise Unsupported("more than one reduction in the graph")
                 if any(st == "post" for st in stages):
                     raise Unsupported("reduction applied after a reduction")
-                red = REDUCE_FUNCS[key](args, node)
-                env[node] = S.Inp(0)          # slot 0 is the reduced value
+                red = table_get(REDUCE_FUNCS, key)(args, node)
+                # slot 0 is the reduced value; a `logsumexp` wraps it in a log
+                env[node] = red.wrap(S.Inp(0)) if red.wrap else S.Inp(0)
                 stage[node] = "post"
-            elif key in POINTWISE_FUNCS:
+            elif table_get(POINTWISE_FUNCS, key) is not None:
                 if red is not None and any(
                         isinstance(a, fx.Node) and stage[a] == "pre" for a in node.args):
                     raise Unsupported("pointwise op mixes pre- and post-reduction values")
-                env[node] = POINTWISE_FUNCS[key](args, node)
+                env[node] = table_get(POINTWISE_FUNCS, key)(args, node)
                 stage[node] = "post" if any(st == "post" for st in stages) else "pre"
             else:
                 raise Unsupported(f"{node.op} {key!r} is neither pointwise nor a reduction")
@@ -401,9 +492,24 @@ def lower_reduce(model: nn.Module, example_args: List[Any]) -> Lowered:
         elif node.op == "call_module":
             sub = gm.get_submodule(node.target)
             cls = type(sub)
+            args = [env[a] if isinstance(a, fx.Node) else a for a in node.args]
+            if isinstance(sub, ADAPTIVE):
+                # a pooling module that collapses every spatial axis is a mean; the
+                # rank comes from the module, not from `output_size`
+                if red is not None:
+                    raise Unsupported("more than one reduction in the graph")
+                rank = {nn.AdaptiveAvgPool1d: 1, nn.AdaptiveAvgPool2d: 2,
+                        nn.AdaptiveAvgPool3d: 3}[cls]
+                out = sub.output_size
+                sizes = (out,) * rank if isinstance(out, int) else tuple(out)
+                if any(sz != 1 for sz in sizes):
+                    raise Unsupported(f"adaptive pooling to {out}")
+                red = RedNode(S.lift(args[0]), tuple(range(-rank, 0)), "K")
+                env[node] = S.Inp(0)
+                stage[node] = "post"
+                continue
             if cls not in POINTWISE_MODULES:
                 raise Unsupported(f"module {cls.__name__} is neither pointwise nor a reduction")
-            args = [env[a] if isinstance(a, fx.Node) else a for a in node.args]
             env[node] = POINTWISE_MODULES[cls](sub, args)
             stage[node] = "pre"
 
@@ -426,7 +532,17 @@ def lower_reduce(model: nn.Module, example_args: List[Any]) -> Lowered:
                 raise Unsupported(f"inputs do not broadcast: {in_shapes}") from e
 
             d = red.dim
-            if d is None:
+            if isinstance(d, (tuple, list)):
+                # A contiguous block of reduced axes behaves exactly like one axis
+                # of the product extent, so the index arithmetic is unchanged.
+                ax = sorted((x if x >= 0 else x + len(in_shape)) for x in d)
+                if ax != list(range(ax[0], ax[-1] + 1)):
+                    raise Unsupported(f"reduction over non-contiguous axes {list(d)}")
+                outer = _prod(in_shape[:ax[0]])
+                K = _prod(in_shape[ax[0]:ax[-1] + 1])
+                inner = _prod(in_shape[ax[-1] + 1:])
+                d = ax[0]
+            elif d is None:
                 outer, K, inner = 1, 1, 1
                 for s_ in in_shape:
                     K *= s_
@@ -459,22 +575,33 @@ def lower_reduce(model: nn.Module, example_args: List[Any]) -> Lowered:
             # Coordinates of the *pre-reduction* element this lane contributes:
             # the output index supplies every axis but the reduced one, and `rk`
             # supplies that one.
-            if d is None:
-                full = unpack(I.Rk(), list(in_shape))
-            else:
-                kept = [sz for ax, sz in enumerate(in_shape) if ax != d]
-                oc = unpack(I.Pid(), kept) if kept else []
-                full = oc[:d] + [I.Rk()] + oc[d:]
-            # Each input reads at its own broadcast index: axes of extent one are
-            # pinned to 0, which is what broadcasting means.
+            # Coordinates of the *pre-reduction* element this lane contributes:
+            # the output index supplies every axis but the reduced one, and `rk`
+            # supplies that one. A contiguous block of reduced axes behaves exactly
+            # like one axis of the product extent, so the arithmetic is unchanged.
             offs: List[I.IE] = []
-            for si in in_shapes:
-                if not si:
-                    offs.append(I.Lit(0))
-                    continue
-                tail = full[len(in_shape) - len(si):]
-                sel = [I.Lit(0) if sz == 1 else cc for cc, sz in zip(tail, si)]
-                offs.append(pack(sel, list(si)))
+            if isinstance(red.dim, (tuple, list)):
+                if any(si != in_shape for si in in_shapes):
+                    raise Unsupported("multi-axis reduction with broadcasting inputs")
+                idx = ((I.Pid() // I.Lit(inner)) * I.Lit(K) + I.Rk()) * I.Lit(inner) \
+                      + I.Pid() % I.Lit(inner)
+                offs = [idx] * len(tensor_idx)
+            else:
+                if red.dim is None:
+                    full = unpack(I.Rk(), list(in_shape))
+                else:
+                    kept = [sz for ax, sz in enumerate(in_shape) if ax != d]
+                    oc = unpack(I.Pid(), kept) if kept else []
+                    full = oc[:d] + [I.Rk()] + oc[d:]
+                # Each input reads at its own broadcast index: axes of extent one
+                # are pinned to 0, which is what broadcasting means.
+                for si in in_shapes:
+                    if not si:
+                        offs.append(I.Lit(0))
+                        continue
+                    tail = full[len(in_shape) - len(si):]
+                    sel = [I.Lit(0) if sz == 1 else cc for cc, sz in zip(tail, si)]
+                    offs.append(pack(sel, list(si)))
             base = Lowered(
                 family="genred", body=red.body, arity=len(tensor_idx),
                 out_size=n_out, out_shape=tuple(out_val.shape),
@@ -877,11 +1004,14 @@ def _rownorm_reducers() -> Dict[Any, Callable]:
         return RowRed(x * x, d, S.sqrt)
     T[torch.norm] = _norm
     T[torch.linalg.norm] = _norm
+    for name, fn in (("sum", T[torch.sum]), ("mean", T[torch.mean]),
+                     ("norm", _norm)):
+        T[name] = fn
 
     return T
 
 
-ROWNORM_REDUCERS = _rownorm_reducers()
+ROWNORM_REDUCERS = _add_name_keys(_rownorm_reducers())
 
 # Fused operators that are themselves row normalisations.
 SOFTMAXES = {
@@ -976,16 +1106,16 @@ def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
                 env[node] = (S.exp(x) * S.Recip(red_slot) if softmax_kind == "softmax"
                              else x - S.log(red_slot))
                 stage[node] = "post"
-            elif tgt in ROWNORM_REDUCERS:
+            elif table_get(ROWNORM_REDUCERS, tgt) is not None:
                 if red is not None:
                     raise Unsupported("more than one reduction")
                 if any(st == "post" for st in stages):
                     raise Unsupported("reduction of an already-reduced value")
-                red = ROWNORM_REDUCERS[tgt](a, node)
+                red = table_get(ROWNORM_REDUCERS, tgt)(a, node)
                 env[node] = red_slot     # patched below once K is known
                 stage[node] = "post"
-            elif tgt in POINTWISE_FUNCS:
-                env[node] = POINTWISE_FUNCS[tgt](a, node)
+            elif table_get(POINTWISE_FUNCS, tgt) is not None:
+                env[node] = table_get(POINTWISE_FUNCS, tgt)(a, node)
                 stage[node] = "post" if any(st == "post" for st in stages) else "pre"
             else:
                 raise Unsupported(f"{tgt!r} in a row normalisation")
@@ -1211,6 +1341,9 @@ def lower_maxmin(model: nn.Module, example_args: List[Any]) -> Lowered:
                 if node.args[1] != 0:
                     raise Unsupported("max/min returns (values, indices); "
                                       "only values are handled")
+            elif tgt is getattr and len(node.args) > 1:
+                if node.args[1] != "values":
+                    raise Unsupported(f"max/min result field {node.args[1]!r}")
             else:
                 raise Unsupported(f"{tgt!r} alongside max/min")
         elif node.op == "call_module":
@@ -1415,10 +1548,10 @@ class NormPlan:
 def _norm_plan(mod: nn.Module, sx: Tuple[int, ...]) -> NormPlan:
     q = I.Pid()
     if isinstance(mod, BATCHNORMS + INSTNORMS):
-        if len(sx) < 3:
+        if len(sx) < 2:
             raise Unsupported(f"{type(mod).__name__} on a {len(sx)}-D input")
         N, C = sx[0], sx[1]
-        SP = _prod(sx[2:])
+        SP = _prod(sx[2:])          # 1 when there are no spatial axes
         chan = (q // I.Lit(SP)) % I.Lit(C)
         if isinstance(mod, BATCHNORMS):
             if not mod.training:
@@ -1799,6 +1932,61 @@ def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
         notes=[f"{variant} {'product ' if prod else ''}scan over dim {d} of {sx}: "
                f"{outer} rows, {NB} blocks of {B}"
                + (", masked" if masked else "")])
+
+
+def lower_linear(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower `nn.Linear`: a contraction over the last axis, plus a bias.
+
+    `y[.., o] = sum_k x[.., k] * W[o, k] + b[o]`. The weight is stored `(out, in)`,
+    so its index map contracts along its *second* axis -- the same contraction as a
+    matmul against a transposed operand, and the same theorem.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    lin = None
+    for node in gm.graph.nodes:
+        if node.op == "call_module":
+            sub = gm.get_submodule(node.target)
+            if isinstance(sub, nn.Linear):
+                if lin is not None:
+                    raise Unsupported("more than one Linear")
+                lin, lin_name = sub, node.target
+            else:
+                raise Unsupported(f"module {type(sub).__name__} alongside a Linear")
+        elif node.op in ("call_function", "call_method"):
+            raise Unsupported(f"{node.target!r} alongside a Linear")
+    if lin is None:
+        raise Unsupported("no Linear module")
+
+    x = example_args[0]
+    with torch.no_grad():
+        y = model(*example_args)
+    sx = tuple(x.shape)
+    Cin, Cout = lin.in_features, lin.out_features
+    if sx[-1] != Cin:
+        raise Unsupported(f"input {sx} does not end in {Cin} features")
+    rows = _prod(sx[:-1])
+
+    q = I.Pid()
+    r = q // I.Lit(Cout)
+    o = q % I.Lit(Cout)
+    params = ["weight"]
+    nbuf = 3 if lin.bias is not None else 2
+    post: S.SE = S.Inp(0)
+    post_offs = [I.Lit(0)] * nbuf
+    if lin.bias is not None:
+        params.append("bias")
+        post = S.Bin("add", S.Inp(0), S.Inp(3))
+        post_offs[2] = o
+    return Lowered(
+        family="genred", body=S.Inp(0) * S.Inp(1), arity=nbuf,
+        out_size=y.numel(), out_shape=tuple(y.shape), tensor_arg_index=[0],
+        K=Cin,
+        offs=[r * I.Lit(Cin) + I.Rk(), o * I.Lit(Cin) + I.Rk()] + [I.Lit(0)] * (nbuf - 2),
+        post_offs=post_offs, post=post,
+        param_paths=[f"{lin_name}.{pp}" for pp in params],
+        notes=[f"linear: {rows} rows, {Cin} -> {Cout}"
+               + (" +bias" if lin.bias is not None else "")])
 
 
 def lower_sepconv(model: nn.Module, example_args: List[Any]) -> Lowered:
@@ -2273,9 +2461,9 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
                 raise Unsupported(f"placeholder {ph} is {type(v).__name__}")
             ph += 1
         elif node.op in ("call_function", "call_method"):
-            if node.target in POINTWISE_FUNCS:
+            if table_get(POINTWISE_FUNCS, node.target) is not None:
                 a = [env[x] if isinstance(x, fx.Node) else x for x in node.args]
-                env[node] = POINTWISE_FUNCS[node.target](a, node)
+                env[node] = table_get(POINTWISE_FUNCS, node.target)(a, node)
             elif node.target in ("unsqueeze", "reshape", "view", "squeeze",
                                  torch.unsqueeze, torch.reshape, torch.squeeze):
                 # A reshape of a contiguous tensor preserves row-major order, so the
@@ -2360,7 +2548,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
     lower_maxpool, lower_maxmin, lower_argmaxmin, lower_rownorm, lower_normalize, lower_triplet, lower_cross_entropy, lower_attention,
-    lower_sepconv, lower_scan,
+    lower_sepconv, lower_scan, lower_linear,
     lower_broadcast_pointwise]
 
 

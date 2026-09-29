@@ -234,6 +234,18 @@ def gelu_tanh(x) -> SE:
     return lit(Fraction(1, 2)) * x * (lit(1) + tanh(inner))
 
 
+def mish(x) -> SE:
+    """`x * tanh(softplus(x))`."""
+    x = lift(x)
+    return x * tanh(softplus(x))
+
+
+def hardswish(x) -> SE:
+    """`x * clamp(x + 3, 0, 6) / 6`."""
+    x = lift(x)
+    return x * clamp(x + lit(3), 0, 6) / lit(6)
+
+
 def powi(x, n: int) -> SE:
     """Integer power, as repeated multiplication -- exact, unlike `exp(n log x)`."""
     assert n >= 0
