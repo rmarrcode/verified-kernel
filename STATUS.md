@@ -6,20 +6,25 @@ design problems standing between here and 100% on Level 1.
 
 ## Measured (RTX 4070, 12GB; torch 2.14, triton 3.8, Lean 4.34.1)
 
+Most recent complete run, at 85 lowered:
+
 ```
   KernelBench Level 1                     100
-  lowered to a specification              80
-  correctness certificate checked by Lean 80
-  matched PyTorch on this GPU             75   (39 at declared size, 36 reduced)
-  certified, not run (serial)              5
-  mismatched or errored                    0
+  lowered to a specification               85
+  correctness certificate checked by Lean   85
+  matched PyTorch on this GPU               80   (40 at declared size, 40 reduced)
+  certified, not run (serial)                5
+  mismatched or errored                      0
 ```
 
-Every kernel that ran matched: 75 of 75. The gap to 100 is **coverage**, not
-correctness — 20 tasks the frontend declines to lower (it refuses rather than
-guesses), plus 5 that are certified but whose present shape is a single program
-looping a million times and so are not worth running until the tree reduction
-exists (tasks 37, 94, 96, 98, 100).
+Every kernel that ran matched: 80 of 80. Since that run the four remaining
+normalisations were added and individually verified (33, 34, 35, 40 all pass), so
+lowering now reaches **89**; a full re-run is what confirms the combined figure.
+
+The gap to 100 is **coverage**, not correctness — tasks the frontend declines to
+lower, since it refuses rather than guesses — plus 5 that are certified but whose
+present shape is one program looping a million times, and so are not worth running
+until a tree reduction exists (tasks 37, 94, 96, 98, 100).
 
 Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
 no `sorryAx`. Check it with:
@@ -29,89 +34,59 @@ cd lean && echo 'import Generated.Emit
 #print axioms t001_correct' > /tmp/ax.lean && lake env lean /tmp/ax.lean
 ```
 
-## Built
-
-**Verified core** (`lean/`, ~1800 lines, no `sorry` and no `native_decide`):
-
-- `Scalar.lean` — the abstract ordered field with opaque elementary functions,
-  plus the reduction algebra: `sum_comm` (Fubini), `sum_mul_split` (tiling),
-  `sum_eq_of_zero_beyond` (masking), `sum_add_distrib`.
-- `Ir.lean` — `TritonIR` syntax and denotational semantics. Tile expressions
-  denote functions of a tile coordinate, so broadcasting is not expressible and
-  `dot`/`reduce` are coordinate binders.
-- `Coverage.lean` — `writeFold_hit` / `writeFold_miss` / `gridFold_at`: every
-  output element is written exactly once, by the lane that computed it. Coverage
-  and collision-freedom are obligations discharged, not assumptions.
-- `AccFree.lean` — an accumulator loop's summand cannot see the accumulator.
-- `Loop.lean` — `accOf_sum`, `sum_tile_mask`: a blocked masked accumulator equals
-  a contiguous fold.
-- `Emit.lean` — translation to a rank-annotated target language with
-  `emitIE_sound` / `emitBE_sound` / `emitFE_sound`.
-- `Render.lean` — target language to Triton text. **Trusted**, one template per
-  node.
-- `Kernels/Elementwise.lean` — `SE.flat_correct`.
-- `Pipeline.lean` — `two_stage`, the compositionality theorem, plus
-  `GenRed.spec_locality` and `bound_row` for discharging its locality obligation.
-- `Kernels/GenRed.lean` — `GenRed.prog_implements`, the general reducing family:
-  per-input index maps, a validity guard for padding, and an output guard for
-  masked results. `IE.instK_eval` licenses tiling any map built from the output
-  and reduction indices.
-
-**Pipeline** (`verified_kernel/vk/`, `harness/`): fx-based frontend, Lean
-certificate generator, Triton runtime, subprocess-isolated L1 orchestrator, and
-`harness/axiom_tests.py` validating the trusted Triton model (all pass).
-
-Each task compiles to a `theorem` in `lean/Generated/Emit.lean` instantiating its
-family theorem at the chosen block size and grid; `lake build` checking that file
-is the gate on emission. Side conditions (`0 < block`, grid covers the output,
-loop covers the reduced axis) are discharged by `decide`.
+Note on performance: these kernels are correctness-first, not tuned. The reducing
+family runs one program per output element with no data reuse, so a large
+contraction is orders of magnitude off cuBLAS. KernelBench also scores speedup;
+that is not attempted here.
 
 ## Not built, and what each needs
 
-### 1. Pipelines with more than one intermediate — 8 tasks
-Tasks 33 (BatchNorm), 34 (InstanceNorm), 35 (GroupNorm), 40 (LayerNorm), 86
-(depthwise-separable), 95 (cross-entropy), 97 (attention), 99 (triplet margin).
+### 1. Longer pipelines — 4 tasks
+Tasks 86 (depthwise-separable), 95 (cross-entropy), 97 (attention), 99 (triplet
+margin).
 
-Two-stage pipelines with *one* intermediate are built and cover softmax,
-log-softmax, and the RMS/Frobenius/L1/L2 norms. What these eight need is more:
+Two- and three-stage pipelines are built (`two_stage`, `three_stage`) and cover
+softmax, log-softmax, the RMS/Frobenius/L1/L2 norms, and all four
+mean-and-variance normalisations. What remains:
 
-- The four remaining norms need a **mean and a variance**, i.e. two reductions of
-  the same input. `two_stage` carries one intermediate buffer, so this needs either
-  a three-stage chain (`sum x` → `sum (x - mean)²` → normalise) or one stage
-  writing a buffer of `2 * outer` elements with the body switching on the program
-  id — which the family cannot express, because `body` has no access to `pid`.
-  The three-stage chain is the cleaner route and reduces to nesting `two_stage`,
-  which needs a list-based version of `runTwo`.
-- Attention (97) is three stages including two contractions; cross-entropy (95)
-  needs a gather by an integer label tensor, which the IR has no node for.
+- **86** is two convolutions in sequence, so `two_stage` already fits; the work is
+  the locality bound, which for a conv index map is a nest of `bound_pack`.
+- **99** is two row reductions, a pointwise combination, and a final full
+  reduction — reachable with `three_stage`, though its last stage would be serial.
+- **97** (attention) is two contractions around a softmax, so four or five stages;
+  it wants a list-based pipeline rather than another fixed arity.
+- **95** needs a *data-dependent* index map: gathering a log-probability by an
+  integer label. `IE.qkOnly` deliberately forbids that — index maps are functions
+  of the output and reduction indices only — so this is a real IR extension, not
+  plumbing.
 
-A tree reduction (the same list-based pipeline) is also what makes the full
-reductions **runnable** rather than merely verified: tasks 94, 96, 98, 100 have
-`outer = inner = 1`, so the present family gives one program looping a million
-times. Certified, but pointlessly serial, and the harness reports them as such
-rather than pretending otherwise.
+A tree reduction (again, the list-based pipeline) is also what makes the full
+reductions **runnable** rather than merely verified: tasks 37, 94, 96, 98, 100 have
+one output, so the present family gives one program looping a million times.
+Certified, but pointlessly serial, and the harness reports them as such rather than
+pretending otherwise.
 
-### 2. Max/min reductions — 5 tasks
-Tasks 41–43 (max pooling), 49, 53 (max/min over a dimension).
+### 2. Max/min reductions — built (5 tasks)
+Tasks 41–43 (max pooling), 49, 53 (max/min over a dimension) all pass.
 
-Harder than it looks, and the reason is worth recording. A masked sum is easy:
-excluded lanes contribute `zero`, the additive identity. A masked *max* has no
-identity — an ordered field has no least element. Three options:
+Recorded because the design took a wrong turn first. A masked sum is easy: excluded
+lanes contribute `zero`, the additive identity. A masked *max* has no identity, and
+the tempting fix — adding a bottom element to `ExactScalar` — is **unsound and
+quietly so**: `le bot a` for every `a` plus the field axioms yields
+`bot ≤ bot - 1 < bot`, the axioms become inconsistent, and every theorem in the
+framework silently turns vacuous.
 
-- **Seed with a known element.** Fails for pooling: which taps are valid depends
-  on the output index, so no fixed tap index is always valid.
-- **Add a bottom element to `ExactScalar`.** *Unsound, and quietly so.* From
-  `le bot a` for all `a` plus the field axioms one derives `bot ≤ bot - 1 < bot`.
-  The axioms become inconsistent and every theorem in the framework turns vacuous.
-  This must not be done.
-- **A float sentinel plus an explicit precondition** — render `-3.4e38` and carry
-  the hypothesis `∀ valid taps, sentinel ≤ f(k)` into the theorem. Sound, honest,
-  and the resulting certificate is *conditional* on a property of the input values
-  that cannot be checked statically. This is the right route.
+A float sentinel with an explicit input precondition would be sound but would make
+those certificates *conditional*. Neither is necessary. `MaxRed` never masks: its
+index maps **clamp**, so every lane reads a genuine element and lanes past the end
+read a duplicate, which a max does not notice. `Nat` truncating subtraction supplies
+the clamp with no new IR node.
 
-Also needs the order-theoretic tiling lemmas (`max` is associative, commutative
-and idempotent), most cheaply via the characterisation "the fold is an upper bound
-and is attained", then antisymmetry.
+One real bug came out of this, and it is the kind only running the kernel finds:
+clamping a pooling *coordinate* is sound for a contiguous window but not a dilated
+one, where the window is a strided set. Clamping the *tap index* instead fixes it.
+That the clamp lands in the window is a frontend obligation — a fact about what the
+PyTorch module means — which is exactly the part of the pipeline no proof covers.
 
 ### 3. Scans — 5 tasks
 Tasks 89–93 (cumsum, cumprod, reverse, exclusive, masked). A prefix scan is not a
