@@ -402,11 +402,32 @@ def _prodred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
             for ln in _genred_defs(name, low, block, nkb, nout)]
 
 
+def _drop_kernel_def(lines: List[str]) -> List[str]:
+    """Strip a stage's `ReduceKernel` definition.
+
+    A chain emits its own, with the arity the launcher actually passes; leaving the
+    standalone one in place declares the same name twice.
+    """
+    out, skip = [], False
+    for ln in lines:
+        if ln.startswith("def ") and "_kernel : ReduceKernel" in ln:
+            skip = True
+            continue
+        if skip:
+            if ln.startswith("  {") or ln.startswith("  ,") or ln.startswith("  "):
+                continue
+            skip = False
+        out.append(ln)
+    return out
+
+
 def _stage_defs(name: str, st, block: int, nkb: int, nout: int) -> List[str]:
-    """Emit one pipeline stage, additive or multiplicative."""
+    """Emit one stage, in whichever family it belongs to."""
     if st.family == "prodred":
-        return _prodred_defs(name, st, block, nkb, nout)
-    return _genred_defs(name, st, block, nkb, nout)
+        return _drop_kernel_def(_prodred_defs(name, st, block, nkb, nout))
+    if st.family == "maxred":
+        return _drop_kernel_def(_maxred_defs(name, st, block, nkb, nout))
+    return _drop_kernel_def(_genred_defs(name, st, block, nkb, nout))
 
 
 def _emit_pipeline(inst: "Instance") -> List[str]:
@@ -684,7 +705,8 @@ def _emit_chain(inst: "Instance") -> List[str]:
             f"/-- Stage {j} reads no intermediate past what was written there. -/",
             f"theorem {k}_s{j}_loc {{α : Type}} [ExactScalar α] :",
             f"    SpecLocal {k}_sz ({k}_s{j}_g.spec (α := α)) :=",
-            f"  {fam}.specLocal {k}_s{j}_g {k}_sz",
+            f"  {fam}.specLocal {k}_s{j}_g {k}_sz"
+            + (" (by decide)" if fam == "MaxRed" else ""),
             f"    (fun b nn hn q kk hq hk => by",
             f"      match b, hn with",
         ]

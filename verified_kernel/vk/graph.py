@@ -248,9 +248,13 @@ def buffer_bound(e: I.IE, size: int, nout: int,
     if shape and len(shape) > 1:
         coords = split_pack(e, list(shape))
         if coords is not None:
-            bs = [coord_bound(c, d, nout) for c, d in zip(coords, shape)]
-            if all(b is not None for b in bs):
-                return ("packs", bs, list(shape))
+            # An axis of extent one contributes no structure to the index map (the
+            # identities fold it away), so it must be dropped from the bound chain
+            # too; it does not change the product being bounded.
+            keep = [(c, d) for c, d in zip(coords, shape) if d != 1]
+            bs = [coord_bound(c, d, nout) for c, d in keep]
+            if keep and all(b is not None for b in bs):
+                return ("packs", bs, [d for _, d in keep])
     # A reduction views the buffer it consumes as `[outer, K, inner]` rather than by
     # its logical shape, so try that reading too.
     if isinstance(e, I.Add) and isinstance(e.a, I.Mul) and isinstance(e.a.a, I.Pid):

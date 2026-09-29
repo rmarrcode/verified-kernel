@@ -9,14 +9,71 @@ def _mul_combine(a, b):
 
 
 @triton.jit
-def t019_kernel(out_ptr, in0_ptr):
-    _off = ((tl.program_id(0) * 1024) + tl.arange(0, 1024))
-    _m = (((tl.program_id(0) * 1024) + tl.arange(0, 1024)) < 402653184)
-    _v = tl.maximum(tl.load(in0_ptr + (((tl.program_id(0) * 1024) + tl.arange(0, 1024)) + 0 * tl.arange(0, 1024)), mask=(((tl.program_id(0) * 1024) + tl.arange(0, 1024)) < 402653184), other=0.0), (0.0 * (1.0 / 1.0)))
-    tl.store(out_ptr + _off, _v, mask=_m)
+def t019_s0_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr):
+    _acc0 = tl.zeros([512], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 2):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 512) + tl.arange(0, 512)) < 576) & ((((((((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3) <= ((tl.program_id(0) // 258) % 258)) & (0 == 0)) & (tl.maximum(((tl.program_id(0) // 258) % 258) - ((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3), 0) < 256)) & ((((_lv0 * 512) + tl.arange(0, 512)) % 3) <= (tl.program_id(0) % 258))) & (0 == 0)) & (tl.maximum((tl.program_id(0) % 258) - (((_lv0 * 512) + tl.arange(0, 512)) % 3), 0) < 256))), (tl.load(in0_ptr + ((((((((tl.program_id(0) // 4260096) * 64) + (((((tl.program_id(0) // 66564) % 64) // 64) * 64) + (((_lv0 * 512) + tl.arange(0, 512)) // 9))) * 256) + tl.maximum(((tl.program_id(0) // 258) % 258) - ((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3), 0)) * 256) + tl.maximum((tl.program_id(0) % 258) - (((_lv0 * 512) + tl.arange(0, 512)) % 3), 0)) + 0 * tl.arange(0, 512)), mask=((((_lv0 * 512) + tl.arange(0, 512)) < 576) & ((((((((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3) <= ((tl.program_id(0) // 258) % 258)) & (0 == 0)) & (tl.maximum(((tl.program_id(0) // 258) % 258) - ((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3), 0) < 256)) & ((((_lv0 * 512) + tl.arange(0, 512)) % 3) <= (tl.program_id(0) % 258))) & (0 == 0)) & (tl.maximum((tl.program_id(0) % 258) - (((_lv0 * 512) + tl.arange(0, 512)) % 3), 0) < 256))), other=0.0) * tl.load(in1_ptr + ((((((((((((tl.program_id(0) // 66564) % 64) // 64) * 64) + (((_lv0 * 512) + tl.arange(0, 512)) // 9)) * 64) + (((tl.program_id(0) // 66564) % 64) % 64)) * 3) + ((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3)) * 3) + (((_lv0 * 512) + tl.arange(0, 512)) % 3)) + 0 * tl.arange(0, 512)), mask=((((_lv0 * 512) + tl.arange(0, 512)) < 576) & ((((((((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3) <= ((tl.program_id(0) // 258) % 258)) & (0 == 0)) & (tl.maximum(((tl.program_id(0) // 258) % 258) - ((((_lv0 * 512) + tl.arange(0, 512)) // 3) % 3), 0) < 256)) & ((((_lv0 * 512) + tl.arange(0, 512)) % 3) <= (tl.program_id(0) % 258))) & (0 == 0)) & (tl.maximum((tl.program_id(0) % 258) - (((_lv0 * 512) + tl.arange(0, 512)) % 3), 0) < 256))), other=0.0)), 0.0))
+    _v = (((1.0 * (1.0 / 2.0)) * (tl.sum(_acc0, axis=0) + tl.load(in2_ptr + (((tl.program_id(0) // 66564) % 64))))) * ((1.0 * (1.0 / 1.0)) + tl.erf(((tl.sum(_acc0, axis=0) + tl.load(in2_ptr + (((tl.program_id(0) // 66564) % 64)))) * (1.0 / tl.sqrt((2.0 * (1.0 / 1.0))))))))
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t019_s0(out, ins):
+    grid = (272646144,)
+    t019_s0_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4])
+    return out
+
+
+@triton.jit
+def t019_s1_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr):
+    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 521):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 532512) & True), tl.load(in5_ptr + (tl.maximum(((((((tl.program_id(0) // 8) * 64) + ((tl.program_id(0) % 8) * 8)) + (((_lv0 * 1024) + tl.arange(0, 1024)) // 66564)) * 66564) + (((_lv0 * 1024) + tl.arange(0, 1024)) % 66564)) - tl.maximum(((((((tl.program_id(0) // 8) * 64) + ((tl.program_id(0) % 8) * 8)) + (((_lv0 * 1024) + tl.arange(0, 1024)) // 66564)) * 66564) + (((_lv0 * 1024) + tl.arange(0, 1024)) % 66564)) - 272646143, 0), 0) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 532512) & True), other=0.0), 0.0))
+    _v = tl.sum(_acc0, axis=0)
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t019_s1(out, ins):
+    grid = (512,)
+    t019_s1_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5])
+    return out
+
+
+@triton.jit
+def t019_s2_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr):
+    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 521):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 532512) & True), ((tl.load(in5_ptr + (tl.maximum(((((((tl.program_id(0) // 8) * 64) + ((tl.program_id(0) % 8) * 8)) + (((_lv0 * 1024) + tl.arange(0, 1024)) // 66564)) * 66564) + (((_lv0 * 1024) + tl.arange(0, 1024)) % 66564)) - tl.maximum(((((((tl.program_id(0) // 8) * 64) + ((tl.program_id(0) % 8) * 8)) + (((_lv0 * 1024) + tl.arange(0, 1024)) // 66564)) * 66564) + (((_lv0 * 1024) + tl.arange(0, 1024)) % 66564)) - 272646143, 0), 0) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 532512) & True), other=0.0) - (tl.load(in6_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 532512) & True), other=0.0) * (1.0 * (1.0 / 532512.0)))) * (tl.load(in5_ptr + (tl.maximum(((((((tl.program_id(0) // 8) * 64) + ((tl.program_id(0) % 8) * 8)) + (((_lv0 * 1024) + tl.arange(0, 1024)) // 66564)) * 66564) + (((_lv0 * 1024) + tl.arange(0, 1024)) % 66564)) - tl.maximum(((((((tl.program_id(0) // 8) * 64) + ((tl.program_id(0) % 8) * 8)) + (((_lv0 * 1024) + tl.arange(0, 1024)) // 66564)) * 66564) + (((_lv0 * 1024) + tl.arange(0, 1024)) % 66564)) - 272646143, 0), 0) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 532512) & True), other=0.0) - (tl.load(in6_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 532512) & True), other=0.0) * (1.0 * (1.0 / 532512.0))))), 0.0))
+    _v = tl.sum(_acc0, axis=0)
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t019_s2(out, ins):
+    grid = (512,)
+    t019_s2_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6])
+    return out
+
+
+@triton.jit
+def t019_s3_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr):
+    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 1):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), ((((tl.load(in5_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) - (tl.load(in6_ptr + (tl.maximum((((tl.program_id(0) // 4260096) * 8) + (((tl.program_id(0) // 66564) % 64) // 8)) - tl.maximum((((tl.program_id(0) // 4260096) * 8) + (((tl.program_id(0) // 66564) % 64) // 8)) - 511, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * (1.0 * (1.0 / 532512.0)))) * (1.0 / tl.sqrt(((tl.load(in7_ptr + (tl.maximum((((tl.program_id(0) // 4260096) * 8) + (((tl.program_id(0) // 66564) % 64) // 8)) - tl.maximum((((tl.program_id(0) // 4260096) * 8) + (((tl.program_id(0) // 66564) % 64) // 8)) - 511, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * (1.0 * (1.0 / 532512.0))) + (1.0 * (1.0 / 100000.0)))))) * tl.load(in3_ptr + (((tl.program_id(0) // 66564) % 64) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)) + tl.load(in4_ptr + (((tl.program_id(0) // 66564) % 64) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), 0.0))
+    _v = tl.sum(_acc0, axis=0)
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t019_s3(out, ins):
+    grid = (272646144,)
+    t019_s3_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7])
+    return out
 
 
 def t019(out, ins):
-    grid = (393216,)
-    t019_kernel[grid](out, ins[0])
+    _t0 = torch.empty(272646144, device=ins[0].device, dtype=torch.float32)
+    _t1 = torch.empty(512, device=ins[0].device, dtype=torch.float32)
+    _t2 = torch.empty(512, device=ins[0].device, dtype=torch.float32)
+    t019_s0(_t0, list(ins))
+    t019_s1(_t1, list(ins) + [_t0])
+    t019_s2(_t2, list(ins) + [_t0, _t1])
+    t019_s3(out, list(ins) + [_t0, _t1, _t2])
     return out
