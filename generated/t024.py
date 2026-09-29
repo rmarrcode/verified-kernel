@@ -18,7 +18,7 @@ def t024_s1_kernel(out_ptr, in0_ptr):
 
 
 def t024_s1(out, ins):
-    grid = (1024,)
+    grid = (512,)
     t024_s1_kernel[grid](out, ins[0])
     return out
 
@@ -33,13 +33,13 @@ def t024_s2_kernel(out_ptr, in0_ptr, in1_ptr):
 
 
 def t024_s2(out, ins):
-    grid = (402653184,)
+    grid = (201326592,)
     t024_s2_kernel[grid](out, ins[0], ins[1])
     return out
 
 
 def t024(out, ins):
-    _tmp = torch.empty(1024, device=ins[0].device, dtype=torch.float32)
+    _tmp = torch.empty(512, device=ins[0].device, dtype=torch.float32)
     t024_s1(_tmp, ins)
     t024_s2(out, list(ins) + [_tmp])
     return out

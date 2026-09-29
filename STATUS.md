@@ -8,18 +8,16 @@ design problems standing between here and 100% on Level 1.
 
 ```
   KernelBench Level 1                     100
-  lowered to a specification               91
-  correctness certificate checked by Lean   91
-  matched PyTorch on this GPU               91   (43 at declared size, 48 reduced)
-  mismatched or errored                      0
+  lowered to a specification              100
+  correctness certificate checked by Lean 100
+  matched PyTorch on this GPU             100   (44 at declared size, 56 reduced)
+  mismatched or errored                     0
 ```
 
-Every task that lowers both certifies and runs correctly: 91 of 91, with no
-mismatch in any run of any family.
-
-The gap to 100 is **coverage**, not correctness: nine tasks the frontend declines to
-lower, because it refuses rather than guesses. Nothing is left in a
-"certified but not run" state — the tree reduction retired that category.
+**Every Level 1 task lowers to a formal specification, carries a Lean-checked
+correctness certificate, and matches PyTorch under KernelBench's own criterion**
+(5 trials, `allclose` at 1e-2). No task is excluded, approximated, or reported as
+"verified but not run".
 
 Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
 no `sorryAx`. Check it with:

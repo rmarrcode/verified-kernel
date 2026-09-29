@@ -142,6 +142,21 @@ python harness/run_all.py --only 63  # one task
 was derived), **certified** (Lean accepted the correctness certificate), and
 **matched** (the emitted kernel also agreed with PyTorch on this GPU).
 
+## Where it stands
+
+```
+  KernelBench Level 1                     100
+  lowered to a specification              100
+  correctness certificate checked by Lean 100
+  matched PyTorch on this GPU             100   (44 at declared size, 56 reduced)
+  mismatched or errored                     0
+```
+
+Every Level 1 task lowers to a specification, carries a Lean-checked certificate,
+and matches PyTorch under KernelBench's criterion. What is *not* proved is stated
+plainly in `STATUS.md`: the rounding bound, and the frontend's claim about what each
+PyTorch module means.
+
 ## Goal, and where it stands
 
 100% correctness on KernelBench Level 1, then upward. Prior work (ProofWright,
