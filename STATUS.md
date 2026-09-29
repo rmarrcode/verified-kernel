@@ -41,10 +41,23 @@ is nothing. The surveyed Level 3 chains run to **452 stages** (ResNet101, median
 which is on the order of 200,000 obligations. Each is trivial; the generated Lean is
 not.
 
-The fix is a different formulation, not more plumbing: a lemma keyed on how far a
-stage's index-map list extends, so every buffer it provably never touches is
-discharged once rather than enumerated. The index maps already have the needed
-property -- `offs` is a `List.getD`, so beyond the list it is the constant zero.
+The fix is a different formulation, not more plumbing, and it is worth writing down
+because the obvious version does not work. Keying the lemma on how far a stage's
+index-map *list* extends still leaves one arm per buffer below that point, so a
+linear chain is still quadratic overall.
+
+What does work is making `offs` **sparse**: an if-chain over the buffers a stage
+actually reads, rather than a dense list indexed by buffer number.
+
+```lean
+def offs : Nat → IE := fun b => if b = r1 then e1 else if b = r2 then e2 else .lit 0
+```
+
+Then "every buffer this stage does not read is indexed at 0" is one `simp`, and the
+locality proof case-splits only on `r1` and `r2`. The remaining obligation -- that
+every recorded size is positive -- is one lemma **per chain**, not per stage. A
+452-stage chain becomes roughly 900 small obligations plus one 452-arm lemma, which
+is linear and generated without trouble.
 
 **Operator coverage.** `torch.cat` (DenseNet) is the interesting one: concatenation
 picks each output element from one of several inputs by coordinate, and the family's
