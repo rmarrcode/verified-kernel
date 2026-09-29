@@ -1088,7 +1088,12 @@ def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
                 tensor_arg_index=tensor_idx, stages=[stage1, stage2], n1=n1,
                 K=K, offs=[], post_offs=[],
                 outer=outer, inner=inner,
-                bounds={"l2": ("row", outer, K, inner)},
+                # With `inner = 1` the row map folds to `q / K`, which is the
+                # `bound_div` shape rather than `bound_row`'s. The bound must
+                # describe the map as it is actually built, not as it would look
+                # before the identities are folded.
+                bounds={"l2": (("div", outer, K) if inner == 1
+                               else ("row", outer, K, inner))},
                 notes=[f"row normalisation over dim {red.dim} of {in_shape}: "
                        f"outer={outer} K={K} inner={inner}, intermediate {n1}"])
         else:
