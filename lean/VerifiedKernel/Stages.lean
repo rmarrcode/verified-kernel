@@ -253,4 +253,103 @@ theorem specLocal (g : MaxRed) (sz : Sizes) (hK : 0 < g.K)
 
 end MaxRed
 
+
+
+/-! ## Stating a chain's index maps and sizes sparsely
+
+Everything above is linear in the length of the chain. What is not, unless it is
+said carefully, is the *proof* of a stage's locality obligation. Written the
+obvious way -- one case per buffer, discharged by unfolding the size map -- a
+454-stage network costs a case per buffer per stage, and neither the generated
+text nor the elaborator survives it.
+
+The waste is that the cases are nearly all the same. A stage reads one or two
+buffers; for every other buffer its index map is the constant zero and the bound
+is `0 < n`, which depends on the stage not at all. So the two definitions below
+say only what is particular to a stage, and let the rest be one rewrite. -/
+
+/-- An index map given as a table of the buffers a stage actually reads. Every
+other buffer is indexed at zero, which is what a stage that does not read a buffer
+does. -/
+def IE.sparse : List (Nat × IE) → Nat → IE
+  | [], _ => .lit 0
+  | (i, e) :: rest, b => if b = i then e else IE.sparse rest b
+
+@[simp] theorem IE.sparse_nil (b : Nat) : IE.sparse [] b = .lit 0 := rfl
+
+@[simp] theorem IE.sparse_cons (i : Nat) (e : IE) (rest : List (Nat × IE)) (b : Nat) :
+    IE.sparse ((i, e) :: rest) b = if b = i then e else IE.sparse rest b := rfl
+
+/-- A sparse map is a map of the lane and the reduction index only, provided each
+entry is. The constant-zero default trivially is. -/
+theorem IE.qkOnly_sparse : ∀ (tbl : List (Nat × IE)),
+    tbl.all (fun p => p.2.qkOnly) = true → ∀ b, (IE.sparse tbl b).qkOnly = true
+  | [], _, _ => rfl
+  | (i, e) :: rest, h, b => by
+      simp only [List.all_cons, Bool.and_eq_true] at h
+      by_cases hb : b = i
+      · simpa [IE.sparse, hb] using h.1
+      · simpa [IE.sparse, hb] using IE.qkOnly_sparse rest h.2 b
+
+/-- A stage's index map, split at the first intermediate buffer: the inputs on one
+side, the buffers earlier stages wrote on the other.
+
+The split is what makes "this stage does not read that buffer" a rewrite instead of
+a case. A locality obligation only ever fires for a buffer that was written, which
+is to say one at or above `arity`; on that side the table holds only the one or two
+buffers the stage really reads, and everything else is the constant zero. -/
+def IE.split (arity : Nat) (inp mid : Nat -> IE) : Nat -> IE :=
+  fun b => if b < arity then inp b else mid b
+
+theorem IE.split_ge {arity : Nat} {inp mid : Nat -> IE} {b : Nat} (h : arity <= b) :
+    IE.split arity inp mid b = mid b := by
+  simp [IE.split, Nat.not_lt_of_le h]
+
+theorem IE.qkOnly_split {arity : Nat} {inp mid : Nat -> IE}
+    (hi : forall b, (inp b).qkOnly = true) (hm : forall b, (mid b).qkOnly = true) :
+    forall b, (IE.split arity inp mid b).qkOnly = true := by
+  intro b
+  by_cases h : b < arity
+  . simpa [IE.split, h] using hi b
+  . simpa [IE.split, h] using hm b
+
+/-- The sizes of a chain's intermediates, as a list indexed from the first one.
+Buffers below `arity` are inputs and are not written at all. -/
+def Sizes.ofList (arity : Nat) (l : List Nat) : Sizes :=
+  fun b => if arity ≤ b then l[b - arity]? else none
+
+@[simp] theorem Sizes.ofList_lt {arity : Nat} {l : List Nat} {b : Nat} (h : b < arity) :
+    Sizes.ofList arity l b = none := by
+  simp [Sizes.ofList, Nat.not_le_of_lt h]
+
+theorem Sizes.ofList_ge {arity : Nat} {l : List Nat} {b : Nat} (h : arity ≤ b) :
+    Sizes.ofList arity l b = l[b - arity]? := by
+  simp [Sizes.ofList, h]
+
+/-- A locality obligation only fires for a buffer something has written, and those
+are exactly the buffers at or above the chain's arity. -/
+theorem Sizes.ofList_le {arity : Nat} {l : List Nat} {b n : Nat}
+    (h : Sizes.ofList arity l b = some n) : arity <= b := by
+  by_cases hb : arity <= b
+  . exact hb
+  . rw [Sizes.ofList_lt (Nat.lt_of_not_le hb)] at h; exact absurd h (by simp)
+
+/-- Reading one recorded size back, for the buffers a stage does read. -/
+theorem Sizes.ofList_some {arity : Nat} {l : List Nat} {b n m : Nat}
+    (hb : arity ≤ b) (hm : l[b - arity]? = some m)
+    (h : Sizes.ofList arity l b = some n) : n = m := by
+  rw [Sizes.ofList_ge hb, hm] at h
+  exact (Option.some.inj h).symm
+
+/-- Every recorded size is positive. One fact per chain, and the only thing a
+stage needs to know about the buffers it does not read. -/
+theorem Sizes.ofList_pos {arity : Nat} {l : List Nat} (hl : l.all (fun n => 0 < n) = true) :
+    ∀ b n, Sizes.ofList arity l b = some n → 0 < n := by
+  intro b n hb
+  by_cases h : arity ≤ b
+  · rw [Sizes.ofList_ge h] at hb
+    have hmem : n ∈ l := List.mem_of_getElem? hb
+    simpa using (List.all_eq_true.mp hl) n hmem
+  · rw [Sizes.ofList_lt (Nat.lt_of_not_le h)] at hb; exact absurd hb (by simp)
+
 end VerifiedKernel

@@ -68,7 +68,19 @@ def load(num: int, name: str, path: str) -> Task:
 
 
 def all_tasks(level: Optional[int] = None) -> List[Task]:
-    return [load(n, nm, p) for n, nm, p in task_files(level)]
+    """Every task at a level, skipping any whose module will not even import.
+
+    A task that needs a package this machine does not have is a task that cannot be
+    lowered, which is a result. It is not a reason for the run to stop before it
+    reaches the other forty-nine.
+    """
+    out = []
+    for n, nm, p in task_files(level):
+        try:
+            out.append(load(n, nm, p))
+        except Exception as e:
+            print(f"[load] skipping {n} {nm}: {type(e).__name__}: {e}", flush=True)
+    return out
 
 
 def fake_instance(task: Task):

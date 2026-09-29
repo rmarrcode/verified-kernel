@@ -154,6 +154,12 @@ def emit_lean(instances: List[Instance]) -> str:
         "",
         "open VerifiedKernel",
         "",
+        "-- A chain of several hundred stages puts a list of that length in front of",
+        "-- the elaborator. Recursion depth is an elaboration limit, not a checking",
+        "-- one: raising it changes nothing about what counts as a proof, and the",
+        "-- kernel still checks every term. `#print axioms` remains the real test.",
+        "set_option maxRecDepth 100000",
+        "",
     ]
     for inst in instances:
         k, low = inst.key, inst.low
@@ -180,10 +186,10 @@ def emit_lean(instances: List[Instance]) -> str:
                 f"--   {'; '.join(low.notes)}",
                 f"def {k}_g : GenRed :=",
                 f"  {{ nout := {inst.out_size}, K := {low.K}",
-                f"  , offs := fun b => ({I.lean_list(low.offs)}).getD b (IE.lit 0)",
+                f"  , offs := {_sparse_offs(low.offs, split_at)}",
                 f"  , inRange := {low.in_range.to_lean()}",
                 f"  , body := {low.body.to_lean()}",
-                f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
+                f"  , postOffs := {_sparse_offs(low.post_offs, split_at)}",
                 f"  , post := {low.post.to_lean()}",
                 f"  , outGuard := {low.out_guard.to_lean()}",
                 f"  , nInp := {low.arity}, idxSlot := {low.idx_slot} }}",
@@ -192,8 +198,8 @@ def emit_lean(instances: List[Instance]) -> str:
                 "",
                 f"/-- Index maps mention only the output and reduction indices. -/",
                 f"theorem {k}_wf : {k}_g.Wf :=",
-                f"  {{ offs_ok := IE.qkOnly_getD _ (by decide)",
-                f"  , post_ok := IE.qkOnly_getD _ (by decide)",
+                f"  {{ offs_ok := {_qk(split_at)}",
+                f"  , post_ok := {_qk(split_at)}",
                 f"  , range_ok := by decide",
                 f"  , guard_ok := by decide }}",
                 "",
@@ -242,16 +248,47 @@ def emit_lean(instances: List[Instance]) -> str:
     return "\n".join(out)
 
 
-def _genred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
+def _qk(split_at) -> str:
+    """The well-formedness proof for an index map, in whichever shape it was
+    emitted."""
+    if split_at is None:
+        return "IE.qkOnly_sparse _ (by decide)"
+    return ("IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) "
+            "(IE.qkOnly_sparse _ (by decide))")
+
+
+def _sparse_offs(lst, arity: int = None) -> str:
+    """An index map as a table of the buffers it actually indexes.
+
+    Identical in meaning to the dense list -- a buffer left out is indexed at zero,
+    which is exactly what a zero entry says -- but for a chain of hundreds of
+    buffers it is the difference between a line per buffer and a line per read.
+
+    Given an arity, the table is split there. A locality obligation only ever fires
+    for a buffer at or above it, so the split lets a stage's proof mention the one
+    or two intermediates it reads and nothing else.
+    """
+    from . import ie as I
+    def tbl(lo, hi):
+        es = [(b, e) for b, e in enumerate(lst)
+              if lo <= b < hi and not (isinstance(e, I.Lit) and e.n == 0)]
+        return "IE.sparse [" + ", ".join(f"({b}, {e.to_lean()})" for b, e in es) + "]"
+    if arity is None:
+        return tbl(0, len(lst))
+    return f"(IE.split {arity} ({tbl(0, arity)}) ({tbl(arity, len(lst))}))"
+
+
+def _genred_defs(name: str, low, block: int, nkb: int, nout: int,
+                 split_at: int = None) -> List[str]:
     """The `GenRed` value, its well-formedness, and its correctness certificate."""
     from . import ie as I
     return [
         f"def {name}_g : GenRed :=",
         f"  {{ nout := {nout}, K := {low.K}",
-        f"  , offs := fun b => ({I.lean_list(low.offs)}).getD b (IE.lit 0)",
+        f"  , offs := {_sparse_offs(low.offs, split_at)}",
         f"  , inRange := {low.in_range.to_lean()}",
         f"  , body := {low.body.to_lean()}",
-        f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
+        f"  , postOffs := {_sparse_offs(low.post_offs, split_at)}",
         f"  , post := {low.post.to_lean()}",
         f"  , outGuard := {low.out_guard.to_lean()}",
         f"  , nInp := {low.arity}, idxSlot := {low.idx_slot} }}",
@@ -259,8 +296,8 @@ def _genred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
         f"def {name}_nkb : Nat := {nkb}",
         "",
         f"theorem {name}_wf : {name}_g.Wf :=",
-        f"  {{ offs_ok := IE.qkOnly_getD _ (by decide)",
-        f"  , post_ok := IE.qkOnly_getD _ (by decide)",
+        f"  {{ offs_ok := {_qk(split_at)}",
+        f"  , post_ok := {_qk(split_at)}",
         f"  , range_ok := by decide",
         f"  , guard_ok := by decide }}",
         "",
@@ -272,23 +309,24 @@ def _genred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
     ]
 
 
-def _maxred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
+def _maxred_defs(name: str, low, block: int, nkb: int, nout: int,
+                 split_at: int = None) -> List[str]:
     """The `MaxRed` value, its well-formedness, and its correctness certificate."""
     from . import ie as I
     return [
         f"def {name}_g : MaxRed :=",
         f"  {{ nout := {nout}, K := {low.K}",
-        f"  , offs := fun b => ({I.lean_list(low.offs)}).getD b (IE.lit 0)",
+        f"  , offs := {_sparse_offs(low.offs, split_at)}",
         f"  , body := {low.body.to_lean()}",
-        f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
+        f"  , postOffs := {_sparse_offs(low.post_offs, split_at)}",
         f"  , post := {low.post.to_lean()}",
         f"  , nInp := {low.arity}, idxSlot := {low.idx_slot} }}",
         f"def {name}_block : Nat := {block}",
         f"def {name}_nkb : Nat := {nkb}",
         "",
         f"theorem {name}_wf : {name}_g.Wf :=",
-        f"  {{ offs_ok := IE.qkOnly_getD _ (by decide)",
-        f"  , post_ok := IE.qkOnly_getD _ (by decide) }}",
+        f"  {{ offs_ok := {_qk(split_at)}",
+        f"  , post_ok := {_qk(split_at)} }}",
         "",
         f"theorem {name}_impl {{α : Type}} [ExactScalar α] :",
         f"    Implements ({name}_g.prog {name}_block {name}_nkb) ({name}_g.spec (α := α)) :=",
@@ -367,17 +405,17 @@ def _emit_maxred(inst: "Instance") -> List[str]:
         f"--   {'; '.join(low.notes)}",
         f"def {k}_g : MaxRed :=",
         f"  {{ nout := {inst.out_size}, K := {low.K}",
-        f"  , offs := fun b => ({I.lean_list(low.offs)}).getD b (IE.lit 0)",
+        f"  , offs := {_sparse_offs(low.offs, split_at)}",
         f"  , body := {low.body.to_lean()}",
-        f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
+        f"  , postOffs := {_sparse_offs(low.post_offs, split_at)}",
         f"  , post := {low.post.to_lean()}",
         f"  , nInp := {low.arity}, idxSlot := {low.idx_slot} }}",
         f"def {k}_block : Nat := {block}",
         f"def {k}_nkb : Nat := {nkb}",
         "",
         f"theorem {k}_wf : {k}_g.Wf :=",
-        f"  {{ offs_ok := IE.qkOnly_getD _ (by decide)",
-        f"  , post_ok := IE.qkOnly_getD _ (by decide) }}",
+        f"  {{ offs_ok := {_qk(split_at)}",
+        f"  , post_ok := {_qk(split_at)} }}",
         "",
         f"/-- Correctness certificate for {k}. -/",
         f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
@@ -395,7 +433,8 @@ def _emit_maxred(inst: "Instance") -> List[str]:
     ]
 
 
-def _prodred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
+def _prodred_defs(name: str, low, block: int, nkb: int, nout: int,
+                  split_at: int = None) -> List[str]:
     """The `ProdRed` value and its certificate -- `_genred_defs` multiplicatively."""
     return [ln.replace("GenRed", "ProdRed").replace("init := FE.zeroC",
                                                     "init := FE.oneC")
@@ -433,13 +472,14 @@ def _drop_kernel_def(lines: List[str]) -> List[str]:
     return out
 
 
-def _stage_defs(name: str, st, block: int, nkb: int, nout: int) -> List[str]:
+def _stage_defs(name: str, st, block: int, nkb: int, nout: int,
+                split_at: int = None) -> List[str]:
     """Emit one stage, in whichever family it belongs to."""
     if st.family == "prodred":
-        return _drop_kernel_def(_prodred_defs(name, st, block, nkb, nout))
+        return _drop_kernel_def(_prodred_defs(name, st, block, nkb, nout, split_at))
     if st.family == "maxred":
-        return _drop_kernel_def(_maxred_defs(name, st, block, nkb, nout))
-    return _drop_kernel_def(_genred_defs(name, st, block, nkb, nout))
+        return _drop_kernel_def(_maxred_defs(name, st, block, nkb, nout, split_at))
+    return _drop_kernel_def(_genred_defs(name, st, block, nkb, nout, split_at))
 
 
 def _emit_pipeline(inst: "Instance") -> List[str]:
@@ -697,49 +737,54 @@ def _emit_chain(inst: "Instance") -> List[str]:
     out: List[str] = [
         f"-- {k}: a chain of {n} stage(s), {A} input buffer(s)",
         f"--   {'; '.join(low.notes[:3]) if low.notes else ''}",
-        f"def {k}_sz : Sizes",
+        # A list rather than a match on each buffer: the positivity of every
+        # recorded size is then one fact for the whole chain, instead of one case
+        # per buffer inside every stage's locality proof.
+        f"def {k}_sizes : List Nat := [{', '.join(str(x) for x in low.sizes)}]",
+        f"def {k}_sz : Sizes := Sizes.ofList {A} {k}_sizes",
+        f"theorem {k}_sz_pos : \u2200 b n, {k}_sz b = some n \u2192 0 < n :=",
+        f"  Sizes.ofList_pos (by decide)",
+        "",
     ]
-    for j, sz in enumerate(low.sizes):
-        out.append(f"  | {A + j} => some {sz}")
-    out += ["  | _ => none", ""]
 
     for j, st in enumerate(low.stages):
         b = choose_block_red(st.K)
-        out += _stage_defs(f"{k}_s{j}", st, b, (st.K + b - 1) // b, st.out_size)
+        out += _stage_defs(f"{k}_s{j}", st, b, (st.K + b - 1) // b, st.out_size, A)
 
-    # one locality fact per stage
+    # One locality fact per stage, and inside it one case per buffer the stage
+    # actually reads -- not one per buffer in the chain. Every other buffer is the
+    # constant-zero map, where the bound is `0 < n` and holds of any recorded size.
     for j, st in enumerate(low.stages):
         fam = FAM_LEAN[st.family]
-        hb1 = " ".join(
-            f"| {A + i} => fun _ _ hn q k hq hk => {_chain_bound(st, 'b', A + i, low)}"
-            for i in range(n))
         out += [
             f"/-- Stage {j} reads no intermediate past what was written there. -/",
             f"theorem {k}_s{j}_loc {{α : Type}} [ExactScalar α] :",
             f"    SpecLocal {k}_sz ({k}_s{j}_g.spec (α := α)) :=",
             f"  {fam}.specLocal {k}_s{j}_g {k}_sz"
             + (" (by decide)" if fam == "MaxRed" else ""),
-            f"    (fun b nn hn q kk hq hk => by",
-            f"      match b, hn with",
         ]
-        # every index is enumerated so that the size function reduces in each arm;
-        # a bare wildcard leaves `sz b` stuck on a variable
-        for i in range(A):
-            out.append(f"      | {i}, hn => simp [{k}_sz] at hn")
-        for i in range(n):
-            out.append(f"      | {A + i}, hn => simp [{k}_sz] at hn; subst hn; "
-                       f"exact {_chain_bound(low.stages[j], 'b', A + i, low)}")
-        out += [
-            f"      | (_ + {A + n}), hn => simp [{k}_sz] at hn)",
-            f"    (fun b nn hn q hq => by",
-            f"      match b, hn with",
-        ]
-        for i in range(A):
-            out.append(f"      | {i}, hn => simp [{k}_sz] at hn")
-        for i in range(n):
-            out.append(f"      | {A + i}, hn => simp [{k}_sz] at hn; subst hn; "
-                       f"exact {_chain_bound(low.stages[j], 'p', A + i, low)}")
-        out += [f"      | (_ + {A + n}), hn => simp [{k}_sz] at hn)", ""]
+        for tag, field in (("b", "offs"), ("p", "postOffs")):
+            reads = _chain_reads(st, tag, A, n)
+            args = "q kk hq hk" if tag == "b" else "q hq"
+            out.append(f"    (fun b nn hn {args} => by")
+            for i in reads:
+                out += [
+                    f"      by_cases h{i} : b = {i}",
+                    f"      · subst h{i}",
+                    f"        have hs : nn = {low.sizes[i - A]} :=",
+                    f"          Sizes.ofList_some (by decide) (by decide) hn",
+                    f"        subst hs",
+                    f"        exact {_chain_bound(st, tag, i, low)}",
+                ]
+            neg = "".join(f", h{i}" for i in reads)
+            out += [
+                f"      have hb : {A} \u2264 b := Sizes.ofList_le hn",
+                f"      have hz : {k}_s{j}_g.{field} b = IE.lit 0 := by",
+                f"        simp [{k}_s{j}_g, IE.split_ge hb, IE.sparse{neg}]",
+                f"      rw [hz]",
+                f"      exact {k}_sz_pos b nn hn)",
+            ]
+        out.append("")
 
     stage_list = ", ".join(
         f"⟨{k}_s{j}_g.prog {k}_s{j}_block {k}_s{j}_nkb, {k}_s{j}_g.spec (α := α), {A + j}⟩"
@@ -805,6 +850,20 @@ def _emit_chain(inst: "Instance") -> List[str]:
         "",
     ]
     return out
+
+
+def _chain_reads(st, tag: str, arity: int, nstages: int) -> List[int]:
+    """Which intermediate buffers this stage's index map actually reads.
+
+    A stage that does not read a buffer maps it to the constant zero, and the
+    locality bound there is `0 < n`, which every recorded size satisfies. Listing
+    only the rest is what keeps a chain's proof linear in its length rather than
+    quadratic.
+    """
+    from . import ie as I
+    lst = st.offs if tag == "b" else st.post_offs
+    return [b for b in range(arity, arity + nstages)
+            if b < len(lst) and not (isinstance(lst[b], I.Lit) and lst[b].n == 0)]
 
 
 def _chain_bound(st, tag: str, buf: int, low) -> str:

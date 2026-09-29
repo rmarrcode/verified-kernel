@@ -239,6 +239,10 @@ POINTWISE_MODULES: Dict[type, Callable] = {
     nn.ELU: lambda m, a: S.elu(a[0], m.alpha),
     nn.LeakyReLU: lambda m, a: S.leaky_relu(a[0], m.negative_slope),
     nn.Hardtanh: lambda m, a: S.hardtanh(a[0], m.min_val, m.max_val),
+    # `ReLU6` *is* a `Hardtanh` by inheritance, but the table is keyed on the
+    # exact type, so it needs its own entry. Its bounds come from the module
+    # rather than being written in, since that is where they live.
+    nn.ReLU6: lambda m, a: S.hardtanh(a[0], m.min_val, m.max_val),
     nn.GELU: lambda m, a: (S.gelu_tanh(a[0]) if getattr(m, "approximate", "none") == "tanh"
                            else S.gelu_exact(a[0])),
     nn.Mish: lambda m, a: S.mish(a[0]),
