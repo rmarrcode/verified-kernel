@@ -6,18 +6,16 @@ design problems standing between here and 100% on Level 1.
 
 ## Measured (RTX 4070, 12GB; torch 2.14, triton 3.8, Lean 4.34.1)
 
-```
-  KernelBench Level 1                     100
-  lowered to a specification              100
-  correctness certificate checked by Lean 100
-  matched PyTorch on this GPU             100   (44 at declared size, 56 reduced)
-  mismatched or errored                     0
-```
+| Level | Tasks | Lowered | Certified by Lean | Matched PyTorch |
+|---|---|---|---|---|
+| 1 — single operators | 100 | 100 | **100** | **100** |
+| 2 — fused chains | 100 | 100 | **100** | see run summary |
+| 3 — whole architectures | 50 | 13 | — | — |
+| 4 — HuggingFace models | 20 | — | — | — |
 
-**Every Level 1 task lowers to a formal specification, carries a Lean-checked
-correctness certificate, and matches PyTorch under KernelBench's own criterion**
-(5 trials, `allclose` at 1e-2). No task is excluded, approximated, or reported as
-"verified but not run".
+Level 1 is complete: every task lowers to a formal specification, carries a
+Lean-checked correctness certificate, and matches PyTorch under KernelBench's own
+criterion (5 trials, `allclose` at 1e-2).
 
 Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
 no `sorryAx`. Check it with:
@@ -29,8 +27,37 @@ cd lean && echo 'import Generated.Emit
 
 Note on performance: these kernels are correctness-first, not tuned. The reducing
 family runs one program per output element with no data reuse, so a large
-contraction is orders of magnitude off cuBLAS. KernelBench also scores speedup;
-that is not attempted here.
+contraction is orders of magnitude off cuBLAS. KernelBench also scores speedup; that
+is not attempted here.
+
+## Level 3, and why it is not simply more of the same
+
+Two blockers, one structural.
+
+**The locality obligation is quadratic in the chain length.** `stages_correct` asks
+each stage to prove it reads no intermediate buffer past what was written there --
+one fact per (stage, buffer) pair. At Level 2 the chains are 1 to 9 stages and that
+is nothing. The surveyed Level 3 chains run to **452 stages** (ResNet101, median 21),
+which is on the order of 200,000 obligations. Each is trivial; the generated Lean is
+not.
+
+The fix is a different formulation, not more plumbing: a lemma keyed on how far a
+stage's index-map list extends, so every buffer it provably never touches is
+discharged once rather than enumerated. The index maps already have the needed
+property -- `offs` is a `List.getD`, so beyond the list it is the constant zero.
+
+**Operator coverage.** `torch.cat` (DenseNet) is the interesting one: concatenation
+picks each output element from one of several inputs by coordinate, and the family's
+summand has a single shared mask rather than one per input slot. A per-slot guard in
+`GenRed` would express it, at the cost of touching that proof again. Also missing:
+`transpose`, `ReLU6`, `einsum`; two tasks need `einops`, and two have data-dependent
+control flow that `fx` cannot trace at all.
+
+## Level 4
+
+Not reachable on this machine: `transformers` is not installed, and the 20 tasks are
+traced HuggingFace models, which need `transformers.utils.fx` rather than plain
+symbolic tracing.
 
 ## Built
 

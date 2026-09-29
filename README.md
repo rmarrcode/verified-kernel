@@ -144,18 +144,23 @@ was derived), **certified** (Lean accepted the correctness certificate), and
 
 ## Where it stands
 
-```
-  KernelBench Level 1                     100
-  lowered to a specification              100
-  correctness certificate checked by Lean 100
-  matched PyTorch on this GPU             100   (44 at declared size, 56 reduced)
-  mismatched or errored                     0
-```
+| Level | Tasks | Lowered | Certified by Lean | Matched PyTorch |
+|---|---|---|---|---|
+| 1 — single operators | 100 | 100 | **100** | **100** |
+| 2 — fused chains | 100 | 100 | **100** | see `STATUS.md` |
+| 3 — whole architectures | 50 | 13 | — | — |
+| 4 — HuggingFace models | 20 | — | — | — |
 
-Every Level 1 task lowers to a specification, carries a Lean-checked certificate,
-and matches PyTorch under KernelBench's criterion. What is *not* proved is stated
-plainly in `STATUS.md`: the rounding bound, and the frontend's claim about what each
-PyTorch module means.
+Level 1 is complete. Level 2 needed one new idea -- `stages_correct`, a
+compositionality theorem over a *list* of stages -- and a compiler that walks a
+traced graph emitting them; each non-pointwise node is lowered by the *same* Level 1
+frontend and relocated into the chain's buffer numbering, so a convolution in a
+chain is the same `GenRed`, at the same theorem, as a convolution on its own.
+
+Level 3 is not simply more of the same, and `STATUS.md` says why: its chains reach
+452 stages, and the locality obligation as currently stated is quadratic in chain
+length. What is *not* proved anywhere is stated there too -- the rounding bound, and
+the frontend's claim about what each PyTorch module means.
 
 ## Goal, and where it stands
 
