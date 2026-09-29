@@ -650,6 +650,9 @@ def unpack(idx: I.IE, dims: List[int]) -> List[I.IE]:
     """
     out: List[I.IE] = []
     for d in range(len(dims)):
+        if dims[d] == 1:
+            out.append(I.Lit(0))       # an axis of extent one has one coordinate
+            continue
         stride = _prod(dims[d + 1:])
         e = idx if stride == 1 else idx // I.Lit(stride)
         if d != 0:
@@ -756,15 +759,21 @@ def lower_conv(model: nn.Module, example_args: List[Any]) -> Lowered:
     guards: List[I.BE] = []
     in_spatial: List[I.IE] = []
     if not transposed:
-        grp = oc // I.Lit(CoutG)
-        ic_abs = grp * I.Lit(CinG) + cp
+        # With one group the group index is identically zero (`oc < Cout`), and with
+        # no padding the subtraction is the identity. Dropping both keeps the index
+        # map in a shape whose bounds are provable when it feeds a later stage.
+        ic_abs = cp if g == 1 else (oc // I.Lit(CoutG)) * I.Lit(CinG) + cp
         for d in range(rank):
             t = o[d] * I.Lit(stride[d]) + kk[d] * I.Lit(dil[d])
             # `t - pad` is exact only where `pad <= t`; the guard, not the
             # subtraction, is what excludes the padded taps.
-            guards.append(I.le(I.Lit(pad[d]), t))
-            guards.append(I.lt(t, I.Lit(Din[d] + pad[d])))
-            in_spatial.append(t - I.Lit(pad[d]))
+            if pad[d]:
+                guards.append(I.le(I.Lit(pad[d]), t))
+                guards.append(I.lt(t, I.Lit(Din[d] + pad[d])))
+                in_spatial.append(t - I.Lit(pad[d]))
+            else:
+                guards.append(I.lt(t, I.Lit(Din[d])))
+                in_spatial.append(t)
         w_dims = [Cout, CinG] + Dk
         w_coords = [oc, cp] + list(kk)
     else:
@@ -1511,6 +1520,108 @@ def tree_split(low: Lowered, partials: int = TREE_PARTIALS) -> Lowered:
         notes=low.notes + [f"tree reduction: {K} elements -> {partials} partials"])
 
 
+def lower_sepconv(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower a depthwise-separable convolution: a depthwise conv then a pointwise
+    one, as two stages.
+
+    Both stages are ordinary members of the reducing family, so `two_stage` composes
+    them directly. The work is the locality bound: stage 2 reads the intermediate at
+    a rank-4 row-major index, so the obligation is a fold of `bound_pack` over its
+    coordinates -- which is why the index maps are built with the `Nat` identities
+    folded (`x*1 + 0` must be *syntactically* `x` for the lemma to apply).
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    convs: List[Tuple[str, nn.Module]] = []
+    for node in gm.graph.nodes:
+        if node.op == "call_module":
+            sub = gm.get_submodule(node.target)
+            if isinstance(sub, nn.Conv2d):
+                convs.append((node.target, sub))
+            else:
+                raise Unsupported(f"module {type(sub).__name__} in a separable conv")
+        elif node.op in ("call_function", "call_method"):
+            raise Unsupported(f"{node.target!r} in a separable conv")
+    if len(convs) != 2:
+        raise Unsupported(f"expected two convolutions, found {len(convs)}")
+    (dw_name, dw), (pw_name, pw) = convs
+    if dw.groups != dw.in_channels or dw.out_channels != dw.in_channels:
+        raise Unsupported("first convolution is not depthwise")
+    if tuple(pw.kernel_size) != (1, 1) or pw.groups != 1:
+        raise Unsupported("second convolution is not pointwise")
+    if dw.bias is not None or pw.bias is not None:
+        raise Unsupported("separable convolution with bias")
+
+    x = example_args[0]
+    with torch.no_grad():
+        mid = dw(x)
+        y = model(*example_args)
+    N, Cin = x.shape[0], x.shape[1]
+    Hin, Win = x.shape[2], x.shape[3]
+    Hm, Wm = mid.shape[2], mid.shape[3]
+    Cout = y.shape[1]
+    kh, kw = dw.kernel_size
+    sh, sw = _tup(dw.stride, 2)
+    ph, pw_ = _tup(dw.padding, 2)
+    dh, dw_ = _tup(dw.dilation, 2)
+
+    W1, W2, T1 = 1, 2, 3
+    nbuf = 4
+
+    def pad(entries: Dict[int, I.IE]) -> List[I.IE]:
+        return [entries.get(b, I.Lit(0)) for b in range(nbuf)]
+
+    # --- stage 1: the depthwise convolution, writing N x Cin x Hm x Wm
+    q1 = I.Pid()
+    c1 = unpack(q1, [N, Cin, Hm, Wm])
+    n1c, ch1, oh1, ow1 = c1
+    kk1 = unpack(I.Rk(), [kh, kw])
+    g1: List[I.BE] = []
+    sp1: List[I.IE] = []
+    for (od, st, pd, dl, din, kd) in ((oh1, sh, ph, dh, Hin, kk1[0]),
+                                      (ow1, sw, pw_, dw_, Win, kk1[1])):
+        t = od * I.Lit(st) + kd * I.Lit(dl)
+        if pd:
+            g1.append(I.le(I.Lit(pd), t))
+            g1.append(I.lt(t, I.Lit(din + pd)))
+            sp1.append(t - I.Lit(pd))
+        else:
+            g1.append(I.lt(t, I.Lit(din)))
+            sp1.append(t)
+    s1 = Lowered(
+        family="genred", body=S.Inp(0) * S.Inp(W1), arity=W1 + 1,
+        out_size=N * Cin * Hm * Wm, out_shape=(N, Cin, Hm, Wm),
+        tensor_arg_index=[0], K=kh * kw,
+        offs=pad({0: pack([n1c, ch1] + sp1, [N, Cin, Hin, Win]),
+                  W1: pack([ch1, I.Lit(0)] + list(kk1), [Cin, 1, kh, kw])}),
+        post_offs=pad({}), in_range=I.all_of(g1), post=S.Inp(0),
+        notes=[f"stage 1: depthwise conv, {N}x{Cin}x{Hm}x{Wm} intermediate"])
+
+    # --- stage 2: the pointwise convolution, reading the intermediate
+    q2 = I.Pid()
+    c2 = unpack(q2, [N, Cout, Hm, Wm])
+    n2c, oc2, oh2, ow2 = c2
+    s2 = Lowered(
+        family="genred", body=S.Inp(T1) * S.Inp(W2), arity=nbuf,
+        out_size=y.numel(), out_shape=tuple(y.shape), tensor_arg_index=[0],
+        K=Cin,
+        offs=pad({T1: pack([n2c, I.Rk(), oh2, ow2], [N, Cin, Hm, Wm]),
+                  W2: pack([oc2, I.Rk()], [Cout, Cin])}),
+        post_offs=pad({}), post=S.Inp(0),
+        notes=["stage 2: pointwise conv over the intermediate's channels"])
+
+    return Lowered(
+        family="pipeline", body=s2.body, arity=3,
+        out_size=y.numel(), out_shape=tuple(y.shape), tensor_arg_index=[0],
+        stages=[s1, s2], n1=N * Cin * Hm * Wm, K=kh * kw,
+        param_paths=[f"{dw_name}.weight", f"{pw_name}.weight"],
+        bounds={"l2": ("packs",
+                       [("div", N, Cout * Hm * Wm), ("hk",), ("mod", Hm), ("mod", Wm)],
+                       [N, Cin, Hm, Wm])},
+        notes=[f"depthwise-separable conv: {N}x{Cin}x{Hin}x{Win} -> "
+               f"{N}x{Cin}x{Hm}x{Wm} -> {tuple(y.shape)}"])
+
+
 def lower_triplet(model: nn.Module, example_args: List[Any]) -> Lowered:
     """Lower `nn.TripletMarginLoss` as three stages.
 
@@ -1784,6 +1895,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
     lower_maxpool, lower_maxmin, lower_rownorm, lower_normalize, lower_triplet,
+    lower_sepconv,
     lower_broadcast_pointwise]
 
 

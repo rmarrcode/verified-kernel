@@ -363,20 +363,60 @@ def _emit_pipeline(inst: "Instance") -> List[str]:
     return out
 
 
-def _bound_proof(sb: Tuple) -> str:
-    """The proof term bounding one stage's reads of an intermediate buffer.
-
-    Which lemma applies is a fact about the *shape*, so the generator records it
-    during lowering rather than rediscovering it here. The trivial cases are the
-    common ones: a tree reduction's second stage reads at `rk` and already has
-    `k < K` as a hypothesis; a stage that does not read a buffer at all indexes it
-    at 0.
+def _bound_atom(sb: Tuple) -> str:
+    """Proof that one *coordinate* of an index map is below its extent.
 
     Every implicit argument is supplied explicitly. Left to inference they become
     metavariables Lean must solve against a *numeral* -- `67108864 =?= ?a * ?d` has
     no unique solution, so inference either fails or drives the kernel into a deep
-    unfolding. `hq : q < nout` and `hk : k < K` are then accepted directly, since
-    each is definitionally the numeral the lemma wants.
+    unfolding. `hq : q < nout` and `hk : k < K` are accepted directly, since each is
+    definitionally the numeral the lemma wants.
+    """
+    kind = sb[0]
+    if kind == "hq":
+        return "hq"
+    if kind == "hk":
+        return "hk"
+    if kind == "zerolt":
+        return f"(by decide : (0 : Nat) < {sb[1]})"
+    if kind == "div":
+        _, n, span = sb
+        return f"(bound_div (a := {n}) (d := {span}) hq)"
+    if kind == "mod":
+        c = sb[1]
+        return f"(bound_mod (c := {c}) (by decide : (0 : Nat) < {c}))"
+    if kind == "row":
+        _, outer, K, inner = sb
+        return (f"(bound_row (outer := {outer}) (K := {K}) (inner := {inner})"
+                f" (by decide) hq)")
+    if kind == "group":
+        _, C, CG, G, SP = sb
+        return (f"(bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := q / {SP})"
+                f" (by decide) (by decide) (by decide))")
+    if kind == "pack":
+        _, N, G, C, SP, CG = sb
+        return (f"(bound_pack (A := {N}) (B := {G})"
+                f" (bound_div (a := {N}) (d := {C * SP}) hq)"
+                f" (bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := q / {SP})"
+                f" (by decide) (by decide) (by decide)))")
+    if kind == "packs":
+        # A row-major index built from several coordinates: fold `bound_pack` along
+        # it, carrying the running product of extents as the bound.
+        _, coords, extents = sb
+        term = _bound_atom(tuple(coords[0]))
+        A = extents[0]
+        for c, B in zip(coords[1:], extents[1:]):
+            term = f"(bound_pack (A := {A}) (B := {B}) {term} {_bound_atom(tuple(c))})"
+            A *= B
+        return term
+    raise AssertionError(f"unknown bound {sb!r}")
+
+
+def _bound_proof(sb: Tuple) -> str:
+    """The locality proof term for one stage's reads of an intermediate buffer.
+
+    Which lemma applies is a fact about the *shape*, so the generator records it
+    during lowering rather than rediscovering it here.
     """
     kind = sb[0]
     if kind == "pid":
@@ -385,23 +425,7 @@ def _bound_proof(sb: Tuple) -> str:
         return "(fun _ k _ hk => hk)"
     if kind == "zero":
         return f"(fun _ _ _ _ => (by decide : (0 : Nat) < {sb[1]}))"
-    if kind == "div":
-        _, n, span = sb
-        return f"(fun q _ hq _ => bound_div (a := {n}) (d := {span}) hq)"
-    if kind == "mod":
-        c = sb[1]
-        return f"(fun q _ _ _ => bound_mod (c := {c}) (by decide : (0 : Nat) < {c}))"
-    if kind == "row":
-        _, outer, K, inner = sb
-        return (f"(fun q _ hq _ => bound_row (outer := {outer}) (K := {K})"
-                f" (inner := {inner}) (by decide) hq)")
-    if kind == "pack":
-        _, N, G, C, SP, CG = sb
-        return (f"(fun q _ hq _ => bound_pack (A := {N}) (B := {G})"
-                f" (bound_div (a := {N}) (d := {C * SP}) hq)"
-                f" (bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := q / {SP})"
-                f" (by decide) (by decide) (by decide)))")
-    raise AssertionError(f"unknown bound {sb!r}")
+    return f"(fun q k hq hk => {_bound_atom(sb)})"
 
 
 def _emit_pipeline3(inst: "Instance") -> List[str]:

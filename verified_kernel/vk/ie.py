@@ -22,14 +22,14 @@ class IE:
     def to_lean(self) -> str:  # pragma: no cover
         raise NotImplementedError
 
-    def __add__(self, o) -> "IE": return Add(self, _i(o))
-    def __radd__(self, o) -> "IE": return Add(_i(o), self)
-    def __mul__(self, o) -> "IE": return Mul(self, _i(o))
-    def __rmul__(self, o) -> "IE": return Mul(_i(o), self)
-    def __sub__(self, o) -> "IE": return Sub(self, _i(o))
-    def __rsub__(self, o) -> "IE": return Sub(_i(o), self)
-    def __floordiv__(self, o) -> "IE": return Div(self, _i(o))
-    def __mod__(self, o) -> "IE": return Mod(self, _i(o))
+    def __add__(self, o) -> "IE": return mk_add(self, _i(o))
+    def __radd__(self, o) -> "IE": return mk_add(_i(o), self)
+    def __mul__(self, o) -> "IE": return mk_mul(self, _i(o))
+    def __rmul__(self, o) -> "IE": return mk_mul(_i(o), self)
+    def __sub__(self, o) -> "IE": return mk_sub(self, _i(o))
+    def __rsub__(self, o) -> "IE": return mk_sub(_i(o), self)
+    def __floordiv__(self, o) -> "IE": return mk_div(self, _i(o))
+    def __mod__(self, o) -> "IE": return mk_mod(self, _i(o))
 
 
 @dataclass(frozen=True)
@@ -72,6 +72,44 @@ Mod = _bin("modi")
 
 def _i(x) -> IE:
     return x if isinstance(x, IE) else Lit(int(x))
+
+
+def _is(e, n: int) -> bool:
+    return isinstance(e, Lit) and e.n == n
+
+
+# Smart constructors folding the `Nat` identities. These are exact, not heuristic,
+# and they matter for more than tidiness: a locality bound is discharged by matching
+# an index map against a lemma's conclusion, and `((q/W) % H) * 1 + 0 * 1` does not
+# match `(q/W) % H` even though it denotes it.
+def mk_add(a: IE, b: IE) -> IE:
+    if _is(a, 0):
+        return b
+    if _is(b, 0):
+        return a
+    return Add(a, b)
+
+
+def mk_mul(a: IE, b: IE) -> IE:
+    if _is(a, 0) or _is(b, 0):
+        return Lit(0)
+    if _is(a, 1):
+        return b
+    if _is(b, 1):
+        return a
+    return Mul(a, b)
+
+
+def mk_sub(a: IE, b: IE) -> IE:
+    return a if _is(b, 0) else Sub(a, b)
+
+
+def mk_div(a: IE, b: IE) -> IE:
+    return a if _is(b, 1) else Div(a, b)
+
+
+def mk_mod(a: IE, b: IE) -> IE:
+    return Lit(0) if _is(b, 1) else Mod(a, b)
 
 
 # --- masks -----------------------------------------------------------------
