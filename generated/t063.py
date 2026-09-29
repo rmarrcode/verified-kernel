@@ -18,6 +18,6 @@ def t063_kernel(out_ptr, in0_ptr, in1_ptr):
 
 
 def t063(out, ins):
-    grid = (267387904,)
+    grid = (534775808,)
     t063_kernel[grid](out, ins[0], ins[1])
     return out
