@@ -46,7 +46,8 @@ correctly — swap `arangeRows` for `arangeCols` and the proof stops going throu
 | Family | Theorem | Covers |
 |---|---|---|
 | element-wise | `SE.flat_correct` | activations, scalar products, pointwise stages |
-| general reduction | `GenRed.prog_implements` | axis reductions, losses, **contractions**, **convolution**, pooling |
+| general reduction | `GenRed.prog_implements` | axis reductions, losses, **contractions**, **convolution**, pooling, broadcasting |
+| two-stage pipeline | `two_stage` | softmax, log-softmax, RMS / Frobenius / L1 / L2 norms |
 
 The second is the load-bearing one. Reductions, matrix products, convolutions and
 pooling are the same kernel shape — one output per program, reduce over a window —
@@ -56,6 +57,14 @@ costs an index map and a frontend rule, not a verification effort. `instK_eval` 
 what licenses tiling an arbitrary map: it holds for any map built from `pid`,
 `rk`, and arithmetic, so convolution's div/mod index unpacking is justified by the
 same lemma as a plain sum over a dimension.
+
+The third handles operators that reduce a row and then use the reduced value at
+every element of it, which one kernel of this shape cannot do — the reduction's
+consumers outnumber its producers. `two_stage` says two certified stages compose,
+*provided* stage 2 reads the intermediate buffer only where stage 1 wrote it. That
+proviso is the real content: stage 1 leaves the rest of the buffer as it found it,
+so a stage 2 that indexed past the end would be reading uninitialised memory and
+the composed theorem would be false.
 
 ## What "correct" means
 

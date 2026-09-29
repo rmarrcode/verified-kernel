@@ -25,6 +25,8 @@ design problems standing between here and 100% on Level 1.
 - `Render.lean` — target language to Triton text. **Trusted**, one template per
   node.
 - `Kernels/Elementwise.lean` — `SE.flat_correct`.
+- `Pipeline.lean` — `two_stage`, the compositionality theorem, plus
+  `GenRed.spec_locality` and `bound_row` for discharging its locality obligation.
 - `Kernels/GenRed.lean` — `GenRed.prog_implements`, the general reducing family:
   per-input index maps, a validity guard for padding, and an output guard for
   masked results. `IE.instK_eval` licenses tiling any map built from the output
@@ -41,21 +43,28 @@ loop covers the reduced axis) are discharged by `decide`.
 
 ## Not built, and what each needs
 
-### 1. Multi-stage pipelines — 14 tasks
-Tasks 23, 24 (softmax, log-softmax), 33–40 (norms), 86 (depthwise-separable), 95
-(cross-entropy), 97 (attention), 99 (triplet margin).
+### 1. Pipelines with more than one intermediate — 8 tasks
+Tasks 33 (BatchNorm), 34 (InstanceNorm), 35 (GroupNorm), 40 (LayerNorm), 86
+(depthwise-separable), 95 (cross-entropy), 97 (attention), 99 (triplet margin).
 
-All are *reduce, then use the reduced value pointwise across the row* — which one
-kernel cannot do, because the reduction's consumers outnumber its producers. Needs
-a `Pipeline` of stages writing intermediate buffers, plus a compositionality
-theorem: if each stage implements its spec relative to the buffers available to
-it, the pipeline implements the composed spec. Standard induction over the stage
-list; the work is in the semantics of a growing buffer environment.
+Two-stage pipelines with *one* intermediate are built and cover softmax,
+log-softmax, and the RMS/Frobenius/L1/L2 norms. What these eight need is more:
 
-This is also what makes the full reductions (94, 96, 98) *runnable* rather than
-merely verified: with `outer = inner = 1` the present family gives one program
-looping a million times, which is certified but pointlessly serial. A two-stage
-tree reduction fixes it.
+- The four remaining norms need a **mean and a variance**, i.e. two reductions of
+  the same input. `two_stage` carries one intermediate buffer, so this needs either
+  a three-stage chain (`sum x` → `sum (x - mean)²` → normalise) or one stage
+  writing a buffer of `2 * outer` elements with the body switching on the program
+  id — which the family cannot express, because `body` has no access to `pid`.
+  The three-stage chain is the cleaner route and reduces to nesting `two_stage`,
+  which needs a list-based version of `runTwo`.
+- Attention (97) is three stages including two contractions; cross-entropy (95)
+  needs a gather by an integer label tensor, which the IR has no node for.
+
+A tree reduction (the same list-based pipeline) is also what makes the full
+reductions **runnable** rather than merely verified: tasks 94, 96, 98, 100 have
+`outer = inner = 1`, so the present family gives one program looping a million
+times. Certified, but pointlessly serial, and the harness reports them as such
+rather than pretending otherwise.
 
 ### 2. Max/min reductions — 5 tasks
 Tasks 41–43 (max pooling), 49, 53 (max/min over a dimension).
