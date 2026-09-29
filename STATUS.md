@@ -59,12 +59,33 @@ every recorded size is positive -- is one lemma **per chain**, not per stage. A
 452-stage chain becomes roughly 900 small obligations plus one 452-arm lemma, which
 is linear and generated without trouble.
 
-**Operator coverage.** `torch.cat` (DenseNet) is the interesting one: concatenation
-picks each output element from one of several inputs by coordinate, and the family's
-summand has a single shared mask rather than one per input slot. A per-slot guard in
-`GenRed` would express it, at the cost of touching that proof again. Also missing:
-`transpose`, `ReLU6`, `einsum`; two tasks need `einops`, and two have data-dependent
-control flow that `fx` cannot trace at all.
+**Operator coverage.** Surveyed across all 50 tasks, counting how many each op
+blocks (tasks are blocked by more than one):
+
+| Missing | Tasks | Where the work is |
+|---|---|---|
+| `torch.cat` | 16 | the IR -- a per-slot guard in `GenRed` |
+| `transpose` / `permute` | 10 | frontend only |
+| adaptive pooling | 8 | frontend only |
+| `nn.LSTM` / `nn.GRU` / `nn.RNN` | 8 | out of reach -- cuDNN-fused, `fx` does not trace into them |
+| `ReLU6` | 4 | frontend only |
+| `einsum` + `einops` | 2 | frontend, plus a dependency |
+
+Only the first row needs the proof touched. Concatenation picks each output element
+from one of several inputs by coordinate, and the family's summand has a single shared
+mask rather than one per input slot; a per-slot guard would express it, at the cost of
+reopening `GenRed.prog_implements`.
+
+`transpose` does **not** need an IR extension, which is worth saying because it looks
+like it does -- the IR deliberately cannot express a reshape. A permutation is a
+relabelling of the consumer's index map, so it is absorbed by the *consumer* and never
+materialised, exactly the way `unsqueeze` already is. Adaptive pooling at output size
+1 is a plain reduction, and `ReLU6` is `hardtanh(0, 6)`, which `sel`/`selLe` already
+cover.
+
+That puts the reachable ceiling at roughly 40 of 50, with the eight recurrent tasks
+the hard floor -- and none of it lands before the locality fix above, since the deep
+networks cannot certify at any op coverage.
 
 ## Level 4
 
