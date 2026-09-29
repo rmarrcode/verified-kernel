@@ -68,6 +68,12 @@ class Chain:
     sizes: List[int] = field(default_factory=list)
     shapes: List[Tuple[int, ...]] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
+    # diagnostics: the node each stage was emitted for, and the node being walked
+    node_of: List[str] = field(default_factory=list)
+    # the node a stage was *emitted* for; `node_of` moves to the last node fused
+    # into it, so both are needed to check a fused group as a unit
+    node_src: List[str] = field(default_factory=list)
+    cur_node: str = "?"
 
     @property
     def arity(self) -> int:
@@ -97,6 +103,8 @@ class Chain:
 
     def _emit1(self, st: Lowered, shape: Tuple[int, ...]) -> Val:
         buf = self.arity + len(self.stages)
+        self.node_of.append(self.cur_node)
+        self.node_src.append(self.cur_node)
         st.out_shape = tuple(shape)
         st.out_size = _prod(shape)
         self.stages.append(st)
@@ -657,6 +665,7 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
     pnames = list(params)
 
     for n in nodes:
+        ch.cur_node = n.name
         if n.op == "placeholder":
             continue
         if n.op == "output":
@@ -676,6 +685,7 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                 tensor_arg_index=list(ch.arg_index),
                 param_paths=list(ch.param_paths),
                 stages=list(ch.stages), sizes=list(ch.sizes),
+                stage_nodes=list(ch.node_of), stage_src=list(ch.node_src),
                 notes=ch.notes)
         if n.op == "get_attr":
             # `self.bias` as an `nn.Parameter` is data the kernel reads, no
@@ -746,6 +756,11 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                 prev.post = _subst_slot0(_pointwise_se(n, gm, se_args), prev.post)
                 env[n] = env[src]
                 produced_by[n] = produced_by[src]
+                # the stage now holds *this* node's value, not the one it was
+                # emitted for -- which is what a bisection against the graph has to
+                # compare against
+                if ch.node_of:
+                    ch.node_of[-1] = n.name
                 ch.notes.append(f"fused {n.target} into stage {produced_by[src]}")
                 continue
             # otherwise materialise it as a K = 1 stage. Inputs need not share the

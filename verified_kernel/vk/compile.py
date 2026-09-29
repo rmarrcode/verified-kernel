@@ -184,6 +184,8 @@ def emit_lean(instances: List[Instance]) -> str:
             continue
         if low.family == "genred":
             from . import ie as I
+            # a standalone instance has no chain arity to split at
+            split_at = None
             out += [
                 f"-- {k}: reducing family, {low.arity} inputs, {inst.out_size} outputs,"
                 f" reduced extent {low.K}",

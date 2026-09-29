@@ -23,6 +23,8 @@ import math
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
+import os
+
 import torch
 
 TOL = 1e-2
@@ -124,8 +126,19 @@ def close_chunked(ref: torch.Tensor, got: torch.Tensor, tol: float = TOL):
     return True, worst
 
 
+#: With `VK_FP32_REF=1`, the reference runs at full float32 instead of PyTorch's
+#: default TF32 for convolutions and matrix products. TF32 keeps 10 mantissa bits,
+#: so on a deep network the reference is the less accurate of the two things being
+#: compared and the difference measured is mostly its own. KernelBench does not do
+#: this, so it is off by default and reported as a separate column.
+FP32_REF = os.environ.get("VK_FP32_REF", "") == "1"
+
+
 def check(ref_model, new_model, make_inputs, trials: int = TRIALS) -> Result:
     """Run the KernelBench correctness criterion."""
+    if FP32_REF:
+        torch.backends.cudnn.allow_tf32 = False
+        torch.backends.cuda.matmul.allow_tf32 = False
     worst = 0.0
     with torch.no_grad():
         for trial in range(trials):

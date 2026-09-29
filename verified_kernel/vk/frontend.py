@@ -49,6 +49,12 @@ class Lowered:
     stages: List["Lowered"] = field(default_factory=list)
     # `chain` family: the element count of each stage's output buffer, in order
     sizes: List[int] = field(default_factory=list)
+    # `chain` family, diagnostics only: which traced node each stage was emitted
+    # for. Nothing in the certificate reads this -- it is what lets a wrong answer
+    # in a 454-stage chain be bisected against the graph it came from.
+    stage_nodes: List[str] = field(default_factory=list)
+    # the node each stage was emitted for, before anything was fused into it
+    stage_src: List[str] = field(default_factory=list)
     n1: int = 0
     n2: int = 0
     outer: int = 1
