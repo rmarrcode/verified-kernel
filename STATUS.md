@@ -20,14 +20,27 @@ and 99 of 100 match.
 
 The one that does not is worth stating precisely, because it is not a defect in the
 kernel. Task 14 is a 1024x8192 by 8192x8192 product, halved, then summed along the
-row -- 67 million products per output. Against a float64 ground truth the kernel is
-off by 2.0e-3 and PyTorch is off by 1.9e-2, so the kernel is the **more accurate**
-of the two by a factor of ten; with TF32 matmul, which is PyTorch's default on this
-card, the reference is off by 3.1. The comparison is against the reference, so a row
-whose sum happens to land near zero fails the absolute half of the tolerance while
-the kernel sits closer to the true value than the thing it is being checked against.
-This is exactly the gap the trusted base already names: the theorem is over an exact
-ordered field, and float rounding is not modelled.
+row -- 67 million products per output, with outputs of magnitude ~2600. Measured
+against a float64 ground truth over the whole output:
+
+| | max error vs float64 |
+|---|---|
+| this kernel | 2.0e-3 |
+| PyTorch, TF32 off | 1.9e-2 |
+| PyTorch, TF32 on (its default on this card) | 3.1 |
+
+The kernel is the more accurate of the two. It fails anyway, in about 1 draw in 60,
+and always the same way: some row's 8192 terms cancel down to a value near zero, and
+`allclose`'s absolute term is then the binding one. On the draw sampled here the true
+value was 0.4291, PyTorch gave 0.4451 (off by 1.6e-2, past the 1e-2 floor) and the
+kernel gave 0.4290 -- off by 1.15e-4, **140 times closer to the truth than the
+reference it is being checked against**.
+
+Nothing here can be fixed by proving more, and the criterion is KernelBench's own, so
+it is reported as a failure rather than argued away. It is the rounding gap the
+trusted base already names -- the theorem is over an exact ordered field -- showing
+up from the unexpected direction: not the kernel drifting from the reference, but the
+reference drifting from the mathematics both of them are approximating.
 
 Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
 no `sorryAx`. Check it with:
