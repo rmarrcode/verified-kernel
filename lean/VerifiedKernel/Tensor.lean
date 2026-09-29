@@ -15,7 +15,7 @@ open ExactScalar
 
 /-- A flat, row-major buffer. Reads beyond the logical size are allowed to return
 anything; no theorem may depend on them. -/
-def Buf (α : Type) : Type := Nat → α
+abbrev Buf (α : Type) : Type := Nat → α
 
 /-- A specification: how many outputs, and what each output element is as a
 function of the inputs. This is the framework's own object -- it is generated

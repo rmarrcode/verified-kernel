@@ -231,8 +231,10 @@ def FE.eval (env : Env α) (i j : Nat) : FE → α
   | .redCol op n a => op.fold n (fun p => a.eval env i p)
   | .redRow op n a => op.fold n (fun p => a.eval env p j)
 
-/-- Memory: the output buffer. -/
-def Mem (α : Type) : Type := Nat → α
+/-- Memory: the output buffer. Reducible, and the same type as `Buf`: a kernel's
+output is another kernel's input, and keeping the two distinct only obstructs
+rewriting across a pipeline stage. -/
+abbrev Mem (α : Type) : Type := Nat → α
 
 /-- Point update. -/
 def Mem.upd (m : Mem α) (q : Nat) (v : α) : Mem α :=
