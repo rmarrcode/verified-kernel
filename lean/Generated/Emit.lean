@@ -15,6 +15,10 @@ open VerifiedKernel
 -- one: raising it changes nothing about what counts as a proof, and the
 -- kernel still checks every term. `#print axioms` remains the real test.
 set_option maxRecDepth 100000
+-- Likewise a budget, not a criterion. Reading the last of a chain's several
+-- hundred recorded sizes means walking the list to it, so the size
+-- obligation costs more the longer the chain is.
+set_option maxHeartbeats 4000000
 
 -- t010: a chain of 454 stage(s), 315 input buffer(s)
 --   split a 64-output reduction over 125440 into 256 partials; split a 64-output reduction over 125440 into 256 partials; fused relu into stage 5
@@ -22517,1384 +22521,1378 @@ theorem t010_s453_loc {α : Type} [ExactScalar α] :
 def t010_chain (α : Type) [ExactScalar α] : List (Stage α) := [⟨t010_s0_g.prog t010_s0_block t010_s0_nkb, t010_s0_g.spec (α := α), 315⟩, ⟨t010_s1_g.prog t010_s1_block t010_s1_nkb, t010_s1_g.spec (α := α), 316⟩, ⟨t010_s2_g.prog t010_s2_block t010_s2_nkb, t010_s2_g.spec (α := α), 317⟩, ⟨t010_s3_g.prog t010_s3_block t010_s3_nkb, t010_s3_g.spec (α := α), 318⟩, ⟨t010_s4_g.prog t010_s4_block t010_s4_nkb, t010_s4_g.spec (α := α), 319⟩, ⟨t010_s5_g.prog t010_s5_block t010_s5_nkb, t010_s5_g.spec (α := α), 320⟩, ⟨t010_s6_g.prog t010_s6_block t010_s6_nkb, t010_s6_g.spec (α := α), 321⟩, ⟨t010_s7_g.prog t010_s7_block t010_s7_nkb, t010_s7_g.spec (α := α), 322⟩, ⟨t010_s8_g.prog t010_s8_block t010_s8_nkb, t010_s8_g.spec (α := α), 323⟩, ⟨t010_s9_g.prog t010_s9_block t010_s9_nkb, t010_s9_g.spec (α := α), 324⟩, ⟨t010_s10_g.prog t010_s10_block t010_s10_nkb, t010_s10_g.spec (α := α), 325⟩, ⟨t010_s11_g.prog t010_s11_block t010_s11_nkb, t010_s11_g.spec (α := α), 326⟩, ⟨t010_s12_g.prog t010_s12_block t010_s12_nkb, t010_s12_g.spec (α := α), 327⟩, ⟨t010_s13_g.prog t010_s13_block t010_s13_nkb, t010_s13_g.spec (α := α), 328⟩, ⟨t010_s14_g.prog t010_s14_block t010_s14_nkb, t010_s14_g.spec (α := α), 329⟩, ⟨t010_s15_g.prog t010_s15_block t010_s15_nkb, t010_s15_g.spec (α := α), 330⟩, ⟨t010_s16_g.prog t010_s16_block t010_s16_nkb, t010_s16_g.spec (α := α), 331⟩, ⟨t010_s17_g.prog t010_s17_block t010_s17_nkb, t010_s17_g.spec (α := α), 332⟩, ⟨t010_s18_g.prog t010_s18_block t010_s18_nkb, t010_s18_g.spec (α := α), 333⟩, ⟨t010_s19_g.prog t010_s19_block t010_s19_nkb, t010_s19_g.spec (α := α), 334⟩, ⟨t010_s20_g.prog t010_s20_block t010_s20_nkb, t010_s20_g.spec (α := α), 335⟩, ⟨t010_s21_g.prog t010_s21_block t010_s21_nkb, t010_s21_g.spec (α := α), 336⟩, ⟨t010_s22_g.prog t010_s22_block t010_s22_nkb, t010_s22_g.spec (α := α), 337⟩, ⟨t010_s23_g.prog t010_s23_block t010_s23_nkb, t010_s23_g.spec (α := α), 338⟩, ⟨t010_s24_g.prog t010_s24_block t010_s24_nkb, t010_s24_g.spec (α := α), 339⟩, ⟨t010_s25_g.prog t010_s25_block t010_s25_nkb, t010_s25_g.spec (α := α), 340⟩, ⟨t010_s26_g.prog t010_s26_block t010_s26_nkb, t010_s26_g.spec (α := α), 341⟩, ⟨t010_s27_g.prog t010_s27_block t010_s27_nkb, t010_s27_g.spec (α := α), 342⟩, ⟨t010_s28_g.prog t010_s28_block t010_s28_nkb, t010_s28_g.spec (α := α), 343⟩, ⟨t010_s29_g.prog t010_s29_block t010_s29_nkb, t010_s29_g.spec (α := α), 344⟩, ⟨t010_s30_g.prog t010_s30_block t010_s30_nkb, t010_s30_g.spec (α := α), 345⟩, ⟨t010_s31_g.prog t010_s31_block t010_s31_nkb, t010_s31_g.spec (α := α), 346⟩, ⟨t010_s32_g.prog t010_s32_block t010_s32_nkb, t010_s32_g.spec (α := α), 347⟩, ⟨t010_s33_g.prog t010_s33_block t010_s33_nkb, t010_s33_g.spec (α := α), 348⟩, ⟨t010_s34_g.prog t010_s34_block t010_s34_nkb, t010_s34_g.spec (α := α), 349⟩, ⟨t010_s35_g.prog t010_s35_block t010_s35_nkb, t010_s35_g.spec (α := α), 350⟩, ⟨t010_s36_g.prog t010_s36_block t010_s36_nkb, t010_s36_g.spec (α := α), 351⟩, ⟨t010_s37_g.prog t010_s37_block t010_s37_nkb, t010_s37_g.spec (α := α), 352⟩, ⟨t010_s38_g.prog t010_s38_block t010_s38_nkb, t010_s38_g.spec (α := α), 353⟩, ⟨t010_s39_g.prog t010_s39_block t010_s39_nkb, t010_s39_g.spec (α := α), 354⟩, ⟨t010_s40_g.prog t010_s40_block t010_s40_nkb, t010_s40_g.spec (α := α), 355⟩, ⟨t010_s41_g.prog t010_s41_block t010_s41_nkb, t010_s41_g.spec (α := α), 356⟩, ⟨t010_s42_g.prog t010_s42_block t010_s42_nkb, t010_s42_g.spec (α := α), 357⟩, ⟨t010_s43_g.prog t010_s43_block t010_s43_nkb, t010_s43_g.spec (α := α), 358⟩, ⟨t010_s44_g.prog t010_s44_block t010_s44_nkb, t010_s44_g.spec (α := α), 359⟩, ⟨t010_s45_g.prog t010_s45_block t010_s45_nkb, t010_s45_g.spec (α := α), 360⟩, ⟨t010_s46_g.prog t010_s46_block t010_s46_nkb, t010_s46_g.spec (α := α), 361⟩, ⟨t010_s47_g.prog t010_s47_block t010_s47_nkb, t010_s47_g.spec (α := α), 362⟩, ⟨t010_s48_g.prog t010_s48_block t010_s48_nkb, t010_s48_g.spec (α := α), 363⟩, ⟨t010_s49_g.prog t010_s49_block t010_s49_nkb, t010_s49_g.spec (α := α), 364⟩, ⟨t010_s50_g.prog t010_s50_block t010_s50_nkb, t010_s50_g.spec (α := α), 365⟩, ⟨t010_s51_g.prog t010_s51_block t010_s51_nkb, t010_s51_g.spec (α := α), 366⟩, ⟨t010_s52_g.prog t010_s52_block t010_s52_nkb, t010_s52_g.spec (α := α), 367⟩, ⟨t010_s53_g.prog t010_s53_block t010_s53_nkb, t010_s53_g.spec (α := α), 368⟩, ⟨t010_s54_g.prog t010_s54_block t010_s54_nkb, t010_s54_g.spec (α := α), 369⟩, ⟨t010_s55_g.prog t010_s55_block t010_s55_nkb, t010_s55_g.spec (α := α), 370⟩, ⟨t010_s56_g.prog t010_s56_block t010_s56_nkb, t010_s56_g.spec (α := α), 371⟩, ⟨t010_s57_g.prog t010_s57_block t010_s57_nkb, t010_s57_g.spec (α := α), 372⟩, ⟨t010_s58_g.prog t010_s58_block t010_s58_nkb, t010_s58_g.spec (α := α), 373⟩, ⟨t010_s59_g.prog t010_s59_block t010_s59_nkb, t010_s59_g.spec (α := α), 374⟩, ⟨t010_s60_g.prog t010_s60_block t010_s60_nkb, t010_s60_g.spec (α := α), 375⟩, ⟨t010_s61_g.prog t010_s61_block t010_s61_nkb, t010_s61_g.spec (α := α), 376⟩, ⟨t010_s62_g.prog t010_s62_block t010_s62_nkb, t010_s62_g.spec (α := α), 377⟩, ⟨t010_s63_g.prog t010_s63_block t010_s63_nkb, t010_s63_g.spec (α := α), 378⟩, ⟨t010_s64_g.prog t010_s64_block t010_s64_nkb, t010_s64_g.spec (α := α), 379⟩, ⟨t010_s65_g.prog t010_s65_block t010_s65_nkb, t010_s65_g.spec (α := α), 380⟩, ⟨t010_s66_g.prog t010_s66_block t010_s66_nkb, t010_s66_g.spec (α := α), 381⟩, ⟨t010_s67_g.prog t010_s67_block t010_s67_nkb, t010_s67_g.spec (α := α), 382⟩, ⟨t010_s68_g.prog t010_s68_block t010_s68_nkb, t010_s68_g.spec (α := α), 383⟩, ⟨t010_s69_g.prog t010_s69_block t010_s69_nkb, t010_s69_g.spec (α := α), 384⟩, ⟨t010_s70_g.prog t010_s70_block t010_s70_nkb, t010_s70_g.spec (α := α), 385⟩, ⟨t010_s71_g.prog t010_s71_block t010_s71_nkb, t010_s71_g.spec (α := α), 386⟩, ⟨t010_s72_g.prog t010_s72_block t010_s72_nkb, t010_s72_g.spec (α := α), 387⟩, ⟨t010_s73_g.prog t010_s73_block t010_s73_nkb, t010_s73_g.spec (α := α), 388⟩, ⟨t010_s74_g.prog t010_s74_block t010_s74_nkb, t010_s74_g.spec (α := α), 389⟩, ⟨t010_s75_g.prog t010_s75_block t010_s75_nkb, t010_s75_g.spec (α := α), 390⟩, ⟨t010_s76_g.prog t010_s76_block t010_s76_nkb, t010_s76_g.spec (α := α), 391⟩, ⟨t010_s77_g.prog t010_s77_block t010_s77_nkb, t010_s77_g.spec (α := α), 392⟩, ⟨t010_s78_g.prog t010_s78_block t010_s78_nkb, t010_s78_g.spec (α := α), 393⟩, ⟨t010_s79_g.prog t010_s79_block t010_s79_nkb, t010_s79_g.spec (α := α), 394⟩, ⟨t010_s80_g.prog t010_s80_block t010_s80_nkb, t010_s80_g.spec (α := α), 395⟩, ⟨t010_s81_g.prog t010_s81_block t010_s81_nkb, t010_s81_g.spec (α := α), 396⟩, ⟨t010_s82_g.prog t010_s82_block t010_s82_nkb, t010_s82_g.spec (α := α), 397⟩, ⟨t010_s83_g.prog t010_s83_block t010_s83_nkb, t010_s83_g.spec (α := α), 398⟩, ⟨t010_s84_g.prog t010_s84_block t010_s84_nkb, t010_s84_g.spec (α := α), 399⟩, ⟨t010_s85_g.prog t010_s85_block t010_s85_nkb, t010_s85_g.spec (α := α), 400⟩, ⟨t010_s86_g.prog t010_s86_block t010_s86_nkb, t010_s86_g.spec (α := α), 401⟩, ⟨t010_s87_g.prog t010_s87_block t010_s87_nkb, t010_s87_g.spec (α := α), 402⟩, ⟨t010_s88_g.prog t010_s88_block t010_s88_nkb, t010_s88_g.spec (α := α), 403⟩, ⟨t010_s89_g.prog t010_s89_block t010_s89_nkb, t010_s89_g.spec (α := α), 404⟩, ⟨t010_s90_g.prog t010_s90_block t010_s90_nkb, t010_s90_g.spec (α := α), 405⟩, ⟨t010_s91_g.prog t010_s91_block t010_s91_nkb, t010_s91_g.spec (α := α), 406⟩, ⟨t010_s92_g.prog t010_s92_block t010_s92_nkb, t010_s92_g.spec (α := α), 407⟩, ⟨t010_s93_g.prog t010_s93_block t010_s93_nkb, t010_s93_g.spec (α := α), 408⟩, ⟨t010_s94_g.prog t010_s94_block t010_s94_nkb, t010_s94_g.spec (α := α), 409⟩, ⟨t010_s95_g.prog t010_s95_block t010_s95_nkb, t010_s95_g.spec (α := α), 410⟩, ⟨t010_s96_g.prog t010_s96_block t010_s96_nkb, t010_s96_g.spec (α := α), 411⟩, ⟨t010_s97_g.prog t010_s97_block t010_s97_nkb, t010_s97_g.spec (α := α), 412⟩, ⟨t010_s98_g.prog t010_s98_block t010_s98_nkb, t010_s98_g.spec (α := α), 413⟩, ⟨t010_s99_g.prog t010_s99_block t010_s99_nkb, t010_s99_g.spec (α := α), 414⟩, ⟨t010_s100_g.prog t010_s100_block t010_s100_nkb, t010_s100_g.spec (α := α), 415⟩, ⟨t010_s101_g.prog t010_s101_block t010_s101_nkb, t010_s101_g.spec (α := α), 416⟩, ⟨t010_s102_g.prog t010_s102_block t010_s102_nkb, t010_s102_g.spec (α := α), 417⟩, ⟨t010_s103_g.prog t010_s103_block t010_s103_nkb, t010_s103_g.spec (α := α), 418⟩, ⟨t010_s104_g.prog t010_s104_block t010_s104_nkb, t010_s104_g.spec (α := α), 419⟩, ⟨t010_s105_g.prog t010_s105_block t010_s105_nkb, t010_s105_g.spec (α := α), 420⟩, ⟨t010_s106_g.prog t010_s106_block t010_s106_nkb, t010_s106_g.spec (α := α), 421⟩, ⟨t010_s107_g.prog t010_s107_block t010_s107_nkb, t010_s107_g.spec (α := α), 422⟩, ⟨t010_s108_g.prog t010_s108_block t010_s108_nkb, t010_s108_g.spec (α := α), 423⟩, ⟨t010_s109_g.prog t010_s109_block t010_s109_nkb, t010_s109_g.spec (α := α), 424⟩, ⟨t010_s110_g.prog t010_s110_block t010_s110_nkb, t010_s110_g.spec (α := α), 425⟩, ⟨t010_s111_g.prog t010_s111_block t010_s111_nkb, t010_s111_g.spec (α := α), 426⟩, ⟨t010_s112_g.prog t010_s112_block t010_s112_nkb, t010_s112_g.spec (α := α), 427⟩, ⟨t010_s113_g.prog t010_s113_block t010_s113_nkb, t010_s113_g.spec (α := α), 428⟩, ⟨t010_s114_g.prog t010_s114_block t010_s114_nkb, t010_s114_g.spec (α := α), 429⟩, ⟨t010_s115_g.prog t010_s115_block t010_s115_nkb, t010_s115_g.spec (α := α), 430⟩, ⟨t010_s116_g.prog t010_s116_block t010_s116_nkb, t010_s116_g.spec (α := α), 431⟩, ⟨t010_s117_g.prog t010_s117_block t010_s117_nkb, t010_s117_g.spec (α := α), 432⟩, ⟨t010_s118_g.prog t010_s118_block t010_s118_nkb, t010_s118_g.spec (α := α), 433⟩, ⟨t010_s119_g.prog t010_s119_block t010_s119_nkb, t010_s119_g.spec (α := α), 434⟩, ⟨t010_s120_g.prog t010_s120_block t010_s120_nkb, t010_s120_g.spec (α := α), 435⟩, ⟨t010_s121_g.prog t010_s121_block t010_s121_nkb, t010_s121_g.spec (α := α), 436⟩, ⟨t010_s122_g.prog t010_s122_block t010_s122_nkb, t010_s122_g.spec (α := α), 437⟩, ⟨t010_s123_g.prog t010_s123_block t010_s123_nkb, t010_s123_g.spec (α := α), 438⟩, ⟨t010_s124_g.prog t010_s124_block t010_s124_nkb, t010_s124_g.spec (α := α), 439⟩, ⟨t010_s125_g.prog t010_s125_block t010_s125_nkb, t010_s125_g.spec (α := α), 440⟩, ⟨t010_s126_g.prog t010_s126_block t010_s126_nkb, t010_s126_g.spec (α := α), 441⟩, ⟨t010_s127_g.prog t010_s127_block t010_s127_nkb, t010_s127_g.spec (α := α), 442⟩, ⟨t010_s128_g.prog t010_s128_block t010_s128_nkb, t010_s128_g.spec (α := α), 443⟩, ⟨t010_s129_g.prog t010_s129_block t010_s129_nkb, t010_s129_g.spec (α := α), 444⟩, ⟨t010_s130_g.prog t010_s130_block t010_s130_nkb, t010_s130_g.spec (α := α), 445⟩, ⟨t010_s131_g.prog t010_s131_block t010_s131_nkb, t010_s131_g.spec (α := α), 446⟩, ⟨t010_s132_g.prog t010_s132_block t010_s132_nkb, t010_s132_g.spec (α := α), 447⟩, ⟨t010_s133_g.prog t010_s133_block t010_s133_nkb, t010_s133_g.spec (α := α), 448⟩, ⟨t010_s134_g.prog t010_s134_block t010_s134_nkb, t010_s134_g.spec (α := α), 449⟩, ⟨t010_s135_g.prog t010_s135_block t010_s135_nkb, t010_s135_g.spec (α := α), 450⟩, ⟨t010_s136_g.prog t010_s136_block t010_s136_nkb, t010_s136_g.spec (α := α), 451⟩, ⟨t010_s137_g.prog t010_s137_block t010_s137_nkb, t010_s137_g.spec (α := α), 452⟩, ⟨t010_s138_g.prog t010_s138_block t010_s138_nkb, t010_s138_g.spec (α := α), 453⟩, ⟨t010_s139_g.prog t010_s139_block t010_s139_nkb, t010_s139_g.spec (α := α), 454⟩, ⟨t010_s140_g.prog t010_s140_block t010_s140_nkb, t010_s140_g.spec (α := α), 455⟩, ⟨t010_s141_g.prog t010_s141_block t010_s141_nkb, t010_s141_g.spec (α := α), 456⟩, ⟨t010_s142_g.prog t010_s142_block t010_s142_nkb, t010_s142_g.spec (α := α), 457⟩, ⟨t010_s143_g.prog t010_s143_block t010_s143_nkb, t010_s143_g.spec (α := α), 458⟩, ⟨t010_s144_g.prog t010_s144_block t010_s144_nkb, t010_s144_g.spec (α := α), 459⟩, ⟨t010_s145_g.prog t010_s145_block t010_s145_nkb, t010_s145_g.spec (α := α), 460⟩, ⟨t010_s146_g.prog t010_s146_block t010_s146_nkb, t010_s146_g.spec (α := α), 461⟩, ⟨t010_s147_g.prog t010_s147_block t010_s147_nkb, t010_s147_g.spec (α := α), 462⟩, ⟨t010_s148_g.prog t010_s148_block t010_s148_nkb, t010_s148_g.spec (α := α), 463⟩, ⟨t010_s149_g.prog t010_s149_block t010_s149_nkb, t010_s149_g.spec (α := α), 464⟩, ⟨t010_s150_g.prog t010_s150_block t010_s150_nkb, t010_s150_g.spec (α := α), 465⟩, ⟨t010_s151_g.prog t010_s151_block t010_s151_nkb, t010_s151_g.spec (α := α), 466⟩, ⟨t010_s152_g.prog t010_s152_block t010_s152_nkb, t010_s152_g.spec (α := α), 467⟩, ⟨t010_s153_g.prog t010_s153_block t010_s153_nkb, t010_s153_g.spec (α := α), 468⟩, ⟨t010_s154_g.prog t010_s154_block t010_s154_nkb, t010_s154_g.spec (α := α), 469⟩, ⟨t010_s155_g.prog t010_s155_block t010_s155_nkb, t010_s155_g.spec (α := α), 470⟩, ⟨t010_s156_g.prog t010_s156_block t010_s156_nkb, t010_s156_g.spec (α := α), 471⟩, ⟨t010_s157_g.prog t010_s157_block t010_s157_nkb, t010_s157_g.spec (α := α), 472⟩, ⟨t010_s158_g.prog t010_s158_block t010_s158_nkb, t010_s158_g.spec (α := α), 473⟩, ⟨t010_s159_g.prog t010_s159_block t010_s159_nkb, t010_s159_g.spec (α := α), 474⟩, ⟨t010_s160_g.prog t010_s160_block t010_s160_nkb, t010_s160_g.spec (α := α), 475⟩, ⟨t010_s161_g.prog t010_s161_block t010_s161_nkb, t010_s161_g.spec (α := α), 476⟩, ⟨t010_s162_g.prog t010_s162_block t010_s162_nkb, t010_s162_g.spec (α := α), 477⟩, ⟨t010_s163_g.prog t010_s163_block t010_s163_nkb, t010_s163_g.spec (α := α), 478⟩, ⟨t010_s164_g.prog t010_s164_block t010_s164_nkb, t010_s164_g.spec (α := α), 479⟩, ⟨t010_s165_g.prog t010_s165_block t010_s165_nkb, t010_s165_g.spec (α := α), 480⟩, ⟨t010_s166_g.prog t010_s166_block t010_s166_nkb, t010_s166_g.spec (α := α), 481⟩, ⟨t010_s167_g.prog t010_s167_block t010_s167_nkb, t010_s167_g.spec (α := α), 482⟩, ⟨t010_s168_g.prog t010_s168_block t010_s168_nkb, t010_s168_g.spec (α := α), 483⟩, ⟨t010_s169_g.prog t010_s169_block t010_s169_nkb, t010_s169_g.spec (α := α), 484⟩, ⟨t010_s170_g.prog t010_s170_block t010_s170_nkb, t010_s170_g.spec (α := α), 485⟩, ⟨t010_s171_g.prog t010_s171_block t010_s171_nkb, t010_s171_g.spec (α := α), 486⟩, ⟨t010_s172_g.prog t010_s172_block t010_s172_nkb, t010_s172_g.spec (α := α), 487⟩, ⟨t010_s173_g.prog t010_s173_block t010_s173_nkb, t010_s173_g.spec (α := α), 488⟩, ⟨t010_s174_g.prog t010_s174_block t010_s174_nkb, t010_s174_g.spec (α := α), 489⟩, ⟨t010_s175_g.prog t010_s175_block t010_s175_nkb, t010_s175_g.spec (α := α), 490⟩, ⟨t010_s176_g.prog t010_s176_block t010_s176_nkb, t010_s176_g.spec (α := α), 491⟩, ⟨t010_s177_g.prog t010_s177_block t010_s177_nkb, t010_s177_g.spec (α := α), 492⟩, ⟨t010_s178_g.prog t010_s178_block t010_s178_nkb, t010_s178_g.spec (α := α), 493⟩, ⟨t010_s179_g.prog t010_s179_block t010_s179_nkb, t010_s179_g.spec (α := α), 494⟩, ⟨t010_s180_g.prog t010_s180_block t010_s180_nkb, t010_s180_g.spec (α := α), 495⟩, ⟨t010_s181_g.prog t010_s181_block t010_s181_nkb, t010_s181_g.spec (α := α), 496⟩, ⟨t010_s182_g.prog t010_s182_block t010_s182_nkb, t010_s182_g.spec (α := α), 497⟩, ⟨t010_s183_g.prog t010_s183_block t010_s183_nkb, t010_s183_g.spec (α := α), 498⟩, ⟨t010_s184_g.prog t010_s184_block t010_s184_nkb, t010_s184_g.spec (α := α), 499⟩, ⟨t010_s185_g.prog t010_s185_block t010_s185_nkb, t010_s185_g.spec (α := α), 500⟩, ⟨t010_s186_g.prog t010_s186_block t010_s186_nkb, t010_s186_g.spec (α := α), 501⟩, ⟨t010_s187_g.prog t010_s187_block t010_s187_nkb, t010_s187_g.spec (α := α), 502⟩, ⟨t010_s188_g.prog t010_s188_block t010_s188_nkb, t010_s188_g.spec (α := α), 503⟩, ⟨t010_s189_g.prog t010_s189_block t010_s189_nkb, t010_s189_g.spec (α := α), 504⟩, ⟨t010_s190_g.prog t010_s190_block t010_s190_nkb, t010_s190_g.spec (α := α), 505⟩, ⟨t010_s191_g.prog t010_s191_block t010_s191_nkb, t010_s191_g.spec (α := α), 506⟩, ⟨t010_s192_g.prog t010_s192_block t010_s192_nkb, t010_s192_g.spec (α := α), 507⟩, ⟨t010_s193_g.prog t010_s193_block t010_s193_nkb, t010_s193_g.spec (α := α), 508⟩, ⟨t010_s194_g.prog t010_s194_block t010_s194_nkb, t010_s194_g.spec (α := α), 509⟩, ⟨t010_s195_g.prog t010_s195_block t010_s195_nkb, t010_s195_g.spec (α := α), 510⟩, ⟨t010_s196_g.prog t010_s196_block t010_s196_nkb, t010_s196_g.spec (α := α), 511⟩, ⟨t010_s197_g.prog t010_s197_block t010_s197_nkb, t010_s197_g.spec (α := α), 512⟩, ⟨t010_s198_g.prog t010_s198_block t010_s198_nkb, t010_s198_g.spec (α := α), 513⟩, ⟨t010_s199_g.prog t010_s199_block t010_s199_nkb, t010_s199_g.spec (α := α), 514⟩, ⟨t010_s200_g.prog t010_s200_block t010_s200_nkb, t010_s200_g.spec (α := α), 515⟩, ⟨t010_s201_g.prog t010_s201_block t010_s201_nkb, t010_s201_g.spec (α := α), 516⟩, ⟨t010_s202_g.prog t010_s202_block t010_s202_nkb, t010_s202_g.spec (α := α), 517⟩, ⟨t010_s203_g.prog t010_s203_block t010_s203_nkb, t010_s203_g.spec (α := α), 518⟩, ⟨t010_s204_g.prog t010_s204_block t010_s204_nkb, t010_s204_g.spec (α := α), 519⟩, ⟨t010_s205_g.prog t010_s205_block t010_s205_nkb, t010_s205_g.spec (α := α), 520⟩, ⟨t010_s206_g.prog t010_s206_block t010_s206_nkb, t010_s206_g.spec (α := α), 521⟩, ⟨t010_s207_g.prog t010_s207_block t010_s207_nkb, t010_s207_g.spec (α := α), 522⟩, ⟨t010_s208_g.prog t010_s208_block t010_s208_nkb, t010_s208_g.spec (α := α), 523⟩, ⟨t010_s209_g.prog t010_s209_block t010_s209_nkb, t010_s209_g.spec (α := α), 524⟩, ⟨t010_s210_g.prog t010_s210_block t010_s210_nkb, t010_s210_g.spec (α := α), 525⟩, ⟨t010_s211_g.prog t010_s211_block t010_s211_nkb, t010_s211_g.spec (α := α), 526⟩, ⟨t010_s212_g.prog t010_s212_block t010_s212_nkb, t010_s212_g.spec (α := α), 527⟩, ⟨t010_s213_g.prog t010_s213_block t010_s213_nkb, t010_s213_g.spec (α := α), 528⟩, ⟨t010_s214_g.prog t010_s214_block t010_s214_nkb, t010_s214_g.spec (α := α), 529⟩, ⟨t010_s215_g.prog t010_s215_block t010_s215_nkb, t010_s215_g.spec (α := α), 530⟩, ⟨t010_s216_g.prog t010_s216_block t010_s216_nkb, t010_s216_g.spec (α := α), 531⟩, ⟨t010_s217_g.prog t010_s217_block t010_s217_nkb, t010_s217_g.spec (α := α), 532⟩, ⟨t010_s218_g.prog t010_s218_block t010_s218_nkb, t010_s218_g.spec (α := α), 533⟩, ⟨t010_s219_g.prog t010_s219_block t010_s219_nkb, t010_s219_g.spec (α := α), 534⟩, ⟨t010_s220_g.prog t010_s220_block t010_s220_nkb, t010_s220_g.spec (α := α), 535⟩, ⟨t010_s221_g.prog t010_s221_block t010_s221_nkb, t010_s221_g.spec (α := α), 536⟩, ⟨t010_s222_g.prog t010_s222_block t010_s222_nkb, t010_s222_g.spec (α := α), 537⟩, ⟨t010_s223_g.prog t010_s223_block t010_s223_nkb, t010_s223_g.spec (α := α), 538⟩, ⟨t010_s224_g.prog t010_s224_block t010_s224_nkb, t010_s224_g.spec (α := α), 539⟩, ⟨t010_s225_g.prog t010_s225_block t010_s225_nkb, t010_s225_g.spec (α := α), 540⟩, ⟨t010_s226_g.prog t010_s226_block t010_s226_nkb, t010_s226_g.spec (α := α), 541⟩, ⟨t010_s227_g.prog t010_s227_block t010_s227_nkb, t010_s227_g.spec (α := α), 542⟩, ⟨t010_s228_g.prog t010_s228_block t010_s228_nkb, t010_s228_g.spec (α := α), 543⟩, ⟨t010_s229_g.prog t010_s229_block t010_s229_nkb, t010_s229_g.spec (α := α), 544⟩, ⟨t010_s230_g.prog t010_s230_block t010_s230_nkb, t010_s230_g.spec (α := α), 545⟩, ⟨t010_s231_g.prog t010_s231_block t010_s231_nkb, t010_s231_g.spec (α := α), 546⟩, ⟨t010_s232_g.prog t010_s232_block t010_s232_nkb, t010_s232_g.spec (α := α), 547⟩, ⟨t010_s233_g.prog t010_s233_block t010_s233_nkb, t010_s233_g.spec (α := α), 548⟩, ⟨t010_s234_g.prog t010_s234_block t010_s234_nkb, t010_s234_g.spec (α := α), 549⟩, ⟨t010_s235_g.prog t010_s235_block t010_s235_nkb, t010_s235_g.spec (α := α), 550⟩, ⟨t010_s236_g.prog t010_s236_block t010_s236_nkb, t010_s236_g.spec (α := α), 551⟩, ⟨t010_s237_g.prog t010_s237_block t010_s237_nkb, t010_s237_g.spec (α := α), 552⟩, ⟨t010_s238_g.prog t010_s238_block t010_s238_nkb, t010_s238_g.spec (α := α), 553⟩, ⟨t010_s239_g.prog t010_s239_block t010_s239_nkb, t010_s239_g.spec (α := α), 554⟩, ⟨t010_s240_g.prog t010_s240_block t010_s240_nkb, t010_s240_g.spec (α := α), 555⟩, ⟨t010_s241_g.prog t010_s241_block t010_s241_nkb, t010_s241_g.spec (α := α), 556⟩, ⟨t010_s242_g.prog t010_s242_block t010_s242_nkb, t010_s242_g.spec (α := α), 557⟩, ⟨t010_s243_g.prog t010_s243_block t010_s243_nkb, t010_s243_g.spec (α := α), 558⟩, ⟨t010_s244_g.prog t010_s244_block t010_s244_nkb, t010_s244_g.spec (α := α), 559⟩, ⟨t010_s245_g.prog t010_s245_block t010_s245_nkb, t010_s245_g.spec (α := α), 560⟩, ⟨t010_s246_g.prog t010_s246_block t010_s246_nkb, t010_s246_g.spec (α := α), 561⟩, ⟨t010_s247_g.prog t010_s247_block t010_s247_nkb, t010_s247_g.spec (α := α), 562⟩, ⟨t010_s248_g.prog t010_s248_block t010_s248_nkb, t010_s248_g.spec (α := α), 563⟩, ⟨t010_s249_g.prog t010_s249_block t010_s249_nkb, t010_s249_g.spec (α := α), 564⟩, ⟨t010_s250_g.prog t010_s250_block t010_s250_nkb, t010_s250_g.spec (α := α), 565⟩, ⟨t010_s251_g.prog t010_s251_block t010_s251_nkb, t010_s251_g.spec (α := α), 566⟩, ⟨t010_s252_g.prog t010_s252_block t010_s252_nkb, t010_s252_g.spec (α := α), 567⟩, ⟨t010_s253_g.prog t010_s253_block t010_s253_nkb, t010_s253_g.spec (α := α), 568⟩, ⟨t010_s254_g.prog t010_s254_block t010_s254_nkb, t010_s254_g.spec (α := α), 569⟩, ⟨t010_s255_g.prog t010_s255_block t010_s255_nkb, t010_s255_g.spec (α := α), 570⟩, ⟨t010_s256_g.prog t010_s256_block t010_s256_nkb, t010_s256_g.spec (α := α), 571⟩, ⟨t010_s257_g.prog t010_s257_block t010_s257_nkb, t010_s257_g.spec (α := α), 572⟩, ⟨t010_s258_g.prog t010_s258_block t010_s258_nkb, t010_s258_g.spec (α := α), 573⟩, ⟨t010_s259_g.prog t010_s259_block t010_s259_nkb, t010_s259_g.spec (α := α), 574⟩, ⟨t010_s260_g.prog t010_s260_block t010_s260_nkb, t010_s260_g.spec (α := α), 575⟩, ⟨t010_s261_g.prog t010_s261_block t010_s261_nkb, t010_s261_g.spec (α := α), 576⟩, ⟨t010_s262_g.prog t010_s262_block t010_s262_nkb, t010_s262_g.spec (α := α), 577⟩, ⟨t010_s263_g.prog t010_s263_block t010_s263_nkb, t010_s263_g.spec (α := α), 578⟩, ⟨t010_s264_g.prog t010_s264_block t010_s264_nkb, t010_s264_g.spec (α := α), 579⟩, ⟨t010_s265_g.prog t010_s265_block t010_s265_nkb, t010_s265_g.spec (α := α), 580⟩, ⟨t010_s266_g.prog t010_s266_block t010_s266_nkb, t010_s266_g.spec (α := α), 581⟩, ⟨t010_s267_g.prog t010_s267_block t010_s267_nkb, t010_s267_g.spec (α := α), 582⟩, ⟨t010_s268_g.prog t010_s268_block t010_s268_nkb, t010_s268_g.spec (α := α), 583⟩, ⟨t010_s269_g.prog t010_s269_block t010_s269_nkb, t010_s269_g.spec (α := α), 584⟩, ⟨t010_s270_g.prog t010_s270_block t010_s270_nkb, t010_s270_g.spec (α := α), 585⟩, ⟨t010_s271_g.prog t010_s271_block t010_s271_nkb, t010_s271_g.spec (α := α), 586⟩, ⟨t010_s272_g.prog t010_s272_block t010_s272_nkb, t010_s272_g.spec (α := α), 587⟩, ⟨t010_s273_g.prog t010_s273_block t010_s273_nkb, t010_s273_g.spec (α := α), 588⟩, ⟨t010_s274_g.prog t010_s274_block t010_s274_nkb, t010_s274_g.spec (α := α), 589⟩, ⟨t010_s275_g.prog t010_s275_block t010_s275_nkb, t010_s275_g.spec (α := α), 590⟩, ⟨t010_s276_g.prog t010_s276_block t010_s276_nkb, t010_s276_g.spec (α := α), 591⟩, ⟨t010_s277_g.prog t010_s277_block t010_s277_nkb, t010_s277_g.spec (α := α), 592⟩, ⟨t010_s278_g.prog t010_s278_block t010_s278_nkb, t010_s278_g.spec (α := α), 593⟩, ⟨t010_s279_g.prog t010_s279_block t010_s279_nkb, t010_s279_g.spec (α := α), 594⟩, ⟨t010_s280_g.prog t010_s280_block t010_s280_nkb, t010_s280_g.spec (α := α), 595⟩, ⟨t010_s281_g.prog t010_s281_block t010_s281_nkb, t010_s281_g.spec (α := α), 596⟩, ⟨t010_s282_g.prog t010_s282_block t010_s282_nkb, t010_s282_g.spec (α := α), 597⟩, ⟨t010_s283_g.prog t010_s283_block t010_s283_nkb, t010_s283_g.spec (α := α), 598⟩, ⟨t010_s284_g.prog t010_s284_block t010_s284_nkb, t010_s284_g.spec (α := α), 599⟩, ⟨t010_s285_g.prog t010_s285_block t010_s285_nkb, t010_s285_g.spec (α := α), 600⟩, ⟨t010_s286_g.prog t010_s286_block t010_s286_nkb, t010_s286_g.spec (α := α), 601⟩, ⟨t010_s287_g.prog t010_s287_block t010_s287_nkb, t010_s287_g.spec (α := α), 602⟩, ⟨t010_s288_g.prog t010_s288_block t010_s288_nkb, t010_s288_g.spec (α := α), 603⟩, ⟨t010_s289_g.prog t010_s289_block t010_s289_nkb, t010_s289_g.spec (α := α), 604⟩, ⟨t010_s290_g.prog t010_s290_block t010_s290_nkb, t010_s290_g.spec (α := α), 605⟩, ⟨t010_s291_g.prog t010_s291_block t010_s291_nkb, t010_s291_g.spec (α := α), 606⟩, ⟨t010_s292_g.prog t010_s292_block t010_s292_nkb, t010_s292_g.spec (α := α), 607⟩, ⟨t010_s293_g.prog t010_s293_block t010_s293_nkb, t010_s293_g.spec (α := α), 608⟩, ⟨t010_s294_g.prog t010_s294_block t010_s294_nkb, t010_s294_g.spec (α := α), 609⟩, ⟨t010_s295_g.prog t010_s295_block t010_s295_nkb, t010_s295_g.spec (α := α), 610⟩, ⟨t010_s296_g.prog t010_s296_block t010_s296_nkb, t010_s296_g.spec (α := α), 611⟩, ⟨t010_s297_g.prog t010_s297_block t010_s297_nkb, t010_s297_g.spec (α := α), 612⟩, ⟨t010_s298_g.prog t010_s298_block t010_s298_nkb, t010_s298_g.spec (α := α), 613⟩, ⟨t010_s299_g.prog t010_s299_block t010_s299_nkb, t010_s299_g.spec (α := α), 614⟩, ⟨t010_s300_g.prog t010_s300_block t010_s300_nkb, t010_s300_g.spec (α := α), 615⟩, ⟨t010_s301_g.prog t010_s301_block t010_s301_nkb, t010_s301_g.spec (α := α), 616⟩, ⟨t010_s302_g.prog t010_s302_block t010_s302_nkb, t010_s302_g.spec (α := α), 617⟩, ⟨t010_s303_g.prog t010_s303_block t010_s303_nkb, t010_s303_g.spec (α := α), 618⟩, ⟨t010_s304_g.prog t010_s304_block t010_s304_nkb, t010_s304_g.spec (α := α), 619⟩, ⟨t010_s305_g.prog t010_s305_block t010_s305_nkb, t010_s305_g.spec (α := α), 620⟩, ⟨t010_s306_g.prog t010_s306_block t010_s306_nkb, t010_s306_g.spec (α := α), 621⟩, ⟨t010_s307_g.prog t010_s307_block t010_s307_nkb, t010_s307_g.spec (α := α), 622⟩, ⟨t010_s308_g.prog t010_s308_block t010_s308_nkb, t010_s308_g.spec (α := α), 623⟩, ⟨t010_s309_g.prog t010_s309_block t010_s309_nkb, t010_s309_g.spec (α := α), 624⟩, ⟨t010_s310_g.prog t010_s310_block t010_s310_nkb, t010_s310_g.spec (α := α), 625⟩, ⟨t010_s311_g.prog t010_s311_block t010_s311_nkb, t010_s311_g.spec (α := α), 626⟩, ⟨t010_s312_g.prog t010_s312_block t010_s312_nkb, t010_s312_g.spec (α := α), 627⟩, ⟨t010_s313_g.prog t010_s313_block t010_s313_nkb, t010_s313_g.spec (α := α), 628⟩, ⟨t010_s314_g.prog t010_s314_block t010_s314_nkb, t010_s314_g.spec (α := α), 629⟩, ⟨t010_s315_g.prog t010_s315_block t010_s315_nkb, t010_s315_g.spec (α := α), 630⟩, ⟨t010_s316_g.prog t010_s316_block t010_s316_nkb, t010_s316_g.spec (α := α), 631⟩, ⟨t010_s317_g.prog t010_s317_block t010_s317_nkb, t010_s317_g.spec (α := α), 632⟩, ⟨t010_s318_g.prog t010_s318_block t010_s318_nkb, t010_s318_g.spec (α := α), 633⟩, ⟨t010_s319_g.prog t010_s319_block t010_s319_nkb, t010_s319_g.spec (α := α), 634⟩, ⟨t010_s320_g.prog t010_s320_block t010_s320_nkb, t010_s320_g.spec (α := α), 635⟩, ⟨t010_s321_g.prog t010_s321_block t010_s321_nkb, t010_s321_g.spec (α := α), 636⟩, ⟨t010_s322_g.prog t010_s322_block t010_s322_nkb, t010_s322_g.spec (α := α), 637⟩, ⟨t010_s323_g.prog t010_s323_block t010_s323_nkb, t010_s323_g.spec (α := α), 638⟩, ⟨t010_s324_g.prog t010_s324_block t010_s324_nkb, t010_s324_g.spec (α := α), 639⟩, ⟨t010_s325_g.prog t010_s325_block t010_s325_nkb, t010_s325_g.spec (α := α), 640⟩, ⟨t010_s326_g.prog t010_s326_block t010_s326_nkb, t010_s326_g.spec (α := α), 641⟩, ⟨t010_s327_g.prog t010_s327_block t010_s327_nkb, t010_s327_g.spec (α := α), 642⟩, ⟨t010_s328_g.prog t010_s328_block t010_s328_nkb, t010_s328_g.spec (α := α), 643⟩, ⟨t010_s329_g.prog t010_s329_block t010_s329_nkb, t010_s329_g.spec (α := α), 644⟩, ⟨t010_s330_g.prog t010_s330_block t010_s330_nkb, t010_s330_g.spec (α := α), 645⟩, ⟨t010_s331_g.prog t010_s331_block t010_s331_nkb, t010_s331_g.spec (α := α), 646⟩, ⟨t010_s332_g.prog t010_s332_block t010_s332_nkb, t010_s332_g.spec (α := α), 647⟩, ⟨t010_s333_g.prog t010_s333_block t010_s333_nkb, t010_s333_g.spec (α := α), 648⟩, ⟨t010_s334_g.prog t010_s334_block t010_s334_nkb, t010_s334_g.spec (α := α), 649⟩, ⟨t010_s335_g.prog t010_s335_block t010_s335_nkb, t010_s335_g.spec (α := α), 650⟩, ⟨t010_s336_g.prog t010_s336_block t010_s336_nkb, t010_s336_g.spec (α := α), 651⟩, ⟨t010_s337_g.prog t010_s337_block t010_s337_nkb, t010_s337_g.spec (α := α), 652⟩, ⟨t010_s338_g.prog t010_s338_block t010_s338_nkb, t010_s338_g.spec (α := α), 653⟩, ⟨t010_s339_g.prog t010_s339_block t010_s339_nkb, t010_s339_g.spec (α := α), 654⟩, ⟨t010_s340_g.prog t010_s340_block t010_s340_nkb, t010_s340_g.spec (α := α), 655⟩, ⟨t010_s341_g.prog t010_s341_block t010_s341_nkb, t010_s341_g.spec (α := α), 656⟩, ⟨t010_s342_g.prog t010_s342_block t010_s342_nkb, t010_s342_g.spec (α := α), 657⟩, ⟨t010_s343_g.prog t010_s343_block t010_s343_nkb, t010_s343_g.spec (α := α), 658⟩, ⟨t010_s344_g.prog t010_s344_block t010_s344_nkb, t010_s344_g.spec (α := α), 659⟩, ⟨t010_s345_g.prog t010_s345_block t010_s345_nkb, t010_s345_g.spec (α := α), 660⟩, ⟨t010_s346_g.prog t010_s346_block t010_s346_nkb, t010_s346_g.spec (α := α), 661⟩, ⟨t010_s347_g.prog t010_s347_block t010_s347_nkb, t010_s347_g.spec (α := α), 662⟩, ⟨t010_s348_g.prog t010_s348_block t010_s348_nkb, t010_s348_g.spec (α := α), 663⟩, ⟨t010_s349_g.prog t010_s349_block t010_s349_nkb, t010_s349_g.spec (α := α), 664⟩, ⟨t010_s350_g.prog t010_s350_block t010_s350_nkb, t010_s350_g.spec (α := α), 665⟩, ⟨t010_s351_g.prog t010_s351_block t010_s351_nkb, t010_s351_g.spec (α := α), 666⟩, ⟨t010_s352_g.prog t010_s352_block t010_s352_nkb, t010_s352_g.spec (α := α), 667⟩, ⟨t010_s353_g.prog t010_s353_block t010_s353_nkb, t010_s353_g.spec (α := α), 668⟩, ⟨t010_s354_g.prog t010_s354_block t010_s354_nkb, t010_s354_g.spec (α := α), 669⟩, ⟨t010_s355_g.prog t010_s355_block t010_s355_nkb, t010_s355_g.spec (α := α), 670⟩, ⟨t010_s356_g.prog t010_s356_block t010_s356_nkb, t010_s356_g.spec (α := α), 671⟩, ⟨t010_s357_g.prog t010_s357_block t010_s357_nkb, t010_s357_g.spec (α := α), 672⟩, ⟨t010_s358_g.prog t010_s358_block t010_s358_nkb, t010_s358_g.spec (α := α), 673⟩, ⟨t010_s359_g.prog t010_s359_block t010_s359_nkb, t010_s359_g.spec (α := α), 674⟩, ⟨t010_s360_g.prog t010_s360_block t010_s360_nkb, t010_s360_g.spec (α := α), 675⟩, ⟨t010_s361_g.prog t010_s361_block t010_s361_nkb, t010_s361_g.spec (α := α), 676⟩, ⟨t010_s362_g.prog t010_s362_block t010_s362_nkb, t010_s362_g.spec (α := α), 677⟩, ⟨t010_s363_g.prog t010_s363_block t010_s363_nkb, t010_s363_g.spec (α := α), 678⟩, ⟨t010_s364_g.prog t010_s364_block t010_s364_nkb, t010_s364_g.spec (α := α), 679⟩, ⟨t010_s365_g.prog t010_s365_block t010_s365_nkb, t010_s365_g.spec (α := α), 680⟩, ⟨t010_s366_g.prog t010_s366_block t010_s366_nkb, t010_s366_g.spec (α := α), 681⟩, ⟨t010_s367_g.prog t010_s367_block t010_s367_nkb, t010_s367_g.spec (α := α), 682⟩, ⟨t010_s368_g.prog t010_s368_block t010_s368_nkb, t010_s368_g.spec (α := α), 683⟩, ⟨t010_s369_g.prog t010_s369_block t010_s369_nkb, t010_s369_g.spec (α := α), 684⟩, ⟨t010_s370_g.prog t010_s370_block t010_s370_nkb, t010_s370_g.spec (α := α), 685⟩, ⟨t010_s371_g.prog t010_s371_block t010_s371_nkb, t010_s371_g.spec (α := α), 686⟩, ⟨t010_s372_g.prog t010_s372_block t010_s372_nkb, t010_s372_g.spec (α := α), 687⟩, ⟨t010_s373_g.prog t010_s373_block t010_s373_nkb, t010_s373_g.spec (α := α), 688⟩, ⟨t010_s374_g.prog t010_s374_block t010_s374_nkb, t010_s374_g.spec (α := α), 689⟩, ⟨t010_s375_g.prog t010_s375_block t010_s375_nkb, t010_s375_g.spec (α := α), 690⟩, ⟨t010_s376_g.prog t010_s376_block t010_s376_nkb, t010_s376_g.spec (α := α), 691⟩, ⟨t010_s377_g.prog t010_s377_block t010_s377_nkb, t010_s377_g.spec (α := α), 692⟩, ⟨t010_s378_g.prog t010_s378_block t010_s378_nkb, t010_s378_g.spec (α := α), 693⟩, ⟨t010_s379_g.prog t010_s379_block t010_s379_nkb, t010_s379_g.spec (α := α), 694⟩, ⟨t010_s380_g.prog t010_s380_block t010_s380_nkb, t010_s380_g.spec (α := α), 695⟩, ⟨t010_s381_g.prog t010_s381_block t010_s381_nkb, t010_s381_g.spec (α := α), 696⟩, ⟨t010_s382_g.prog t010_s382_block t010_s382_nkb, t010_s382_g.spec (α := α), 697⟩, ⟨t010_s383_g.prog t010_s383_block t010_s383_nkb, t010_s383_g.spec (α := α), 698⟩, ⟨t010_s384_g.prog t010_s384_block t010_s384_nkb, t010_s384_g.spec (α := α), 699⟩, ⟨t010_s385_g.prog t010_s385_block t010_s385_nkb, t010_s385_g.spec (α := α), 700⟩, ⟨t010_s386_g.prog t010_s386_block t010_s386_nkb, t010_s386_g.spec (α := α), 701⟩, ⟨t010_s387_g.prog t010_s387_block t010_s387_nkb, t010_s387_g.spec (α := α), 702⟩, ⟨t010_s388_g.prog t010_s388_block t010_s388_nkb, t010_s388_g.spec (α := α), 703⟩, ⟨t010_s389_g.prog t010_s389_block t010_s389_nkb, t010_s389_g.spec (α := α), 704⟩, ⟨t010_s390_g.prog t010_s390_block t010_s390_nkb, t010_s390_g.spec (α := α), 705⟩, ⟨t010_s391_g.prog t010_s391_block t010_s391_nkb, t010_s391_g.spec (α := α), 706⟩, ⟨t010_s392_g.prog t010_s392_block t010_s392_nkb, t010_s392_g.spec (α := α), 707⟩, ⟨t010_s393_g.prog t010_s393_block t010_s393_nkb, t010_s393_g.spec (α := α), 708⟩, ⟨t010_s394_g.prog t010_s394_block t010_s394_nkb, t010_s394_g.spec (α := α), 709⟩, ⟨t010_s395_g.prog t010_s395_block t010_s395_nkb, t010_s395_g.spec (α := α), 710⟩, ⟨t010_s396_g.prog t010_s396_block t010_s396_nkb, t010_s396_g.spec (α := α), 711⟩, ⟨t010_s397_g.prog t010_s397_block t010_s397_nkb, t010_s397_g.spec (α := α), 712⟩, ⟨t010_s398_g.prog t010_s398_block t010_s398_nkb, t010_s398_g.spec (α := α), 713⟩, ⟨t010_s399_g.prog t010_s399_block t010_s399_nkb, t010_s399_g.spec (α := α), 714⟩, ⟨t010_s400_g.prog t010_s400_block t010_s400_nkb, t010_s400_g.spec (α := α), 715⟩, ⟨t010_s401_g.prog t010_s401_block t010_s401_nkb, t010_s401_g.spec (α := α), 716⟩, ⟨t010_s402_g.prog t010_s402_block t010_s402_nkb, t010_s402_g.spec (α := α), 717⟩, ⟨t010_s403_g.prog t010_s403_block t010_s403_nkb, t010_s403_g.spec (α := α), 718⟩, ⟨t010_s404_g.prog t010_s404_block t010_s404_nkb, t010_s404_g.spec (α := α), 719⟩, ⟨t010_s405_g.prog t010_s405_block t010_s405_nkb, t010_s405_g.spec (α := α), 720⟩, ⟨t010_s406_g.prog t010_s406_block t010_s406_nkb, t010_s406_g.spec (α := α), 721⟩, ⟨t010_s407_g.prog t010_s407_block t010_s407_nkb, t010_s407_g.spec (α := α), 722⟩, ⟨t010_s408_g.prog t010_s408_block t010_s408_nkb, t010_s408_g.spec (α := α), 723⟩, ⟨t010_s409_g.prog t010_s409_block t010_s409_nkb, t010_s409_g.spec (α := α), 724⟩, ⟨t010_s410_g.prog t010_s410_block t010_s410_nkb, t010_s410_g.spec (α := α), 725⟩, ⟨t010_s411_g.prog t010_s411_block t010_s411_nkb, t010_s411_g.spec (α := α), 726⟩, ⟨t010_s412_g.prog t010_s412_block t010_s412_nkb, t010_s412_g.spec (α := α), 727⟩, ⟨t010_s413_g.prog t010_s413_block t010_s413_nkb, t010_s413_g.spec (α := α), 728⟩, ⟨t010_s414_g.prog t010_s414_block t010_s414_nkb, t010_s414_g.spec (α := α), 729⟩, ⟨t010_s415_g.prog t010_s415_block t010_s415_nkb, t010_s415_g.spec (α := α), 730⟩, ⟨t010_s416_g.prog t010_s416_block t010_s416_nkb, t010_s416_g.spec (α := α), 731⟩, ⟨t010_s417_g.prog t010_s417_block t010_s417_nkb, t010_s417_g.spec (α := α), 732⟩, ⟨t010_s418_g.prog t010_s418_block t010_s418_nkb, t010_s418_g.spec (α := α), 733⟩, ⟨t010_s419_g.prog t010_s419_block t010_s419_nkb, t010_s419_g.spec (α := α), 734⟩, ⟨t010_s420_g.prog t010_s420_block t010_s420_nkb, t010_s420_g.spec (α := α), 735⟩, ⟨t010_s421_g.prog t010_s421_block t010_s421_nkb, t010_s421_g.spec (α := α), 736⟩, ⟨t010_s422_g.prog t010_s422_block t010_s422_nkb, t010_s422_g.spec (α := α), 737⟩, ⟨t010_s423_g.prog t010_s423_block t010_s423_nkb, t010_s423_g.spec (α := α), 738⟩, ⟨t010_s424_g.prog t010_s424_block t010_s424_nkb, t010_s424_g.spec (α := α), 739⟩, ⟨t010_s425_g.prog t010_s425_block t010_s425_nkb, t010_s425_g.spec (α := α), 740⟩, ⟨t010_s426_g.prog t010_s426_block t010_s426_nkb, t010_s426_g.spec (α := α), 741⟩, ⟨t010_s427_g.prog t010_s427_block t010_s427_nkb, t010_s427_g.spec (α := α), 742⟩, ⟨t010_s428_g.prog t010_s428_block t010_s428_nkb, t010_s428_g.spec (α := α), 743⟩, ⟨t010_s429_g.prog t010_s429_block t010_s429_nkb, t010_s429_g.spec (α := α), 744⟩, ⟨t010_s430_g.prog t010_s430_block t010_s430_nkb, t010_s430_g.spec (α := α), 745⟩, ⟨t010_s431_g.prog t010_s431_block t010_s431_nkb, t010_s431_g.spec (α := α), 746⟩, ⟨t010_s432_g.prog t010_s432_block t010_s432_nkb, t010_s432_g.spec (α := α), 747⟩, ⟨t010_s433_g.prog t010_s433_block t010_s433_nkb, t010_s433_g.spec (α := α), 748⟩, ⟨t010_s434_g.prog t010_s434_block t010_s434_nkb, t010_s434_g.spec (α := α), 749⟩, ⟨t010_s435_g.prog t010_s435_block t010_s435_nkb, t010_s435_g.spec (α := α), 750⟩, ⟨t010_s436_g.prog t010_s436_block t010_s436_nkb, t010_s436_g.spec (α := α), 751⟩, ⟨t010_s437_g.prog t010_s437_block t010_s437_nkb, t010_s437_g.spec (α := α), 752⟩, ⟨t010_s438_g.prog t010_s438_block t010_s438_nkb, t010_s438_g.spec (α := α), 753⟩, ⟨t010_s439_g.prog t010_s439_block t010_s439_nkb, t010_s439_g.spec (α := α), 754⟩, ⟨t010_s440_g.prog t010_s440_block t010_s440_nkb, t010_s440_g.spec (α := α), 755⟩, ⟨t010_s441_g.prog t010_s441_block t010_s441_nkb, t010_s441_g.spec (α := α), 756⟩, ⟨t010_s442_g.prog t010_s442_block t010_s442_nkb, t010_s442_g.spec (α := α), 757⟩, ⟨t010_s443_g.prog t010_s443_block t010_s443_nkb, t010_s443_g.spec (α := α), 758⟩, ⟨t010_s444_g.prog t010_s444_block t010_s444_nkb, t010_s444_g.spec (α := α), 759⟩, ⟨t010_s445_g.prog t010_s445_block t010_s445_nkb, t010_s445_g.spec (α := α), 760⟩, ⟨t010_s446_g.prog t010_s446_block t010_s446_nkb, t010_s446_g.spec (α := α), 761⟩, ⟨t010_s447_g.prog t010_s447_block t010_s447_nkb, t010_s447_g.spec (α := α), 762⟩, ⟨t010_s448_g.prog t010_s448_block t010_s448_nkb, t010_s448_g.spec (α := α), 763⟩, ⟨t010_s449_g.prog t010_s449_block t010_s449_nkb, t010_s449_g.spec (α := α), 764⟩, ⟨t010_s450_g.prog t010_s450_block t010_s450_nkb, t010_s450_g.spec (α := α), 765⟩, ⟨t010_s451_g.prog t010_s451_block t010_s451_nkb, t010_s451_g.spec (α := α), 766⟩, ⟨t010_s452_g.prog t010_s452_block t010_s452_nkb, t010_s452_g.spec (α := α), 767⟩, ⟨t010_s453_g.prog t010_s453_block t010_s453_nkb, t010_s453_g.spec (α := α), 768⟩]
 
 theorem t010_imp {α : Type} [ExactScalar α] :
-    ∀ st ∈ t010_chain α, Implements st.prog st.spec := by
-  intro st hst
-  simp only [t010_chain, List.mem_cons, List.not_mem_nil, or_false] at hst
-  rcases hst with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · exact t010_s0_impl
-  · exact t010_s1_impl
-  · exact t010_s2_impl
-  · exact t010_s3_impl
-  · exact t010_s4_impl
-  · exact t010_s5_impl
-  · exact t010_s6_impl
-  · exact t010_s7_impl
-  · exact t010_s8_impl
-  · exact t010_s9_impl
-  · exact t010_s10_impl
-  · exact t010_s11_impl
-  · exact t010_s12_impl
-  · exact t010_s13_impl
-  · exact t010_s14_impl
-  · exact t010_s15_impl
-  · exact t010_s16_impl
-  · exact t010_s17_impl
-  · exact t010_s18_impl
-  · exact t010_s19_impl
-  · exact t010_s20_impl
-  · exact t010_s21_impl
-  · exact t010_s22_impl
-  · exact t010_s23_impl
-  · exact t010_s24_impl
-  · exact t010_s25_impl
-  · exact t010_s26_impl
-  · exact t010_s27_impl
-  · exact t010_s28_impl
-  · exact t010_s29_impl
-  · exact t010_s30_impl
-  · exact t010_s31_impl
-  · exact t010_s32_impl
-  · exact t010_s33_impl
-  · exact t010_s34_impl
-  · exact t010_s35_impl
-  · exact t010_s36_impl
-  · exact t010_s37_impl
-  · exact t010_s38_impl
-  · exact t010_s39_impl
-  · exact t010_s40_impl
-  · exact t010_s41_impl
-  · exact t010_s42_impl
-  · exact t010_s43_impl
-  · exact t010_s44_impl
-  · exact t010_s45_impl
-  · exact t010_s46_impl
-  · exact t010_s47_impl
-  · exact t010_s48_impl
-  · exact t010_s49_impl
-  · exact t010_s50_impl
-  · exact t010_s51_impl
-  · exact t010_s52_impl
-  · exact t010_s53_impl
-  · exact t010_s54_impl
-  · exact t010_s55_impl
-  · exact t010_s56_impl
-  · exact t010_s57_impl
-  · exact t010_s58_impl
-  · exact t010_s59_impl
-  · exact t010_s60_impl
-  · exact t010_s61_impl
-  · exact t010_s62_impl
-  · exact t010_s63_impl
-  · exact t010_s64_impl
-  · exact t010_s65_impl
-  · exact t010_s66_impl
-  · exact t010_s67_impl
-  · exact t010_s68_impl
-  · exact t010_s69_impl
-  · exact t010_s70_impl
-  · exact t010_s71_impl
-  · exact t010_s72_impl
-  · exact t010_s73_impl
-  · exact t010_s74_impl
-  · exact t010_s75_impl
-  · exact t010_s76_impl
-  · exact t010_s77_impl
-  · exact t010_s78_impl
-  · exact t010_s79_impl
-  · exact t010_s80_impl
-  · exact t010_s81_impl
-  · exact t010_s82_impl
-  · exact t010_s83_impl
-  · exact t010_s84_impl
-  · exact t010_s85_impl
-  · exact t010_s86_impl
-  · exact t010_s87_impl
-  · exact t010_s88_impl
-  · exact t010_s89_impl
-  · exact t010_s90_impl
-  · exact t010_s91_impl
-  · exact t010_s92_impl
-  · exact t010_s93_impl
-  · exact t010_s94_impl
-  · exact t010_s95_impl
-  · exact t010_s96_impl
-  · exact t010_s97_impl
-  · exact t010_s98_impl
-  · exact t010_s99_impl
-  · exact t010_s100_impl
-  · exact t010_s101_impl
-  · exact t010_s102_impl
-  · exact t010_s103_impl
-  · exact t010_s104_impl
-  · exact t010_s105_impl
-  · exact t010_s106_impl
-  · exact t010_s107_impl
-  · exact t010_s108_impl
-  · exact t010_s109_impl
-  · exact t010_s110_impl
-  · exact t010_s111_impl
-  · exact t010_s112_impl
-  · exact t010_s113_impl
-  · exact t010_s114_impl
-  · exact t010_s115_impl
-  · exact t010_s116_impl
-  · exact t010_s117_impl
-  · exact t010_s118_impl
-  · exact t010_s119_impl
-  · exact t010_s120_impl
-  · exact t010_s121_impl
-  · exact t010_s122_impl
-  · exact t010_s123_impl
-  · exact t010_s124_impl
-  · exact t010_s125_impl
-  · exact t010_s126_impl
-  · exact t010_s127_impl
-  · exact t010_s128_impl
-  · exact t010_s129_impl
-  · exact t010_s130_impl
-  · exact t010_s131_impl
-  · exact t010_s132_impl
-  · exact t010_s133_impl
-  · exact t010_s134_impl
-  · exact t010_s135_impl
-  · exact t010_s136_impl
-  · exact t010_s137_impl
-  · exact t010_s138_impl
-  · exact t010_s139_impl
-  · exact t010_s140_impl
-  · exact t010_s141_impl
-  · exact t010_s142_impl
-  · exact t010_s143_impl
-  · exact t010_s144_impl
-  · exact t010_s145_impl
-  · exact t010_s146_impl
-  · exact t010_s147_impl
-  · exact t010_s148_impl
-  · exact t010_s149_impl
-  · exact t010_s150_impl
-  · exact t010_s151_impl
-  · exact t010_s152_impl
-  · exact t010_s153_impl
-  · exact t010_s154_impl
-  · exact t010_s155_impl
-  · exact t010_s156_impl
-  · exact t010_s157_impl
-  · exact t010_s158_impl
-  · exact t010_s159_impl
-  · exact t010_s160_impl
-  · exact t010_s161_impl
-  · exact t010_s162_impl
-  · exact t010_s163_impl
-  · exact t010_s164_impl
-  · exact t010_s165_impl
-  · exact t010_s166_impl
-  · exact t010_s167_impl
-  · exact t010_s168_impl
-  · exact t010_s169_impl
-  · exact t010_s170_impl
-  · exact t010_s171_impl
-  · exact t010_s172_impl
-  · exact t010_s173_impl
-  · exact t010_s174_impl
-  · exact t010_s175_impl
-  · exact t010_s176_impl
-  · exact t010_s177_impl
-  · exact t010_s178_impl
-  · exact t010_s179_impl
-  · exact t010_s180_impl
-  · exact t010_s181_impl
-  · exact t010_s182_impl
-  · exact t010_s183_impl
-  · exact t010_s184_impl
-  · exact t010_s185_impl
-  · exact t010_s186_impl
-  · exact t010_s187_impl
-  · exact t010_s188_impl
-  · exact t010_s189_impl
-  · exact t010_s190_impl
-  · exact t010_s191_impl
-  · exact t010_s192_impl
-  · exact t010_s193_impl
-  · exact t010_s194_impl
-  · exact t010_s195_impl
-  · exact t010_s196_impl
-  · exact t010_s197_impl
-  · exact t010_s198_impl
-  · exact t010_s199_impl
-  · exact t010_s200_impl
-  · exact t010_s201_impl
-  · exact t010_s202_impl
-  · exact t010_s203_impl
-  · exact t010_s204_impl
-  · exact t010_s205_impl
-  · exact t010_s206_impl
-  · exact t010_s207_impl
-  · exact t010_s208_impl
-  · exact t010_s209_impl
-  · exact t010_s210_impl
-  · exact t010_s211_impl
-  · exact t010_s212_impl
-  · exact t010_s213_impl
-  · exact t010_s214_impl
-  · exact t010_s215_impl
-  · exact t010_s216_impl
-  · exact t010_s217_impl
-  · exact t010_s218_impl
-  · exact t010_s219_impl
-  · exact t010_s220_impl
-  · exact t010_s221_impl
-  · exact t010_s222_impl
-  · exact t010_s223_impl
-  · exact t010_s224_impl
-  · exact t010_s225_impl
-  · exact t010_s226_impl
-  · exact t010_s227_impl
-  · exact t010_s228_impl
-  · exact t010_s229_impl
-  · exact t010_s230_impl
-  · exact t010_s231_impl
-  · exact t010_s232_impl
-  · exact t010_s233_impl
-  · exact t010_s234_impl
-  · exact t010_s235_impl
-  · exact t010_s236_impl
-  · exact t010_s237_impl
-  · exact t010_s238_impl
-  · exact t010_s239_impl
-  · exact t010_s240_impl
-  · exact t010_s241_impl
-  · exact t010_s242_impl
-  · exact t010_s243_impl
-  · exact t010_s244_impl
-  · exact t010_s245_impl
-  · exact t010_s246_impl
-  · exact t010_s247_impl
-  · exact t010_s248_impl
-  · exact t010_s249_impl
-  · exact t010_s250_impl
-  · exact t010_s251_impl
-  · exact t010_s252_impl
-  · exact t010_s253_impl
-  · exact t010_s254_impl
-  · exact t010_s255_impl
-  · exact t010_s256_impl
-  · exact t010_s257_impl
-  · exact t010_s258_impl
-  · exact t010_s259_impl
-  · exact t010_s260_impl
-  · exact t010_s261_impl
-  · exact t010_s262_impl
-  · exact t010_s263_impl
-  · exact t010_s264_impl
-  · exact t010_s265_impl
-  · exact t010_s266_impl
-  · exact t010_s267_impl
-  · exact t010_s268_impl
-  · exact t010_s269_impl
-  · exact t010_s270_impl
-  · exact t010_s271_impl
-  · exact t010_s272_impl
-  · exact t010_s273_impl
-  · exact t010_s274_impl
-  · exact t010_s275_impl
-  · exact t010_s276_impl
-  · exact t010_s277_impl
-  · exact t010_s278_impl
-  · exact t010_s279_impl
-  · exact t010_s280_impl
-  · exact t010_s281_impl
-  · exact t010_s282_impl
-  · exact t010_s283_impl
-  · exact t010_s284_impl
-  · exact t010_s285_impl
-  · exact t010_s286_impl
-  · exact t010_s287_impl
-  · exact t010_s288_impl
-  · exact t010_s289_impl
-  · exact t010_s290_impl
-  · exact t010_s291_impl
-  · exact t010_s292_impl
-  · exact t010_s293_impl
-  · exact t010_s294_impl
-  · exact t010_s295_impl
-  · exact t010_s296_impl
-  · exact t010_s297_impl
-  · exact t010_s298_impl
-  · exact t010_s299_impl
-  · exact t010_s300_impl
-  · exact t010_s301_impl
-  · exact t010_s302_impl
-  · exact t010_s303_impl
-  · exact t010_s304_impl
-  · exact t010_s305_impl
-  · exact t010_s306_impl
-  · exact t010_s307_impl
-  · exact t010_s308_impl
-  · exact t010_s309_impl
-  · exact t010_s310_impl
-  · exact t010_s311_impl
-  · exact t010_s312_impl
-  · exact t010_s313_impl
-  · exact t010_s314_impl
-  · exact t010_s315_impl
-  · exact t010_s316_impl
-  · exact t010_s317_impl
-  · exact t010_s318_impl
-  · exact t010_s319_impl
-  · exact t010_s320_impl
-  · exact t010_s321_impl
-  · exact t010_s322_impl
-  · exact t010_s323_impl
-  · exact t010_s324_impl
-  · exact t010_s325_impl
-  · exact t010_s326_impl
-  · exact t010_s327_impl
-  · exact t010_s328_impl
-  · exact t010_s329_impl
-  · exact t010_s330_impl
-  · exact t010_s331_impl
-  · exact t010_s332_impl
-  · exact t010_s333_impl
-  · exact t010_s334_impl
-  · exact t010_s335_impl
-  · exact t010_s336_impl
-  · exact t010_s337_impl
-  · exact t010_s338_impl
-  · exact t010_s339_impl
-  · exact t010_s340_impl
-  · exact t010_s341_impl
-  · exact t010_s342_impl
-  · exact t010_s343_impl
-  · exact t010_s344_impl
-  · exact t010_s345_impl
-  · exact t010_s346_impl
-  · exact t010_s347_impl
-  · exact t010_s348_impl
-  · exact t010_s349_impl
-  · exact t010_s350_impl
-  · exact t010_s351_impl
-  · exact t010_s352_impl
-  · exact t010_s353_impl
-  · exact t010_s354_impl
-  · exact t010_s355_impl
-  · exact t010_s356_impl
-  · exact t010_s357_impl
-  · exact t010_s358_impl
-  · exact t010_s359_impl
-  · exact t010_s360_impl
-  · exact t010_s361_impl
-  · exact t010_s362_impl
-  · exact t010_s363_impl
-  · exact t010_s364_impl
-  · exact t010_s365_impl
-  · exact t010_s366_impl
-  · exact t010_s367_impl
-  · exact t010_s368_impl
-  · exact t010_s369_impl
-  · exact t010_s370_impl
-  · exact t010_s371_impl
-  · exact t010_s372_impl
-  · exact t010_s373_impl
-  · exact t010_s374_impl
-  · exact t010_s375_impl
-  · exact t010_s376_impl
-  · exact t010_s377_impl
-  · exact t010_s378_impl
-  · exact t010_s379_impl
-  · exact t010_s380_impl
-  · exact t010_s381_impl
-  · exact t010_s382_impl
-  · exact t010_s383_impl
-  · exact t010_s384_impl
-  · exact t010_s385_impl
-  · exact t010_s386_impl
-  · exact t010_s387_impl
-  · exact t010_s388_impl
-  · exact t010_s389_impl
-  · exact t010_s390_impl
-  · exact t010_s391_impl
-  · exact t010_s392_impl
-  · exact t010_s393_impl
-  · exact t010_s394_impl
-  · exact t010_s395_impl
-  · exact t010_s396_impl
-  · exact t010_s397_impl
-  · exact t010_s398_impl
-  · exact t010_s399_impl
-  · exact t010_s400_impl
-  · exact t010_s401_impl
-  · exact t010_s402_impl
-  · exact t010_s403_impl
-  · exact t010_s404_impl
-  · exact t010_s405_impl
-  · exact t010_s406_impl
-  · exact t010_s407_impl
-  · exact t010_s408_impl
-  · exact t010_s409_impl
-  · exact t010_s410_impl
-  · exact t010_s411_impl
-  · exact t010_s412_impl
-  · exact t010_s413_impl
-  · exact t010_s414_impl
-  · exact t010_s415_impl
-  · exact t010_s416_impl
-  · exact t010_s417_impl
-  · exact t010_s418_impl
-  · exact t010_s419_impl
-  · exact t010_s420_impl
-  · exact t010_s421_impl
-  · exact t010_s422_impl
-  · exact t010_s423_impl
-  · exact t010_s424_impl
-  · exact t010_s425_impl
-  · exact t010_s426_impl
-  · exact t010_s427_impl
-  · exact t010_s428_impl
-  · exact t010_s429_impl
-  · exact t010_s430_impl
-  · exact t010_s431_impl
-  · exact t010_s432_impl
-  · exact t010_s433_impl
-  · exact t010_s434_impl
-  · exact t010_s435_impl
-  · exact t010_s436_impl
-  · exact t010_s437_impl
-  · exact t010_s438_impl
-  · exact t010_s439_impl
-  · exact t010_s440_impl
-  · exact t010_s441_impl
-  · exact t010_s442_impl
-  · exact t010_s443_impl
-  · exact t010_s444_impl
-  · exact t010_s445_impl
-  · exact t010_s446_impl
-  · exact t010_s447_impl
-  · exact t010_s448_impl
-  · exact t010_s449_impl
-  · exact t010_s450_impl
-  · exact t010_s451_impl
-  · exact t010_s452_impl
-  · exact t010_s453_impl
+    ∀ st ∈ t010_chain α, Implements st.prog st.spec :=
+  List.forall_mem_cons.mpr ⟨t010_s0_impl,
+  List.forall_mem_cons.mpr ⟨t010_s1_impl,
+  List.forall_mem_cons.mpr ⟨t010_s2_impl,
+  List.forall_mem_cons.mpr ⟨t010_s3_impl,
+  List.forall_mem_cons.mpr ⟨t010_s4_impl,
+  List.forall_mem_cons.mpr ⟨t010_s5_impl,
+  List.forall_mem_cons.mpr ⟨t010_s6_impl,
+  List.forall_mem_cons.mpr ⟨t010_s7_impl,
+  List.forall_mem_cons.mpr ⟨t010_s8_impl,
+  List.forall_mem_cons.mpr ⟨t010_s9_impl,
+  List.forall_mem_cons.mpr ⟨t010_s10_impl,
+  List.forall_mem_cons.mpr ⟨t010_s11_impl,
+  List.forall_mem_cons.mpr ⟨t010_s12_impl,
+  List.forall_mem_cons.mpr ⟨t010_s13_impl,
+  List.forall_mem_cons.mpr ⟨t010_s14_impl,
+  List.forall_mem_cons.mpr ⟨t010_s15_impl,
+  List.forall_mem_cons.mpr ⟨t010_s16_impl,
+  List.forall_mem_cons.mpr ⟨t010_s17_impl,
+  List.forall_mem_cons.mpr ⟨t010_s18_impl,
+  List.forall_mem_cons.mpr ⟨t010_s19_impl,
+  List.forall_mem_cons.mpr ⟨t010_s20_impl,
+  List.forall_mem_cons.mpr ⟨t010_s21_impl,
+  List.forall_mem_cons.mpr ⟨t010_s22_impl,
+  List.forall_mem_cons.mpr ⟨t010_s23_impl,
+  List.forall_mem_cons.mpr ⟨t010_s24_impl,
+  List.forall_mem_cons.mpr ⟨t010_s25_impl,
+  List.forall_mem_cons.mpr ⟨t010_s26_impl,
+  List.forall_mem_cons.mpr ⟨t010_s27_impl,
+  List.forall_mem_cons.mpr ⟨t010_s28_impl,
+  List.forall_mem_cons.mpr ⟨t010_s29_impl,
+  List.forall_mem_cons.mpr ⟨t010_s30_impl,
+  List.forall_mem_cons.mpr ⟨t010_s31_impl,
+  List.forall_mem_cons.mpr ⟨t010_s32_impl,
+  List.forall_mem_cons.mpr ⟨t010_s33_impl,
+  List.forall_mem_cons.mpr ⟨t010_s34_impl,
+  List.forall_mem_cons.mpr ⟨t010_s35_impl,
+  List.forall_mem_cons.mpr ⟨t010_s36_impl,
+  List.forall_mem_cons.mpr ⟨t010_s37_impl,
+  List.forall_mem_cons.mpr ⟨t010_s38_impl,
+  List.forall_mem_cons.mpr ⟨t010_s39_impl,
+  List.forall_mem_cons.mpr ⟨t010_s40_impl,
+  List.forall_mem_cons.mpr ⟨t010_s41_impl,
+  List.forall_mem_cons.mpr ⟨t010_s42_impl,
+  List.forall_mem_cons.mpr ⟨t010_s43_impl,
+  List.forall_mem_cons.mpr ⟨t010_s44_impl,
+  List.forall_mem_cons.mpr ⟨t010_s45_impl,
+  List.forall_mem_cons.mpr ⟨t010_s46_impl,
+  List.forall_mem_cons.mpr ⟨t010_s47_impl,
+  List.forall_mem_cons.mpr ⟨t010_s48_impl,
+  List.forall_mem_cons.mpr ⟨t010_s49_impl,
+  List.forall_mem_cons.mpr ⟨t010_s50_impl,
+  List.forall_mem_cons.mpr ⟨t010_s51_impl,
+  List.forall_mem_cons.mpr ⟨t010_s52_impl,
+  List.forall_mem_cons.mpr ⟨t010_s53_impl,
+  List.forall_mem_cons.mpr ⟨t010_s54_impl,
+  List.forall_mem_cons.mpr ⟨t010_s55_impl,
+  List.forall_mem_cons.mpr ⟨t010_s56_impl,
+  List.forall_mem_cons.mpr ⟨t010_s57_impl,
+  List.forall_mem_cons.mpr ⟨t010_s58_impl,
+  List.forall_mem_cons.mpr ⟨t010_s59_impl,
+  List.forall_mem_cons.mpr ⟨t010_s60_impl,
+  List.forall_mem_cons.mpr ⟨t010_s61_impl,
+  List.forall_mem_cons.mpr ⟨t010_s62_impl,
+  List.forall_mem_cons.mpr ⟨t010_s63_impl,
+  List.forall_mem_cons.mpr ⟨t010_s64_impl,
+  List.forall_mem_cons.mpr ⟨t010_s65_impl,
+  List.forall_mem_cons.mpr ⟨t010_s66_impl,
+  List.forall_mem_cons.mpr ⟨t010_s67_impl,
+  List.forall_mem_cons.mpr ⟨t010_s68_impl,
+  List.forall_mem_cons.mpr ⟨t010_s69_impl,
+  List.forall_mem_cons.mpr ⟨t010_s70_impl,
+  List.forall_mem_cons.mpr ⟨t010_s71_impl,
+  List.forall_mem_cons.mpr ⟨t010_s72_impl,
+  List.forall_mem_cons.mpr ⟨t010_s73_impl,
+  List.forall_mem_cons.mpr ⟨t010_s74_impl,
+  List.forall_mem_cons.mpr ⟨t010_s75_impl,
+  List.forall_mem_cons.mpr ⟨t010_s76_impl,
+  List.forall_mem_cons.mpr ⟨t010_s77_impl,
+  List.forall_mem_cons.mpr ⟨t010_s78_impl,
+  List.forall_mem_cons.mpr ⟨t010_s79_impl,
+  List.forall_mem_cons.mpr ⟨t010_s80_impl,
+  List.forall_mem_cons.mpr ⟨t010_s81_impl,
+  List.forall_mem_cons.mpr ⟨t010_s82_impl,
+  List.forall_mem_cons.mpr ⟨t010_s83_impl,
+  List.forall_mem_cons.mpr ⟨t010_s84_impl,
+  List.forall_mem_cons.mpr ⟨t010_s85_impl,
+  List.forall_mem_cons.mpr ⟨t010_s86_impl,
+  List.forall_mem_cons.mpr ⟨t010_s87_impl,
+  List.forall_mem_cons.mpr ⟨t010_s88_impl,
+  List.forall_mem_cons.mpr ⟨t010_s89_impl,
+  List.forall_mem_cons.mpr ⟨t010_s90_impl,
+  List.forall_mem_cons.mpr ⟨t010_s91_impl,
+  List.forall_mem_cons.mpr ⟨t010_s92_impl,
+  List.forall_mem_cons.mpr ⟨t010_s93_impl,
+  List.forall_mem_cons.mpr ⟨t010_s94_impl,
+  List.forall_mem_cons.mpr ⟨t010_s95_impl,
+  List.forall_mem_cons.mpr ⟨t010_s96_impl,
+  List.forall_mem_cons.mpr ⟨t010_s97_impl,
+  List.forall_mem_cons.mpr ⟨t010_s98_impl,
+  List.forall_mem_cons.mpr ⟨t010_s99_impl,
+  List.forall_mem_cons.mpr ⟨t010_s100_impl,
+  List.forall_mem_cons.mpr ⟨t010_s101_impl,
+  List.forall_mem_cons.mpr ⟨t010_s102_impl,
+  List.forall_mem_cons.mpr ⟨t010_s103_impl,
+  List.forall_mem_cons.mpr ⟨t010_s104_impl,
+  List.forall_mem_cons.mpr ⟨t010_s105_impl,
+  List.forall_mem_cons.mpr ⟨t010_s106_impl,
+  List.forall_mem_cons.mpr ⟨t010_s107_impl,
+  List.forall_mem_cons.mpr ⟨t010_s108_impl,
+  List.forall_mem_cons.mpr ⟨t010_s109_impl,
+  List.forall_mem_cons.mpr ⟨t010_s110_impl,
+  List.forall_mem_cons.mpr ⟨t010_s111_impl,
+  List.forall_mem_cons.mpr ⟨t010_s112_impl,
+  List.forall_mem_cons.mpr ⟨t010_s113_impl,
+  List.forall_mem_cons.mpr ⟨t010_s114_impl,
+  List.forall_mem_cons.mpr ⟨t010_s115_impl,
+  List.forall_mem_cons.mpr ⟨t010_s116_impl,
+  List.forall_mem_cons.mpr ⟨t010_s117_impl,
+  List.forall_mem_cons.mpr ⟨t010_s118_impl,
+  List.forall_mem_cons.mpr ⟨t010_s119_impl,
+  List.forall_mem_cons.mpr ⟨t010_s120_impl,
+  List.forall_mem_cons.mpr ⟨t010_s121_impl,
+  List.forall_mem_cons.mpr ⟨t010_s122_impl,
+  List.forall_mem_cons.mpr ⟨t010_s123_impl,
+  List.forall_mem_cons.mpr ⟨t010_s124_impl,
+  List.forall_mem_cons.mpr ⟨t010_s125_impl,
+  List.forall_mem_cons.mpr ⟨t010_s126_impl,
+  List.forall_mem_cons.mpr ⟨t010_s127_impl,
+  List.forall_mem_cons.mpr ⟨t010_s128_impl,
+  List.forall_mem_cons.mpr ⟨t010_s129_impl,
+  List.forall_mem_cons.mpr ⟨t010_s130_impl,
+  List.forall_mem_cons.mpr ⟨t010_s131_impl,
+  List.forall_mem_cons.mpr ⟨t010_s132_impl,
+  List.forall_mem_cons.mpr ⟨t010_s133_impl,
+  List.forall_mem_cons.mpr ⟨t010_s134_impl,
+  List.forall_mem_cons.mpr ⟨t010_s135_impl,
+  List.forall_mem_cons.mpr ⟨t010_s136_impl,
+  List.forall_mem_cons.mpr ⟨t010_s137_impl,
+  List.forall_mem_cons.mpr ⟨t010_s138_impl,
+  List.forall_mem_cons.mpr ⟨t010_s139_impl,
+  List.forall_mem_cons.mpr ⟨t010_s140_impl,
+  List.forall_mem_cons.mpr ⟨t010_s141_impl,
+  List.forall_mem_cons.mpr ⟨t010_s142_impl,
+  List.forall_mem_cons.mpr ⟨t010_s143_impl,
+  List.forall_mem_cons.mpr ⟨t010_s144_impl,
+  List.forall_mem_cons.mpr ⟨t010_s145_impl,
+  List.forall_mem_cons.mpr ⟨t010_s146_impl,
+  List.forall_mem_cons.mpr ⟨t010_s147_impl,
+  List.forall_mem_cons.mpr ⟨t010_s148_impl,
+  List.forall_mem_cons.mpr ⟨t010_s149_impl,
+  List.forall_mem_cons.mpr ⟨t010_s150_impl,
+  List.forall_mem_cons.mpr ⟨t010_s151_impl,
+  List.forall_mem_cons.mpr ⟨t010_s152_impl,
+  List.forall_mem_cons.mpr ⟨t010_s153_impl,
+  List.forall_mem_cons.mpr ⟨t010_s154_impl,
+  List.forall_mem_cons.mpr ⟨t010_s155_impl,
+  List.forall_mem_cons.mpr ⟨t010_s156_impl,
+  List.forall_mem_cons.mpr ⟨t010_s157_impl,
+  List.forall_mem_cons.mpr ⟨t010_s158_impl,
+  List.forall_mem_cons.mpr ⟨t010_s159_impl,
+  List.forall_mem_cons.mpr ⟨t010_s160_impl,
+  List.forall_mem_cons.mpr ⟨t010_s161_impl,
+  List.forall_mem_cons.mpr ⟨t010_s162_impl,
+  List.forall_mem_cons.mpr ⟨t010_s163_impl,
+  List.forall_mem_cons.mpr ⟨t010_s164_impl,
+  List.forall_mem_cons.mpr ⟨t010_s165_impl,
+  List.forall_mem_cons.mpr ⟨t010_s166_impl,
+  List.forall_mem_cons.mpr ⟨t010_s167_impl,
+  List.forall_mem_cons.mpr ⟨t010_s168_impl,
+  List.forall_mem_cons.mpr ⟨t010_s169_impl,
+  List.forall_mem_cons.mpr ⟨t010_s170_impl,
+  List.forall_mem_cons.mpr ⟨t010_s171_impl,
+  List.forall_mem_cons.mpr ⟨t010_s172_impl,
+  List.forall_mem_cons.mpr ⟨t010_s173_impl,
+  List.forall_mem_cons.mpr ⟨t010_s174_impl,
+  List.forall_mem_cons.mpr ⟨t010_s175_impl,
+  List.forall_mem_cons.mpr ⟨t010_s176_impl,
+  List.forall_mem_cons.mpr ⟨t010_s177_impl,
+  List.forall_mem_cons.mpr ⟨t010_s178_impl,
+  List.forall_mem_cons.mpr ⟨t010_s179_impl,
+  List.forall_mem_cons.mpr ⟨t010_s180_impl,
+  List.forall_mem_cons.mpr ⟨t010_s181_impl,
+  List.forall_mem_cons.mpr ⟨t010_s182_impl,
+  List.forall_mem_cons.mpr ⟨t010_s183_impl,
+  List.forall_mem_cons.mpr ⟨t010_s184_impl,
+  List.forall_mem_cons.mpr ⟨t010_s185_impl,
+  List.forall_mem_cons.mpr ⟨t010_s186_impl,
+  List.forall_mem_cons.mpr ⟨t010_s187_impl,
+  List.forall_mem_cons.mpr ⟨t010_s188_impl,
+  List.forall_mem_cons.mpr ⟨t010_s189_impl,
+  List.forall_mem_cons.mpr ⟨t010_s190_impl,
+  List.forall_mem_cons.mpr ⟨t010_s191_impl,
+  List.forall_mem_cons.mpr ⟨t010_s192_impl,
+  List.forall_mem_cons.mpr ⟨t010_s193_impl,
+  List.forall_mem_cons.mpr ⟨t010_s194_impl,
+  List.forall_mem_cons.mpr ⟨t010_s195_impl,
+  List.forall_mem_cons.mpr ⟨t010_s196_impl,
+  List.forall_mem_cons.mpr ⟨t010_s197_impl,
+  List.forall_mem_cons.mpr ⟨t010_s198_impl,
+  List.forall_mem_cons.mpr ⟨t010_s199_impl,
+  List.forall_mem_cons.mpr ⟨t010_s200_impl,
+  List.forall_mem_cons.mpr ⟨t010_s201_impl,
+  List.forall_mem_cons.mpr ⟨t010_s202_impl,
+  List.forall_mem_cons.mpr ⟨t010_s203_impl,
+  List.forall_mem_cons.mpr ⟨t010_s204_impl,
+  List.forall_mem_cons.mpr ⟨t010_s205_impl,
+  List.forall_mem_cons.mpr ⟨t010_s206_impl,
+  List.forall_mem_cons.mpr ⟨t010_s207_impl,
+  List.forall_mem_cons.mpr ⟨t010_s208_impl,
+  List.forall_mem_cons.mpr ⟨t010_s209_impl,
+  List.forall_mem_cons.mpr ⟨t010_s210_impl,
+  List.forall_mem_cons.mpr ⟨t010_s211_impl,
+  List.forall_mem_cons.mpr ⟨t010_s212_impl,
+  List.forall_mem_cons.mpr ⟨t010_s213_impl,
+  List.forall_mem_cons.mpr ⟨t010_s214_impl,
+  List.forall_mem_cons.mpr ⟨t010_s215_impl,
+  List.forall_mem_cons.mpr ⟨t010_s216_impl,
+  List.forall_mem_cons.mpr ⟨t010_s217_impl,
+  List.forall_mem_cons.mpr ⟨t010_s218_impl,
+  List.forall_mem_cons.mpr ⟨t010_s219_impl,
+  List.forall_mem_cons.mpr ⟨t010_s220_impl,
+  List.forall_mem_cons.mpr ⟨t010_s221_impl,
+  List.forall_mem_cons.mpr ⟨t010_s222_impl,
+  List.forall_mem_cons.mpr ⟨t010_s223_impl,
+  List.forall_mem_cons.mpr ⟨t010_s224_impl,
+  List.forall_mem_cons.mpr ⟨t010_s225_impl,
+  List.forall_mem_cons.mpr ⟨t010_s226_impl,
+  List.forall_mem_cons.mpr ⟨t010_s227_impl,
+  List.forall_mem_cons.mpr ⟨t010_s228_impl,
+  List.forall_mem_cons.mpr ⟨t010_s229_impl,
+  List.forall_mem_cons.mpr ⟨t010_s230_impl,
+  List.forall_mem_cons.mpr ⟨t010_s231_impl,
+  List.forall_mem_cons.mpr ⟨t010_s232_impl,
+  List.forall_mem_cons.mpr ⟨t010_s233_impl,
+  List.forall_mem_cons.mpr ⟨t010_s234_impl,
+  List.forall_mem_cons.mpr ⟨t010_s235_impl,
+  List.forall_mem_cons.mpr ⟨t010_s236_impl,
+  List.forall_mem_cons.mpr ⟨t010_s237_impl,
+  List.forall_mem_cons.mpr ⟨t010_s238_impl,
+  List.forall_mem_cons.mpr ⟨t010_s239_impl,
+  List.forall_mem_cons.mpr ⟨t010_s240_impl,
+  List.forall_mem_cons.mpr ⟨t010_s241_impl,
+  List.forall_mem_cons.mpr ⟨t010_s242_impl,
+  List.forall_mem_cons.mpr ⟨t010_s243_impl,
+  List.forall_mem_cons.mpr ⟨t010_s244_impl,
+  List.forall_mem_cons.mpr ⟨t010_s245_impl,
+  List.forall_mem_cons.mpr ⟨t010_s246_impl,
+  List.forall_mem_cons.mpr ⟨t010_s247_impl,
+  List.forall_mem_cons.mpr ⟨t010_s248_impl,
+  List.forall_mem_cons.mpr ⟨t010_s249_impl,
+  List.forall_mem_cons.mpr ⟨t010_s250_impl,
+  List.forall_mem_cons.mpr ⟨t010_s251_impl,
+  List.forall_mem_cons.mpr ⟨t010_s252_impl,
+  List.forall_mem_cons.mpr ⟨t010_s253_impl,
+  List.forall_mem_cons.mpr ⟨t010_s254_impl,
+  List.forall_mem_cons.mpr ⟨t010_s255_impl,
+  List.forall_mem_cons.mpr ⟨t010_s256_impl,
+  List.forall_mem_cons.mpr ⟨t010_s257_impl,
+  List.forall_mem_cons.mpr ⟨t010_s258_impl,
+  List.forall_mem_cons.mpr ⟨t010_s259_impl,
+  List.forall_mem_cons.mpr ⟨t010_s260_impl,
+  List.forall_mem_cons.mpr ⟨t010_s261_impl,
+  List.forall_mem_cons.mpr ⟨t010_s262_impl,
+  List.forall_mem_cons.mpr ⟨t010_s263_impl,
+  List.forall_mem_cons.mpr ⟨t010_s264_impl,
+  List.forall_mem_cons.mpr ⟨t010_s265_impl,
+  List.forall_mem_cons.mpr ⟨t010_s266_impl,
+  List.forall_mem_cons.mpr ⟨t010_s267_impl,
+  List.forall_mem_cons.mpr ⟨t010_s268_impl,
+  List.forall_mem_cons.mpr ⟨t010_s269_impl,
+  List.forall_mem_cons.mpr ⟨t010_s270_impl,
+  List.forall_mem_cons.mpr ⟨t010_s271_impl,
+  List.forall_mem_cons.mpr ⟨t010_s272_impl,
+  List.forall_mem_cons.mpr ⟨t010_s273_impl,
+  List.forall_mem_cons.mpr ⟨t010_s274_impl,
+  List.forall_mem_cons.mpr ⟨t010_s275_impl,
+  List.forall_mem_cons.mpr ⟨t010_s276_impl,
+  List.forall_mem_cons.mpr ⟨t010_s277_impl,
+  List.forall_mem_cons.mpr ⟨t010_s278_impl,
+  List.forall_mem_cons.mpr ⟨t010_s279_impl,
+  List.forall_mem_cons.mpr ⟨t010_s280_impl,
+  List.forall_mem_cons.mpr ⟨t010_s281_impl,
+  List.forall_mem_cons.mpr ⟨t010_s282_impl,
+  List.forall_mem_cons.mpr ⟨t010_s283_impl,
+  List.forall_mem_cons.mpr ⟨t010_s284_impl,
+  List.forall_mem_cons.mpr ⟨t010_s285_impl,
+  List.forall_mem_cons.mpr ⟨t010_s286_impl,
+  List.forall_mem_cons.mpr ⟨t010_s287_impl,
+  List.forall_mem_cons.mpr ⟨t010_s288_impl,
+  List.forall_mem_cons.mpr ⟨t010_s289_impl,
+  List.forall_mem_cons.mpr ⟨t010_s290_impl,
+  List.forall_mem_cons.mpr ⟨t010_s291_impl,
+  List.forall_mem_cons.mpr ⟨t010_s292_impl,
+  List.forall_mem_cons.mpr ⟨t010_s293_impl,
+  List.forall_mem_cons.mpr ⟨t010_s294_impl,
+  List.forall_mem_cons.mpr ⟨t010_s295_impl,
+  List.forall_mem_cons.mpr ⟨t010_s296_impl,
+  List.forall_mem_cons.mpr ⟨t010_s297_impl,
+  List.forall_mem_cons.mpr ⟨t010_s298_impl,
+  List.forall_mem_cons.mpr ⟨t010_s299_impl,
+  List.forall_mem_cons.mpr ⟨t010_s300_impl,
+  List.forall_mem_cons.mpr ⟨t010_s301_impl,
+  List.forall_mem_cons.mpr ⟨t010_s302_impl,
+  List.forall_mem_cons.mpr ⟨t010_s303_impl,
+  List.forall_mem_cons.mpr ⟨t010_s304_impl,
+  List.forall_mem_cons.mpr ⟨t010_s305_impl,
+  List.forall_mem_cons.mpr ⟨t010_s306_impl,
+  List.forall_mem_cons.mpr ⟨t010_s307_impl,
+  List.forall_mem_cons.mpr ⟨t010_s308_impl,
+  List.forall_mem_cons.mpr ⟨t010_s309_impl,
+  List.forall_mem_cons.mpr ⟨t010_s310_impl,
+  List.forall_mem_cons.mpr ⟨t010_s311_impl,
+  List.forall_mem_cons.mpr ⟨t010_s312_impl,
+  List.forall_mem_cons.mpr ⟨t010_s313_impl,
+  List.forall_mem_cons.mpr ⟨t010_s314_impl,
+  List.forall_mem_cons.mpr ⟨t010_s315_impl,
+  List.forall_mem_cons.mpr ⟨t010_s316_impl,
+  List.forall_mem_cons.mpr ⟨t010_s317_impl,
+  List.forall_mem_cons.mpr ⟨t010_s318_impl,
+  List.forall_mem_cons.mpr ⟨t010_s319_impl,
+  List.forall_mem_cons.mpr ⟨t010_s320_impl,
+  List.forall_mem_cons.mpr ⟨t010_s321_impl,
+  List.forall_mem_cons.mpr ⟨t010_s322_impl,
+  List.forall_mem_cons.mpr ⟨t010_s323_impl,
+  List.forall_mem_cons.mpr ⟨t010_s324_impl,
+  List.forall_mem_cons.mpr ⟨t010_s325_impl,
+  List.forall_mem_cons.mpr ⟨t010_s326_impl,
+  List.forall_mem_cons.mpr ⟨t010_s327_impl,
+  List.forall_mem_cons.mpr ⟨t010_s328_impl,
+  List.forall_mem_cons.mpr ⟨t010_s329_impl,
+  List.forall_mem_cons.mpr ⟨t010_s330_impl,
+  List.forall_mem_cons.mpr ⟨t010_s331_impl,
+  List.forall_mem_cons.mpr ⟨t010_s332_impl,
+  List.forall_mem_cons.mpr ⟨t010_s333_impl,
+  List.forall_mem_cons.mpr ⟨t010_s334_impl,
+  List.forall_mem_cons.mpr ⟨t010_s335_impl,
+  List.forall_mem_cons.mpr ⟨t010_s336_impl,
+  List.forall_mem_cons.mpr ⟨t010_s337_impl,
+  List.forall_mem_cons.mpr ⟨t010_s338_impl,
+  List.forall_mem_cons.mpr ⟨t010_s339_impl,
+  List.forall_mem_cons.mpr ⟨t010_s340_impl,
+  List.forall_mem_cons.mpr ⟨t010_s341_impl,
+  List.forall_mem_cons.mpr ⟨t010_s342_impl,
+  List.forall_mem_cons.mpr ⟨t010_s343_impl,
+  List.forall_mem_cons.mpr ⟨t010_s344_impl,
+  List.forall_mem_cons.mpr ⟨t010_s345_impl,
+  List.forall_mem_cons.mpr ⟨t010_s346_impl,
+  List.forall_mem_cons.mpr ⟨t010_s347_impl,
+  List.forall_mem_cons.mpr ⟨t010_s348_impl,
+  List.forall_mem_cons.mpr ⟨t010_s349_impl,
+  List.forall_mem_cons.mpr ⟨t010_s350_impl,
+  List.forall_mem_cons.mpr ⟨t010_s351_impl,
+  List.forall_mem_cons.mpr ⟨t010_s352_impl,
+  List.forall_mem_cons.mpr ⟨t010_s353_impl,
+  List.forall_mem_cons.mpr ⟨t010_s354_impl,
+  List.forall_mem_cons.mpr ⟨t010_s355_impl,
+  List.forall_mem_cons.mpr ⟨t010_s356_impl,
+  List.forall_mem_cons.mpr ⟨t010_s357_impl,
+  List.forall_mem_cons.mpr ⟨t010_s358_impl,
+  List.forall_mem_cons.mpr ⟨t010_s359_impl,
+  List.forall_mem_cons.mpr ⟨t010_s360_impl,
+  List.forall_mem_cons.mpr ⟨t010_s361_impl,
+  List.forall_mem_cons.mpr ⟨t010_s362_impl,
+  List.forall_mem_cons.mpr ⟨t010_s363_impl,
+  List.forall_mem_cons.mpr ⟨t010_s364_impl,
+  List.forall_mem_cons.mpr ⟨t010_s365_impl,
+  List.forall_mem_cons.mpr ⟨t010_s366_impl,
+  List.forall_mem_cons.mpr ⟨t010_s367_impl,
+  List.forall_mem_cons.mpr ⟨t010_s368_impl,
+  List.forall_mem_cons.mpr ⟨t010_s369_impl,
+  List.forall_mem_cons.mpr ⟨t010_s370_impl,
+  List.forall_mem_cons.mpr ⟨t010_s371_impl,
+  List.forall_mem_cons.mpr ⟨t010_s372_impl,
+  List.forall_mem_cons.mpr ⟨t010_s373_impl,
+  List.forall_mem_cons.mpr ⟨t010_s374_impl,
+  List.forall_mem_cons.mpr ⟨t010_s375_impl,
+  List.forall_mem_cons.mpr ⟨t010_s376_impl,
+  List.forall_mem_cons.mpr ⟨t010_s377_impl,
+  List.forall_mem_cons.mpr ⟨t010_s378_impl,
+  List.forall_mem_cons.mpr ⟨t010_s379_impl,
+  List.forall_mem_cons.mpr ⟨t010_s380_impl,
+  List.forall_mem_cons.mpr ⟨t010_s381_impl,
+  List.forall_mem_cons.mpr ⟨t010_s382_impl,
+  List.forall_mem_cons.mpr ⟨t010_s383_impl,
+  List.forall_mem_cons.mpr ⟨t010_s384_impl,
+  List.forall_mem_cons.mpr ⟨t010_s385_impl,
+  List.forall_mem_cons.mpr ⟨t010_s386_impl,
+  List.forall_mem_cons.mpr ⟨t010_s387_impl,
+  List.forall_mem_cons.mpr ⟨t010_s388_impl,
+  List.forall_mem_cons.mpr ⟨t010_s389_impl,
+  List.forall_mem_cons.mpr ⟨t010_s390_impl,
+  List.forall_mem_cons.mpr ⟨t010_s391_impl,
+  List.forall_mem_cons.mpr ⟨t010_s392_impl,
+  List.forall_mem_cons.mpr ⟨t010_s393_impl,
+  List.forall_mem_cons.mpr ⟨t010_s394_impl,
+  List.forall_mem_cons.mpr ⟨t010_s395_impl,
+  List.forall_mem_cons.mpr ⟨t010_s396_impl,
+  List.forall_mem_cons.mpr ⟨t010_s397_impl,
+  List.forall_mem_cons.mpr ⟨t010_s398_impl,
+  List.forall_mem_cons.mpr ⟨t010_s399_impl,
+  List.forall_mem_cons.mpr ⟨t010_s400_impl,
+  List.forall_mem_cons.mpr ⟨t010_s401_impl,
+  List.forall_mem_cons.mpr ⟨t010_s402_impl,
+  List.forall_mem_cons.mpr ⟨t010_s403_impl,
+  List.forall_mem_cons.mpr ⟨t010_s404_impl,
+  List.forall_mem_cons.mpr ⟨t010_s405_impl,
+  List.forall_mem_cons.mpr ⟨t010_s406_impl,
+  List.forall_mem_cons.mpr ⟨t010_s407_impl,
+  List.forall_mem_cons.mpr ⟨t010_s408_impl,
+  List.forall_mem_cons.mpr ⟨t010_s409_impl,
+  List.forall_mem_cons.mpr ⟨t010_s410_impl,
+  List.forall_mem_cons.mpr ⟨t010_s411_impl,
+  List.forall_mem_cons.mpr ⟨t010_s412_impl,
+  List.forall_mem_cons.mpr ⟨t010_s413_impl,
+  List.forall_mem_cons.mpr ⟨t010_s414_impl,
+  List.forall_mem_cons.mpr ⟨t010_s415_impl,
+  List.forall_mem_cons.mpr ⟨t010_s416_impl,
+  List.forall_mem_cons.mpr ⟨t010_s417_impl,
+  List.forall_mem_cons.mpr ⟨t010_s418_impl,
+  List.forall_mem_cons.mpr ⟨t010_s419_impl,
+  List.forall_mem_cons.mpr ⟨t010_s420_impl,
+  List.forall_mem_cons.mpr ⟨t010_s421_impl,
+  List.forall_mem_cons.mpr ⟨t010_s422_impl,
+  List.forall_mem_cons.mpr ⟨t010_s423_impl,
+  List.forall_mem_cons.mpr ⟨t010_s424_impl,
+  List.forall_mem_cons.mpr ⟨t010_s425_impl,
+  List.forall_mem_cons.mpr ⟨t010_s426_impl,
+  List.forall_mem_cons.mpr ⟨t010_s427_impl,
+  List.forall_mem_cons.mpr ⟨t010_s428_impl,
+  List.forall_mem_cons.mpr ⟨t010_s429_impl,
+  List.forall_mem_cons.mpr ⟨t010_s430_impl,
+  List.forall_mem_cons.mpr ⟨t010_s431_impl,
+  List.forall_mem_cons.mpr ⟨t010_s432_impl,
+  List.forall_mem_cons.mpr ⟨t010_s433_impl,
+  List.forall_mem_cons.mpr ⟨t010_s434_impl,
+  List.forall_mem_cons.mpr ⟨t010_s435_impl,
+  List.forall_mem_cons.mpr ⟨t010_s436_impl,
+  List.forall_mem_cons.mpr ⟨t010_s437_impl,
+  List.forall_mem_cons.mpr ⟨t010_s438_impl,
+  List.forall_mem_cons.mpr ⟨t010_s439_impl,
+  List.forall_mem_cons.mpr ⟨t010_s440_impl,
+  List.forall_mem_cons.mpr ⟨t010_s441_impl,
+  List.forall_mem_cons.mpr ⟨t010_s442_impl,
+  List.forall_mem_cons.mpr ⟨t010_s443_impl,
+  List.forall_mem_cons.mpr ⟨t010_s444_impl,
+  List.forall_mem_cons.mpr ⟨t010_s445_impl,
+  List.forall_mem_cons.mpr ⟨t010_s446_impl,
+  List.forall_mem_cons.mpr ⟨t010_s447_impl,
+  List.forall_mem_cons.mpr ⟨t010_s448_impl,
+  List.forall_mem_cons.mpr ⟨t010_s449_impl,
+  List.forall_mem_cons.mpr ⟨t010_s450_impl,
+  List.forall_mem_cons.mpr ⟨t010_s451_impl,
+  List.forall_mem_cons.mpr ⟨t010_s452_impl,
+  List.forall_mem_cons.mpr ⟨t010_s453_impl,
+  List.forall_mem_nil _⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩
 
 theorem t010_szok {α : Type} [ExactScalar α] :
-    ∀ st ∈ t010_chain α, t010_sz st.out = some st.spec.outSize := by
-  intro st hst
-  simp only [t010_chain, List.mem_cons, List.not_mem_nil, or_false] at hst
-  rcases hst with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · rfl
+    ∀ st ∈ t010_chain α, t010_sz st.out = some st.spec.outSize :=
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_cons.mpr ⟨rfl,
+  List.forall_mem_nil _⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩
 
 theorem t010_loc {α : Type} [ExactScalar α] :
-    ∀ st ∈ t010_chain α, SpecLocal t010_sz st.spec := by
-  intro st hst
-  simp only [t010_chain, List.mem_cons, List.not_mem_nil, or_false] at hst
-  rcases hst with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
-  · exact t010_s0_loc
-  · exact t010_s1_loc
-  · exact t010_s2_loc
-  · exact t010_s3_loc
-  · exact t010_s4_loc
-  · exact t010_s5_loc
-  · exact t010_s6_loc
-  · exact t010_s7_loc
-  · exact t010_s8_loc
-  · exact t010_s9_loc
-  · exact t010_s10_loc
-  · exact t010_s11_loc
-  · exact t010_s12_loc
-  · exact t010_s13_loc
-  · exact t010_s14_loc
-  · exact t010_s15_loc
-  · exact t010_s16_loc
-  · exact t010_s17_loc
-  · exact t010_s18_loc
-  · exact t010_s19_loc
-  · exact t010_s20_loc
-  · exact t010_s21_loc
-  · exact t010_s22_loc
-  · exact t010_s23_loc
-  · exact t010_s24_loc
-  · exact t010_s25_loc
-  · exact t010_s26_loc
-  · exact t010_s27_loc
-  · exact t010_s28_loc
-  · exact t010_s29_loc
-  · exact t010_s30_loc
-  · exact t010_s31_loc
-  · exact t010_s32_loc
-  · exact t010_s33_loc
-  · exact t010_s34_loc
-  · exact t010_s35_loc
-  · exact t010_s36_loc
-  · exact t010_s37_loc
-  · exact t010_s38_loc
-  · exact t010_s39_loc
-  · exact t010_s40_loc
-  · exact t010_s41_loc
-  · exact t010_s42_loc
-  · exact t010_s43_loc
-  · exact t010_s44_loc
-  · exact t010_s45_loc
-  · exact t010_s46_loc
-  · exact t010_s47_loc
-  · exact t010_s48_loc
-  · exact t010_s49_loc
-  · exact t010_s50_loc
-  · exact t010_s51_loc
-  · exact t010_s52_loc
-  · exact t010_s53_loc
-  · exact t010_s54_loc
-  · exact t010_s55_loc
-  · exact t010_s56_loc
-  · exact t010_s57_loc
-  · exact t010_s58_loc
-  · exact t010_s59_loc
-  · exact t010_s60_loc
-  · exact t010_s61_loc
-  · exact t010_s62_loc
-  · exact t010_s63_loc
-  · exact t010_s64_loc
-  · exact t010_s65_loc
-  · exact t010_s66_loc
-  · exact t010_s67_loc
-  · exact t010_s68_loc
-  · exact t010_s69_loc
-  · exact t010_s70_loc
-  · exact t010_s71_loc
-  · exact t010_s72_loc
-  · exact t010_s73_loc
-  · exact t010_s74_loc
-  · exact t010_s75_loc
-  · exact t010_s76_loc
-  · exact t010_s77_loc
-  · exact t010_s78_loc
-  · exact t010_s79_loc
-  · exact t010_s80_loc
-  · exact t010_s81_loc
-  · exact t010_s82_loc
-  · exact t010_s83_loc
-  · exact t010_s84_loc
-  · exact t010_s85_loc
-  · exact t010_s86_loc
-  · exact t010_s87_loc
-  · exact t010_s88_loc
-  · exact t010_s89_loc
-  · exact t010_s90_loc
-  · exact t010_s91_loc
-  · exact t010_s92_loc
-  · exact t010_s93_loc
-  · exact t010_s94_loc
-  · exact t010_s95_loc
-  · exact t010_s96_loc
-  · exact t010_s97_loc
-  · exact t010_s98_loc
-  · exact t010_s99_loc
-  · exact t010_s100_loc
-  · exact t010_s101_loc
-  · exact t010_s102_loc
-  · exact t010_s103_loc
-  · exact t010_s104_loc
-  · exact t010_s105_loc
-  · exact t010_s106_loc
-  · exact t010_s107_loc
-  · exact t010_s108_loc
-  · exact t010_s109_loc
-  · exact t010_s110_loc
-  · exact t010_s111_loc
-  · exact t010_s112_loc
-  · exact t010_s113_loc
-  · exact t010_s114_loc
-  · exact t010_s115_loc
-  · exact t010_s116_loc
-  · exact t010_s117_loc
-  · exact t010_s118_loc
-  · exact t010_s119_loc
-  · exact t010_s120_loc
-  · exact t010_s121_loc
-  · exact t010_s122_loc
-  · exact t010_s123_loc
-  · exact t010_s124_loc
-  · exact t010_s125_loc
-  · exact t010_s126_loc
-  · exact t010_s127_loc
-  · exact t010_s128_loc
-  · exact t010_s129_loc
-  · exact t010_s130_loc
-  · exact t010_s131_loc
-  · exact t010_s132_loc
-  · exact t010_s133_loc
-  · exact t010_s134_loc
-  · exact t010_s135_loc
-  · exact t010_s136_loc
-  · exact t010_s137_loc
-  · exact t010_s138_loc
-  · exact t010_s139_loc
-  · exact t010_s140_loc
-  · exact t010_s141_loc
-  · exact t010_s142_loc
-  · exact t010_s143_loc
-  · exact t010_s144_loc
-  · exact t010_s145_loc
-  · exact t010_s146_loc
-  · exact t010_s147_loc
-  · exact t010_s148_loc
-  · exact t010_s149_loc
-  · exact t010_s150_loc
-  · exact t010_s151_loc
-  · exact t010_s152_loc
-  · exact t010_s153_loc
-  · exact t010_s154_loc
-  · exact t010_s155_loc
-  · exact t010_s156_loc
-  · exact t010_s157_loc
-  · exact t010_s158_loc
-  · exact t010_s159_loc
-  · exact t010_s160_loc
-  · exact t010_s161_loc
-  · exact t010_s162_loc
-  · exact t010_s163_loc
-  · exact t010_s164_loc
-  · exact t010_s165_loc
-  · exact t010_s166_loc
-  · exact t010_s167_loc
-  · exact t010_s168_loc
-  · exact t010_s169_loc
-  · exact t010_s170_loc
-  · exact t010_s171_loc
-  · exact t010_s172_loc
-  · exact t010_s173_loc
-  · exact t010_s174_loc
-  · exact t010_s175_loc
-  · exact t010_s176_loc
-  · exact t010_s177_loc
-  · exact t010_s178_loc
-  · exact t010_s179_loc
-  · exact t010_s180_loc
-  · exact t010_s181_loc
-  · exact t010_s182_loc
-  · exact t010_s183_loc
-  · exact t010_s184_loc
-  · exact t010_s185_loc
-  · exact t010_s186_loc
-  · exact t010_s187_loc
-  · exact t010_s188_loc
-  · exact t010_s189_loc
-  · exact t010_s190_loc
-  · exact t010_s191_loc
-  · exact t010_s192_loc
-  · exact t010_s193_loc
-  · exact t010_s194_loc
-  · exact t010_s195_loc
-  · exact t010_s196_loc
-  · exact t010_s197_loc
-  · exact t010_s198_loc
-  · exact t010_s199_loc
-  · exact t010_s200_loc
-  · exact t010_s201_loc
-  · exact t010_s202_loc
-  · exact t010_s203_loc
-  · exact t010_s204_loc
-  · exact t010_s205_loc
-  · exact t010_s206_loc
-  · exact t010_s207_loc
-  · exact t010_s208_loc
-  · exact t010_s209_loc
-  · exact t010_s210_loc
-  · exact t010_s211_loc
-  · exact t010_s212_loc
-  · exact t010_s213_loc
-  · exact t010_s214_loc
-  · exact t010_s215_loc
-  · exact t010_s216_loc
-  · exact t010_s217_loc
-  · exact t010_s218_loc
-  · exact t010_s219_loc
-  · exact t010_s220_loc
-  · exact t010_s221_loc
-  · exact t010_s222_loc
-  · exact t010_s223_loc
-  · exact t010_s224_loc
-  · exact t010_s225_loc
-  · exact t010_s226_loc
-  · exact t010_s227_loc
-  · exact t010_s228_loc
-  · exact t010_s229_loc
-  · exact t010_s230_loc
-  · exact t010_s231_loc
-  · exact t010_s232_loc
-  · exact t010_s233_loc
-  · exact t010_s234_loc
-  · exact t010_s235_loc
-  · exact t010_s236_loc
-  · exact t010_s237_loc
-  · exact t010_s238_loc
-  · exact t010_s239_loc
-  · exact t010_s240_loc
-  · exact t010_s241_loc
-  · exact t010_s242_loc
-  · exact t010_s243_loc
-  · exact t010_s244_loc
-  · exact t010_s245_loc
-  · exact t010_s246_loc
-  · exact t010_s247_loc
-  · exact t010_s248_loc
-  · exact t010_s249_loc
-  · exact t010_s250_loc
-  · exact t010_s251_loc
-  · exact t010_s252_loc
-  · exact t010_s253_loc
-  · exact t010_s254_loc
-  · exact t010_s255_loc
-  · exact t010_s256_loc
-  · exact t010_s257_loc
-  · exact t010_s258_loc
-  · exact t010_s259_loc
-  · exact t010_s260_loc
-  · exact t010_s261_loc
-  · exact t010_s262_loc
-  · exact t010_s263_loc
-  · exact t010_s264_loc
-  · exact t010_s265_loc
-  · exact t010_s266_loc
-  · exact t010_s267_loc
-  · exact t010_s268_loc
-  · exact t010_s269_loc
-  · exact t010_s270_loc
-  · exact t010_s271_loc
-  · exact t010_s272_loc
-  · exact t010_s273_loc
-  · exact t010_s274_loc
-  · exact t010_s275_loc
-  · exact t010_s276_loc
-  · exact t010_s277_loc
-  · exact t010_s278_loc
-  · exact t010_s279_loc
-  · exact t010_s280_loc
-  · exact t010_s281_loc
-  · exact t010_s282_loc
-  · exact t010_s283_loc
-  · exact t010_s284_loc
-  · exact t010_s285_loc
-  · exact t010_s286_loc
-  · exact t010_s287_loc
-  · exact t010_s288_loc
-  · exact t010_s289_loc
-  · exact t010_s290_loc
-  · exact t010_s291_loc
-  · exact t010_s292_loc
-  · exact t010_s293_loc
-  · exact t010_s294_loc
-  · exact t010_s295_loc
-  · exact t010_s296_loc
-  · exact t010_s297_loc
-  · exact t010_s298_loc
-  · exact t010_s299_loc
-  · exact t010_s300_loc
-  · exact t010_s301_loc
-  · exact t010_s302_loc
-  · exact t010_s303_loc
-  · exact t010_s304_loc
-  · exact t010_s305_loc
-  · exact t010_s306_loc
-  · exact t010_s307_loc
-  · exact t010_s308_loc
-  · exact t010_s309_loc
-  · exact t010_s310_loc
-  · exact t010_s311_loc
-  · exact t010_s312_loc
-  · exact t010_s313_loc
-  · exact t010_s314_loc
-  · exact t010_s315_loc
-  · exact t010_s316_loc
-  · exact t010_s317_loc
-  · exact t010_s318_loc
-  · exact t010_s319_loc
-  · exact t010_s320_loc
-  · exact t010_s321_loc
-  · exact t010_s322_loc
-  · exact t010_s323_loc
-  · exact t010_s324_loc
-  · exact t010_s325_loc
-  · exact t010_s326_loc
-  · exact t010_s327_loc
-  · exact t010_s328_loc
-  · exact t010_s329_loc
-  · exact t010_s330_loc
-  · exact t010_s331_loc
-  · exact t010_s332_loc
-  · exact t010_s333_loc
-  · exact t010_s334_loc
-  · exact t010_s335_loc
-  · exact t010_s336_loc
-  · exact t010_s337_loc
-  · exact t010_s338_loc
-  · exact t010_s339_loc
-  · exact t010_s340_loc
-  · exact t010_s341_loc
-  · exact t010_s342_loc
-  · exact t010_s343_loc
-  · exact t010_s344_loc
-  · exact t010_s345_loc
-  · exact t010_s346_loc
-  · exact t010_s347_loc
-  · exact t010_s348_loc
-  · exact t010_s349_loc
-  · exact t010_s350_loc
-  · exact t010_s351_loc
-  · exact t010_s352_loc
-  · exact t010_s353_loc
-  · exact t010_s354_loc
-  · exact t010_s355_loc
-  · exact t010_s356_loc
-  · exact t010_s357_loc
-  · exact t010_s358_loc
-  · exact t010_s359_loc
-  · exact t010_s360_loc
-  · exact t010_s361_loc
-  · exact t010_s362_loc
-  · exact t010_s363_loc
-  · exact t010_s364_loc
-  · exact t010_s365_loc
-  · exact t010_s366_loc
-  · exact t010_s367_loc
-  · exact t010_s368_loc
-  · exact t010_s369_loc
-  · exact t010_s370_loc
-  · exact t010_s371_loc
-  · exact t010_s372_loc
-  · exact t010_s373_loc
-  · exact t010_s374_loc
-  · exact t010_s375_loc
-  · exact t010_s376_loc
-  · exact t010_s377_loc
-  · exact t010_s378_loc
-  · exact t010_s379_loc
-  · exact t010_s380_loc
-  · exact t010_s381_loc
-  · exact t010_s382_loc
-  · exact t010_s383_loc
-  · exact t010_s384_loc
-  · exact t010_s385_loc
-  · exact t010_s386_loc
-  · exact t010_s387_loc
-  · exact t010_s388_loc
-  · exact t010_s389_loc
-  · exact t010_s390_loc
-  · exact t010_s391_loc
-  · exact t010_s392_loc
-  · exact t010_s393_loc
-  · exact t010_s394_loc
-  · exact t010_s395_loc
-  · exact t010_s396_loc
-  · exact t010_s397_loc
-  · exact t010_s398_loc
-  · exact t010_s399_loc
-  · exact t010_s400_loc
-  · exact t010_s401_loc
-  · exact t010_s402_loc
-  · exact t010_s403_loc
-  · exact t010_s404_loc
-  · exact t010_s405_loc
-  · exact t010_s406_loc
-  · exact t010_s407_loc
-  · exact t010_s408_loc
-  · exact t010_s409_loc
-  · exact t010_s410_loc
-  · exact t010_s411_loc
-  · exact t010_s412_loc
-  · exact t010_s413_loc
-  · exact t010_s414_loc
-  · exact t010_s415_loc
-  · exact t010_s416_loc
-  · exact t010_s417_loc
-  · exact t010_s418_loc
-  · exact t010_s419_loc
-  · exact t010_s420_loc
-  · exact t010_s421_loc
-  · exact t010_s422_loc
-  · exact t010_s423_loc
-  · exact t010_s424_loc
-  · exact t010_s425_loc
-  · exact t010_s426_loc
-  · exact t010_s427_loc
-  · exact t010_s428_loc
-  · exact t010_s429_loc
-  · exact t010_s430_loc
-  · exact t010_s431_loc
-  · exact t010_s432_loc
-  · exact t010_s433_loc
-  · exact t010_s434_loc
-  · exact t010_s435_loc
-  · exact t010_s436_loc
-  · exact t010_s437_loc
-  · exact t010_s438_loc
-  · exact t010_s439_loc
-  · exact t010_s440_loc
-  · exact t010_s441_loc
-  · exact t010_s442_loc
-  · exact t010_s443_loc
-  · exact t010_s444_loc
-  · exact t010_s445_loc
-  · exact t010_s446_loc
-  · exact t010_s447_loc
-  · exact t010_s448_loc
-  · exact t010_s449_loc
-  · exact t010_s450_loc
-  · exact t010_s451_loc
-  · exact t010_s452_loc
-  · exact t010_s453_loc
+    ∀ st ∈ t010_chain α, SpecLocal t010_sz st.spec :=
+  List.forall_mem_cons.mpr ⟨t010_s0_loc,
+  List.forall_mem_cons.mpr ⟨t010_s1_loc,
+  List.forall_mem_cons.mpr ⟨t010_s2_loc,
+  List.forall_mem_cons.mpr ⟨t010_s3_loc,
+  List.forall_mem_cons.mpr ⟨t010_s4_loc,
+  List.forall_mem_cons.mpr ⟨t010_s5_loc,
+  List.forall_mem_cons.mpr ⟨t010_s6_loc,
+  List.forall_mem_cons.mpr ⟨t010_s7_loc,
+  List.forall_mem_cons.mpr ⟨t010_s8_loc,
+  List.forall_mem_cons.mpr ⟨t010_s9_loc,
+  List.forall_mem_cons.mpr ⟨t010_s10_loc,
+  List.forall_mem_cons.mpr ⟨t010_s11_loc,
+  List.forall_mem_cons.mpr ⟨t010_s12_loc,
+  List.forall_mem_cons.mpr ⟨t010_s13_loc,
+  List.forall_mem_cons.mpr ⟨t010_s14_loc,
+  List.forall_mem_cons.mpr ⟨t010_s15_loc,
+  List.forall_mem_cons.mpr ⟨t010_s16_loc,
+  List.forall_mem_cons.mpr ⟨t010_s17_loc,
+  List.forall_mem_cons.mpr ⟨t010_s18_loc,
+  List.forall_mem_cons.mpr ⟨t010_s19_loc,
+  List.forall_mem_cons.mpr ⟨t010_s20_loc,
+  List.forall_mem_cons.mpr ⟨t010_s21_loc,
+  List.forall_mem_cons.mpr ⟨t010_s22_loc,
+  List.forall_mem_cons.mpr ⟨t010_s23_loc,
+  List.forall_mem_cons.mpr ⟨t010_s24_loc,
+  List.forall_mem_cons.mpr ⟨t010_s25_loc,
+  List.forall_mem_cons.mpr ⟨t010_s26_loc,
+  List.forall_mem_cons.mpr ⟨t010_s27_loc,
+  List.forall_mem_cons.mpr ⟨t010_s28_loc,
+  List.forall_mem_cons.mpr ⟨t010_s29_loc,
+  List.forall_mem_cons.mpr ⟨t010_s30_loc,
+  List.forall_mem_cons.mpr ⟨t010_s31_loc,
+  List.forall_mem_cons.mpr ⟨t010_s32_loc,
+  List.forall_mem_cons.mpr ⟨t010_s33_loc,
+  List.forall_mem_cons.mpr ⟨t010_s34_loc,
+  List.forall_mem_cons.mpr ⟨t010_s35_loc,
+  List.forall_mem_cons.mpr ⟨t010_s36_loc,
+  List.forall_mem_cons.mpr ⟨t010_s37_loc,
+  List.forall_mem_cons.mpr ⟨t010_s38_loc,
+  List.forall_mem_cons.mpr ⟨t010_s39_loc,
+  List.forall_mem_cons.mpr ⟨t010_s40_loc,
+  List.forall_mem_cons.mpr ⟨t010_s41_loc,
+  List.forall_mem_cons.mpr ⟨t010_s42_loc,
+  List.forall_mem_cons.mpr ⟨t010_s43_loc,
+  List.forall_mem_cons.mpr ⟨t010_s44_loc,
+  List.forall_mem_cons.mpr ⟨t010_s45_loc,
+  List.forall_mem_cons.mpr ⟨t010_s46_loc,
+  List.forall_mem_cons.mpr ⟨t010_s47_loc,
+  List.forall_mem_cons.mpr ⟨t010_s48_loc,
+  List.forall_mem_cons.mpr ⟨t010_s49_loc,
+  List.forall_mem_cons.mpr ⟨t010_s50_loc,
+  List.forall_mem_cons.mpr ⟨t010_s51_loc,
+  List.forall_mem_cons.mpr ⟨t010_s52_loc,
+  List.forall_mem_cons.mpr ⟨t010_s53_loc,
+  List.forall_mem_cons.mpr ⟨t010_s54_loc,
+  List.forall_mem_cons.mpr ⟨t010_s55_loc,
+  List.forall_mem_cons.mpr ⟨t010_s56_loc,
+  List.forall_mem_cons.mpr ⟨t010_s57_loc,
+  List.forall_mem_cons.mpr ⟨t010_s58_loc,
+  List.forall_mem_cons.mpr ⟨t010_s59_loc,
+  List.forall_mem_cons.mpr ⟨t010_s60_loc,
+  List.forall_mem_cons.mpr ⟨t010_s61_loc,
+  List.forall_mem_cons.mpr ⟨t010_s62_loc,
+  List.forall_mem_cons.mpr ⟨t010_s63_loc,
+  List.forall_mem_cons.mpr ⟨t010_s64_loc,
+  List.forall_mem_cons.mpr ⟨t010_s65_loc,
+  List.forall_mem_cons.mpr ⟨t010_s66_loc,
+  List.forall_mem_cons.mpr ⟨t010_s67_loc,
+  List.forall_mem_cons.mpr ⟨t010_s68_loc,
+  List.forall_mem_cons.mpr ⟨t010_s69_loc,
+  List.forall_mem_cons.mpr ⟨t010_s70_loc,
+  List.forall_mem_cons.mpr ⟨t010_s71_loc,
+  List.forall_mem_cons.mpr ⟨t010_s72_loc,
+  List.forall_mem_cons.mpr ⟨t010_s73_loc,
+  List.forall_mem_cons.mpr ⟨t010_s74_loc,
+  List.forall_mem_cons.mpr ⟨t010_s75_loc,
+  List.forall_mem_cons.mpr ⟨t010_s76_loc,
+  List.forall_mem_cons.mpr ⟨t010_s77_loc,
+  List.forall_mem_cons.mpr ⟨t010_s78_loc,
+  List.forall_mem_cons.mpr ⟨t010_s79_loc,
+  List.forall_mem_cons.mpr ⟨t010_s80_loc,
+  List.forall_mem_cons.mpr ⟨t010_s81_loc,
+  List.forall_mem_cons.mpr ⟨t010_s82_loc,
+  List.forall_mem_cons.mpr ⟨t010_s83_loc,
+  List.forall_mem_cons.mpr ⟨t010_s84_loc,
+  List.forall_mem_cons.mpr ⟨t010_s85_loc,
+  List.forall_mem_cons.mpr ⟨t010_s86_loc,
+  List.forall_mem_cons.mpr ⟨t010_s87_loc,
+  List.forall_mem_cons.mpr ⟨t010_s88_loc,
+  List.forall_mem_cons.mpr ⟨t010_s89_loc,
+  List.forall_mem_cons.mpr ⟨t010_s90_loc,
+  List.forall_mem_cons.mpr ⟨t010_s91_loc,
+  List.forall_mem_cons.mpr ⟨t010_s92_loc,
+  List.forall_mem_cons.mpr ⟨t010_s93_loc,
+  List.forall_mem_cons.mpr ⟨t010_s94_loc,
+  List.forall_mem_cons.mpr ⟨t010_s95_loc,
+  List.forall_mem_cons.mpr ⟨t010_s96_loc,
+  List.forall_mem_cons.mpr ⟨t010_s97_loc,
+  List.forall_mem_cons.mpr ⟨t010_s98_loc,
+  List.forall_mem_cons.mpr ⟨t010_s99_loc,
+  List.forall_mem_cons.mpr ⟨t010_s100_loc,
+  List.forall_mem_cons.mpr ⟨t010_s101_loc,
+  List.forall_mem_cons.mpr ⟨t010_s102_loc,
+  List.forall_mem_cons.mpr ⟨t010_s103_loc,
+  List.forall_mem_cons.mpr ⟨t010_s104_loc,
+  List.forall_mem_cons.mpr ⟨t010_s105_loc,
+  List.forall_mem_cons.mpr ⟨t010_s106_loc,
+  List.forall_mem_cons.mpr ⟨t010_s107_loc,
+  List.forall_mem_cons.mpr ⟨t010_s108_loc,
+  List.forall_mem_cons.mpr ⟨t010_s109_loc,
+  List.forall_mem_cons.mpr ⟨t010_s110_loc,
+  List.forall_mem_cons.mpr ⟨t010_s111_loc,
+  List.forall_mem_cons.mpr ⟨t010_s112_loc,
+  List.forall_mem_cons.mpr ⟨t010_s113_loc,
+  List.forall_mem_cons.mpr ⟨t010_s114_loc,
+  List.forall_mem_cons.mpr ⟨t010_s115_loc,
+  List.forall_mem_cons.mpr ⟨t010_s116_loc,
+  List.forall_mem_cons.mpr ⟨t010_s117_loc,
+  List.forall_mem_cons.mpr ⟨t010_s118_loc,
+  List.forall_mem_cons.mpr ⟨t010_s119_loc,
+  List.forall_mem_cons.mpr ⟨t010_s120_loc,
+  List.forall_mem_cons.mpr ⟨t010_s121_loc,
+  List.forall_mem_cons.mpr ⟨t010_s122_loc,
+  List.forall_mem_cons.mpr ⟨t010_s123_loc,
+  List.forall_mem_cons.mpr ⟨t010_s124_loc,
+  List.forall_mem_cons.mpr ⟨t010_s125_loc,
+  List.forall_mem_cons.mpr ⟨t010_s126_loc,
+  List.forall_mem_cons.mpr ⟨t010_s127_loc,
+  List.forall_mem_cons.mpr ⟨t010_s128_loc,
+  List.forall_mem_cons.mpr ⟨t010_s129_loc,
+  List.forall_mem_cons.mpr ⟨t010_s130_loc,
+  List.forall_mem_cons.mpr ⟨t010_s131_loc,
+  List.forall_mem_cons.mpr ⟨t010_s132_loc,
+  List.forall_mem_cons.mpr ⟨t010_s133_loc,
+  List.forall_mem_cons.mpr ⟨t010_s134_loc,
+  List.forall_mem_cons.mpr ⟨t010_s135_loc,
+  List.forall_mem_cons.mpr ⟨t010_s136_loc,
+  List.forall_mem_cons.mpr ⟨t010_s137_loc,
+  List.forall_mem_cons.mpr ⟨t010_s138_loc,
+  List.forall_mem_cons.mpr ⟨t010_s139_loc,
+  List.forall_mem_cons.mpr ⟨t010_s140_loc,
+  List.forall_mem_cons.mpr ⟨t010_s141_loc,
+  List.forall_mem_cons.mpr ⟨t010_s142_loc,
+  List.forall_mem_cons.mpr ⟨t010_s143_loc,
+  List.forall_mem_cons.mpr ⟨t010_s144_loc,
+  List.forall_mem_cons.mpr ⟨t010_s145_loc,
+  List.forall_mem_cons.mpr ⟨t010_s146_loc,
+  List.forall_mem_cons.mpr ⟨t010_s147_loc,
+  List.forall_mem_cons.mpr ⟨t010_s148_loc,
+  List.forall_mem_cons.mpr ⟨t010_s149_loc,
+  List.forall_mem_cons.mpr ⟨t010_s150_loc,
+  List.forall_mem_cons.mpr ⟨t010_s151_loc,
+  List.forall_mem_cons.mpr ⟨t010_s152_loc,
+  List.forall_mem_cons.mpr ⟨t010_s153_loc,
+  List.forall_mem_cons.mpr ⟨t010_s154_loc,
+  List.forall_mem_cons.mpr ⟨t010_s155_loc,
+  List.forall_mem_cons.mpr ⟨t010_s156_loc,
+  List.forall_mem_cons.mpr ⟨t010_s157_loc,
+  List.forall_mem_cons.mpr ⟨t010_s158_loc,
+  List.forall_mem_cons.mpr ⟨t010_s159_loc,
+  List.forall_mem_cons.mpr ⟨t010_s160_loc,
+  List.forall_mem_cons.mpr ⟨t010_s161_loc,
+  List.forall_mem_cons.mpr ⟨t010_s162_loc,
+  List.forall_mem_cons.mpr ⟨t010_s163_loc,
+  List.forall_mem_cons.mpr ⟨t010_s164_loc,
+  List.forall_mem_cons.mpr ⟨t010_s165_loc,
+  List.forall_mem_cons.mpr ⟨t010_s166_loc,
+  List.forall_mem_cons.mpr ⟨t010_s167_loc,
+  List.forall_mem_cons.mpr ⟨t010_s168_loc,
+  List.forall_mem_cons.mpr ⟨t010_s169_loc,
+  List.forall_mem_cons.mpr ⟨t010_s170_loc,
+  List.forall_mem_cons.mpr ⟨t010_s171_loc,
+  List.forall_mem_cons.mpr ⟨t010_s172_loc,
+  List.forall_mem_cons.mpr ⟨t010_s173_loc,
+  List.forall_mem_cons.mpr ⟨t010_s174_loc,
+  List.forall_mem_cons.mpr ⟨t010_s175_loc,
+  List.forall_mem_cons.mpr ⟨t010_s176_loc,
+  List.forall_mem_cons.mpr ⟨t010_s177_loc,
+  List.forall_mem_cons.mpr ⟨t010_s178_loc,
+  List.forall_mem_cons.mpr ⟨t010_s179_loc,
+  List.forall_mem_cons.mpr ⟨t010_s180_loc,
+  List.forall_mem_cons.mpr ⟨t010_s181_loc,
+  List.forall_mem_cons.mpr ⟨t010_s182_loc,
+  List.forall_mem_cons.mpr ⟨t010_s183_loc,
+  List.forall_mem_cons.mpr ⟨t010_s184_loc,
+  List.forall_mem_cons.mpr ⟨t010_s185_loc,
+  List.forall_mem_cons.mpr ⟨t010_s186_loc,
+  List.forall_mem_cons.mpr ⟨t010_s187_loc,
+  List.forall_mem_cons.mpr ⟨t010_s188_loc,
+  List.forall_mem_cons.mpr ⟨t010_s189_loc,
+  List.forall_mem_cons.mpr ⟨t010_s190_loc,
+  List.forall_mem_cons.mpr ⟨t010_s191_loc,
+  List.forall_mem_cons.mpr ⟨t010_s192_loc,
+  List.forall_mem_cons.mpr ⟨t010_s193_loc,
+  List.forall_mem_cons.mpr ⟨t010_s194_loc,
+  List.forall_mem_cons.mpr ⟨t010_s195_loc,
+  List.forall_mem_cons.mpr ⟨t010_s196_loc,
+  List.forall_mem_cons.mpr ⟨t010_s197_loc,
+  List.forall_mem_cons.mpr ⟨t010_s198_loc,
+  List.forall_mem_cons.mpr ⟨t010_s199_loc,
+  List.forall_mem_cons.mpr ⟨t010_s200_loc,
+  List.forall_mem_cons.mpr ⟨t010_s201_loc,
+  List.forall_mem_cons.mpr ⟨t010_s202_loc,
+  List.forall_mem_cons.mpr ⟨t010_s203_loc,
+  List.forall_mem_cons.mpr ⟨t010_s204_loc,
+  List.forall_mem_cons.mpr ⟨t010_s205_loc,
+  List.forall_mem_cons.mpr ⟨t010_s206_loc,
+  List.forall_mem_cons.mpr ⟨t010_s207_loc,
+  List.forall_mem_cons.mpr ⟨t010_s208_loc,
+  List.forall_mem_cons.mpr ⟨t010_s209_loc,
+  List.forall_mem_cons.mpr ⟨t010_s210_loc,
+  List.forall_mem_cons.mpr ⟨t010_s211_loc,
+  List.forall_mem_cons.mpr ⟨t010_s212_loc,
+  List.forall_mem_cons.mpr ⟨t010_s213_loc,
+  List.forall_mem_cons.mpr ⟨t010_s214_loc,
+  List.forall_mem_cons.mpr ⟨t010_s215_loc,
+  List.forall_mem_cons.mpr ⟨t010_s216_loc,
+  List.forall_mem_cons.mpr ⟨t010_s217_loc,
+  List.forall_mem_cons.mpr ⟨t010_s218_loc,
+  List.forall_mem_cons.mpr ⟨t010_s219_loc,
+  List.forall_mem_cons.mpr ⟨t010_s220_loc,
+  List.forall_mem_cons.mpr ⟨t010_s221_loc,
+  List.forall_mem_cons.mpr ⟨t010_s222_loc,
+  List.forall_mem_cons.mpr ⟨t010_s223_loc,
+  List.forall_mem_cons.mpr ⟨t010_s224_loc,
+  List.forall_mem_cons.mpr ⟨t010_s225_loc,
+  List.forall_mem_cons.mpr ⟨t010_s226_loc,
+  List.forall_mem_cons.mpr ⟨t010_s227_loc,
+  List.forall_mem_cons.mpr ⟨t010_s228_loc,
+  List.forall_mem_cons.mpr ⟨t010_s229_loc,
+  List.forall_mem_cons.mpr ⟨t010_s230_loc,
+  List.forall_mem_cons.mpr ⟨t010_s231_loc,
+  List.forall_mem_cons.mpr ⟨t010_s232_loc,
+  List.forall_mem_cons.mpr ⟨t010_s233_loc,
+  List.forall_mem_cons.mpr ⟨t010_s234_loc,
+  List.forall_mem_cons.mpr ⟨t010_s235_loc,
+  List.forall_mem_cons.mpr ⟨t010_s236_loc,
+  List.forall_mem_cons.mpr ⟨t010_s237_loc,
+  List.forall_mem_cons.mpr ⟨t010_s238_loc,
+  List.forall_mem_cons.mpr ⟨t010_s239_loc,
+  List.forall_mem_cons.mpr ⟨t010_s240_loc,
+  List.forall_mem_cons.mpr ⟨t010_s241_loc,
+  List.forall_mem_cons.mpr ⟨t010_s242_loc,
+  List.forall_mem_cons.mpr ⟨t010_s243_loc,
+  List.forall_mem_cons.mpr ⟨t010_s244_loc,
+  List.forall_mem_cons.mpr ⟨t010_s245_loc,
+  List.forall_mem_cons.mpr ⟨t010_s246_loc,
+  List.forall_mem_cons.mpr ⟨t010_s247_loc,
+  List.forall_mem_cons.mpr ⟨t010_s248_loc,
+  List.forall_mem_cons.mpr ⟨t010_s249_loc,
+  List.forall_mem_cons.mpr ⟨t010_s250_loc,
+  List.forall_mem_cons.mpr ⟨t010_s251_loc,
+  List.forall_mem_cons.mpr ⟨t010_s252_loc,
+  List.forall_mem_cons.mpr ⟨t010_s253_loc,
+  List.forall_mem_cons.mpr ⟨t010_s254_loc,
+  List.forall_mem_cons.mpr ⟨t010_s255_loc,
+  List.forall_mem_cons.mpr ⟨t010_s256_loc,
+  List.forall_mem_cons.mpr ⟨t010_s257_loc,
+  List.forall_mem_cons.mpr ⟨t010_s258_loc,
+  List.forall_mem_cons.mpr ⟨t010_s259_loc,
+  List.forall_mem_cons.mpr ⟨t010_s260_loc,
+  List.forall_mem_cons.mpr ⟨t010_s261_loc,
+  List.forall_mem_cons.mpr ⟨t010_s262_loc,
+  List.forall_mem_cons.mpr ⟨t010_s263_loc,
+  List.forall_mem_cons.mpr ⟨t010_s264_loc,
+  List.forall_mem_cons.mpr ⟨t010_s265_loc,
+  List.forall_mem_cons.mpr ⟨t010_s266_loc,
+  List.forall_mem_cons.mpr ⟨t010_s267_loc,
+  List.forall_mem_cons.mpr ⟨t010_s268_loc,
+  List.forall_mem_cons.mpr ⟨t010_s269_loc,
+  List.forall_mem_cons.mpr ⟨t010_s270_loc,
+  List.forall_mem_cons.mpr ⟨t010_s271_loc,
+  List.forall_mem_cons.mpr ⟨t010_s272_loc,
+  List.forall_mem_cons.mpr ⟨t010_s273_loc,
+  List.forall_mem_cons.mpr ⟨t010_s274_loc,
+  List.forall_mem_cons.mpr ⟨t010_s275_loc,
+  List.forall_mem_cons.mpr ⟨t010_s276_loc,
+  List.forall_mem_cons.mpr ⟨t010_s277_loc,
+  List.forall_mem_cons.mpr ⟨t010_s278_loc,
+  List.forall_mem_cons.mpr ⟨t010_s279_loc,
+  List.forall_mem_cons.mpr ⟨t010_s280_loc,
+  List.forall_mem_cons.mpr ⟨t010_s281_loc,
+  List.forall_mem_cons.mpr ⟨t010_s282_loc,
+  List.forall_mem_cons.mpr ⟨t010_s283_loc,
+  List.forall_mem_cons.mpr ⟨t010_s284_loc,
+  List.forall_mem_cons.mpr ⟨t010_s285_loc,
+  List.forall_mem_cons.mpr ⟨t010_s286_loc,
+  List.forall_mem_cons.mpr ⟨t010_s287_loc,
+  List.forall_mem_cons.mpr ⟨t010_s288_loc,
+  List.forall_mem_cons.mpr ⟨t010_s289_loc,
+  List.forall_mem_cons.mpr ⟨t010_s290_loc,
+  List.forall_mem_cons.mpr ⟨t010_s291_loc,
+  List.forall_mem_cons.mpr ⟨t010_s292_loc,
+  List.forall_mem_cons.mpr ⟨t010_s293_loc,
+  List.forall_mem_cons.mpr ⟨t010_s294_loc,
+  List.forall_mem_cons.mpr ⟨t010_s295_loc,
+  List.forall_mem_cons.mpr ⟨t010_s296_loc,
+  List.forall_mem_cons.mpr ⟨t010_s297_loc,
+  List.forall_mem_cons.mpr ⟨t010_s298_loc,
+  List.forall_mem_cons.mpr ⟨t010_s299_loc,
+  List.forall_mem_cons.mpr ⟨t010_s300_loc,
+  List.forall_mem_cons.mpr ⟨t010_s301_loc,
+  List.forall_mem_cons.mpr ⟨t010_s302_loc,
+  List.forall_mem_cons.mpr ⟨t010_s303_loc,
+  List.forall_mem_cons.mpr ⟨t010_s304_loc,
+  List.forall_mem_cons.mpr ⟨t010_s305_loc,
+  List.forall_mem_cons.mpr ⟨t010_s306_loc,
+  List.forall_mem_cons.mpr ⟨t010_s307_loc,
+  List.forall_mem_cons.mpr ⟨t010_s308_loc,
+  List.forall_mem_cons.mpr ⟨t010_s309_loc,
+  List.forall_mem_cons.mpr ⟨t010_s310_loc,
+  List.forall_mem_cons.mpr ⟨t010_s311_loc,
+  List.forall_mem_cons.mpr ⟨t010_s312_loc,
+  List.forall_mem_cons.mpr ⟨t010_s313_loc,
+  List.forall_mem_cons.mpr ⟨t010_s314_loc,
+  List.forall_mem_cons.mpr ⟨t010_s315_loc,
+  List.forall_mem_cons.mpr ⟨t010_s316_loc,
+  List.forall_mem_cons.mpr ⟨t010_s317_loc,
+  List.forall_mem_cons.mpr ⟨t010_s318_loc,
+  List.forall_mem_cons.mpr ⟨t010_s319_loc,
+  List.forall_mem_cons.mpr ⟨t010_s320_loc,
+  List.forall_mem_cons.mpr ⟨t010_s321_loc,
+  List.forall_mem_cons.mpr ⟨t010_s322_loc,
+  List.forall_mem_cons.mpr ⟨t010_s323_loc,
+  List.forall_mem_cons.mpr ⟨t010_s324_loc,
+  List.forall_mem_cons.mpr ⟨t010_s325_loc,
+  List.forall_mem_cons.mpr ⟨t010_s326_loc,
+  List.forall_mem_cons.mpr ⟨t010_s327_loc,
+  List.forall_mem_cons.mpr ⟨t010_s328_loc,
+  List.forall_mem_cons.mpr ⟨t010_s329_loc,
+  List.forall_mem_cons.mpr ⟨t010_s330_loc,
+  List.forall_mem_cons.mpr ⟨t010_s331_loc,
+  List.forall_mem_cons.mpr ⟨t010_s332_loc,
+  List.forall_mem_cons.mpr ⟨t010_s333_loc,
+  List.forall_mem_cons.mpr ⟨t010_s334_loc,
+  List.forall_mem_cons.mpr ⟨t010_s335_loc,
+  List.forall_mem_cons.mpr ⟨t010_s336_loc,
+  List.forall_mem_cons.mpr ⟨t010_s337_loc,
+  List.forall_mem_cons.mpr ⟨t010_s338_loc,
+  List.forall_mem_cons.mpr ⟨t010_s339_loc,
+  List.forall_mem_cons.mpr ⟨t010_s340_loc,
+  List.forall_mem_cons.mpr ⟨t010_s341_loc,
+  List.forall_mem_cons.mpr ⟨t010_s342_loc,
+  List.forall_mem_cons.mpr ⟨t010_s343_loc,
+  List.forall_mem_cons.mpr ⟨t010_s344_loc,
+  List.forall_mem_cons.mpr ⟨t010_s345_loc,
+  List.forall_mem_cons.mpr ⟨t010_s346_loc,
+  List.forall_mem_cons.mpr ⟨t010_s347_loc,
+  List.forall_mem_cons.mpr ⟨t010_s348_loc,
+  List.forall_mem_cons.mpr ⟨t010_s349_loc,
+  List.forall_mem_cons.mpr ⟨t010_s350_loc,
+  List.forall_mem_cons.mpr ⟨t010_s351_loc,
+  List.forall_mem_cons.mpr ⟨t010_s352_loc,
+  List.forall_mem_cons.mpr ⟨t010_s353_loc,
+  List.forall_mem_cons.mpr ⟨t010_s354_loc,
+  List.forall_mem_cons.mpr ⟨t010_s355_loc,
+  List.forall_mem_cons.mpr ⟨t010_s356_loc,
+  List.forall_mem_cons.mpr ⟨t010_s357_loc,
+  List.forall_mem_cons.mpr ⟨t010_s358_loc,
+  List.forall_mem_cons.mpr ⟨t010_s359_loc,
+  List.forall_mem_cons.mpr ⟨t010_s360_loc,
+  List.forall_mem_cons.mpr ⟨t010_s361_loc,
+  List.forall_mem_cons.mpr ⟨t010_s362_loc,
+  List.forall_mem_cons.mpr ⟨t010_s363_loc,
+  List.forall_mem_cons.mpr ⟨t010_s364_loc,
+  List.forall_mem_cons.mpr ⟨t010_s365_loc,
+  List.forall_mem_cons.mpr ⟨t010_s366_loc,
+  List.forall_mem_cons.mpr ⟨t010_s367_loc,
+  List.forall_mem_cons.mpr ⟨t010_s368_loc,
+  List.forall_mem_cons.mpr ⟨t010_s369_loc,
+  List.forall_mem_cons.mpr ⟨t010_s370_loc,
+  List.forall_mem_cons.mpr ⟨t010_s371_loc,
+  List.forall_mem_cons.mpr ⟨t010_s372_loc,
+  List.forall_mem_cons.mpr ⟨t010_s373_loc,
+  List.forall_mem_cons.mpr ⟨t010_s374_loc,
+  List.forall_mem_cons.mpr ⟨t010_s375_loc,
+  List.forall_mem_cons.mpr ⟨t010_s376_loc,
+  List.forall_mem_cons.mpr ⟨t010_s377_loc,
+  List.forall_mem_cons.mpr ⟨t010_s378_loc,
+  List.forall_mem_cons.mpr ⟨t010_s379_loc,
+  List.forall_mem_cons.mpr ⟨t010_s380_loc,
+  List.forall_mem_cons.mpr ⟨t010_s381_loc,
+  List.forall_mem_cons.mpr ⟨t010_s382_loc,
+  List.forall_mem_cons.mpr ⟨t010_s383_loc,
+  List.forall_mem_cons.mpr ⟨t010_s384_loc,
+  List.forall_mem_cons.mpr ⟨t010_s385_loc,
+  List.forall_mem_cons.mpr ⟨t010_s386_loc,
+  List.forall_mem_cons.mpr ⟨t010_s387_loc,
+  List.forall_mem_cons.mpr ⟨t010_s388_loc,
+  List.forall_mem_cons.mpr ⟨t010_s389_loc,
+  List.forall_mem_cons.mpr ⟨t010_s390_loc,
+  List.forall_mem_cons.mpr ⟨t010_s391_loc,
+  List.forall_mem_cons.mpr ⟨t010_s392_loc,
+  List.forall_mem_cons.mpr ⟨t010_s393_loc,
+  List.forall_mem_cons.mpr ⟨t010_s394_loc,
+  List.forall_mem_cons.mpr ⟨t010_s395_loc,
+  List.forall_mem_cons.mpr ⟨t010_s396_loc,
+  List.forall_mem_cons.mpr ⟨t010_s397_loc,
+  List.forall_mem_cons.mpr ⟨t010_s398_loc,
+  List.forall_mem_cons.mpr ⟨t010_s399_loc,
+  List.forall_mem_cons.mpr ⟨t010_s400_loc,
+  List.forall_mem_cons.mpr ⟨t010_s401_loc,
+  List.forall_mem_cons.mpr ⟨t010_s402_loc,
+  List.forall_mem_cons.mpr ⟨t010_s403_loc,
+  List.forall_mem_cons.mpr ⟨t010_s404_loc,
+  List.forall_mem_cons.mpr ⟨t010_s405_loc,
+  List.forall_mem_cons.mpr ⟨t010_s406_loc,
+  List.forall_mem_cons.mpr ⟨t010_s407_loc,
+  List.forall_mem_cons.mpr ⟨t010_s408_loc,
+  List.forall_mem_cons.mpr ⟨t010_s409_loc,
+  List.forall_mem_cons.mpr ⟨t010_s410_loc,
+  List.forall_mem_cons.mpr ⟨t010_s411_loc,
+  List.forall_mem_cons.mpr ⟨t010_s412_loc,
+  List.forall_mem_cons.mpr ⟨t010_s413_loc,
+  List.forall_mem_cons.mpr ⟨t010_s414_loc,
+  List.forall_mem_cons.mpr ⟨t010_s415_loc,
+  List.forall_mem_cons.mpr ⟨t010_s416_loc,
+  List.forall_mem_cons.mpr ⟨t010_s417_loc,
+  List.forall_mem_cons.mpr ⟨t010_s418_loc,
+  List.forall_mem_cons.mpr ⟨t010_s419_loc,
+  List.forall_mem_cons.mpr ⟨t010_s420_loc,
+  List.forall_mem_cons.mpr ⟨t010_s421_loc,
+  List.forall_mem_cons.mpr ⟨t010_s422_loc,
+  List.forall_mem_cons.mpr ⟨t010_s423_loc,
+  List.forall_mem_cons.mpr ⟨t010_s424_loc,
+  List.forall_mem_cons.mpr ⟨t010_s425_loc,
+  List.forall_mem_cons.mpr ⟨t010_s426_loc,
+  List.forall_mem_cons.mpr ⟨t010_s427_loc,
+  List.forall_mem_cons.mpr ⟨t010_s428_loc,
+  List.forall_mem_cons.mpr ⟨t010_s429_loc,
+  List.forall_mem_cons.mpr ⟨t010_s430_loc,
+  List.forall_mem_cons.mpr ⟨t010_s431_loc,
+  List.forall_mem_cons.mpr ⟨t010_s432_loc,
+  List.forall_mem_cons.mpr ⟨t010_s433_loc,
+  List.forall_mem_cons.mpr ⟨t010_s434_loc,
+  List.forall_mem_cons.mpr ⟨t010_s435_loc,
+  List.forall_mem_cons.mpr ⟨t010_s436_loc,
+  List.forall_mem_cons.mpr ⟨t010_s437_loc,
+  List.forall_mem_cons.mpr ⟨t010_s438_loc,
+  List.forall_mem_cons.mpr ⟨t010_s439_loc,
+  List.forall_mem_cons.mpr ⟨t010_s440_loc,
+  List.forall_mem_cons.mpr ⟨t010_s441_loc,
+  List.forall_mem_cons.mpr ⟨t010_s442_loc,
+  List.forall_mem_cons.mpr ⟨t010_s443_loc,
+  List.forall_mem_cons.mpr ⟨t010_s444_loc,
+  List.forall_mem_cons.mpr ⟨t010_s445_loc,
+  List.forall_mem_cons.mpr ⟨t010_s446_loc,
+  List.forall_mem_cons.mpr ⟨t010_s447_loc,
+  List.forall_mem_cons.mpr ⟨t010_s448_loc,
+  List.forall_mem_cons.mpr ⟨t010_s449_loc,
+  List.forall_mem_cons.mpr ⟨t010_s450_loc,
+  List.forall_mem_cons.mpr ⟨t010_s451_loc,
+  List.forall_mem_cons.mpr ⟨t010_s452_loc,
+  List.forall_mem_cons.mpr ⟨t010_s453_loc,
+  List.forall_mem_nil _⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩
 
 /-- Correctness certificate for t010: the whole chain. -/
 theorem t010_correct {α : Type} [ExactScalar α] :

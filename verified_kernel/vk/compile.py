@@ -159,6 +159,10 @@ def emit_lean(instances: List[Instance]) -> str:
         "-- one: raising it changes nothing about what counts as a proof, and the",
         "-- kernel still checks every term. `#print axioms` remains the real test.",
         "set_option maxRecDepth 100000",
+        "-- Likewise a budget, not a criterion. Reading the last of a chain's several",
+        "-- hundred recorded sizes means walking the list to it, so the size",
+        "-- obligation costs more the longer the chain is.",
+        "set_option maxHeartbeats 4000000",
         "",
     ]
     for inst in instances:
@@ -793,33 +797,21 @@ def _emit_chain(inst: "Instance") -> List[str]:
         f"def {k}_chain (α : Type) [ExactScalar α] : List (Stage α) := [{stage_list}]",
         "",
         f"theorem {k}_imp {{α : Type}} [ExactScalar α] :",
-        f"    ∀ st ∈ {k}_chain α, Implements st.prog st.spec := by",
-        f"  intro st hst",
-        f"  simp only [{k}_chain, List.mem_cons, List.not_mem_nil, or_false] at hst",
-        "  rcases hst with " + " | ".join("rfl" for _ in range(n)),
+        f"    ∀ st ∈ {k}_chain α, Implements st.prog st.spec :=",
     ]
-    for j in range(n):
-        out.append(f"  · exact {k}_s{j}_impl")
+    out += _forall_mem(n, lambda j: f"{k}_s{j}_impl")
     out += [
         "",
         f"theorem {k}_szok {{α : Type}} [ExactScalar α] :",
-        f"    ∀ st ∈ {k}_chain α, {k}_sz st.out = some st.spec.outSize := by",
-        f"  intro st hst",
-        f"  simp only [{k}_chain, List.mem_cons, List.not_mem_nil, or_false] at hst",
-        "  rcases hst with " + " | ".join("rfl" for _ in range(n)),
+        f"    ∀ st ∈ {k}_chain α, {k}_sz st.out = some st.spec.outSize :=",
     ]
-    for j in range(n):
-        out.append(f"  · rfl")
+    out += _forall_mem(n, lambda j: "rfl")
     out += [
         "",
         f"theorem {k}_loc {{α : Type}} [ExactScalar α] :",
-        f"    ∀ st ∈ {k}_chain α, SpecLocal {k}_sz st.spec := by",
-        f"  intro st hst",
-        f"  simp only [{k}_chain, List.mem_cons, List.not_mem_nil, or_false] at hst",
-        "  rcases hst with " + " | ".join("rfl" for _ in range(n)),
+        f"    ∀ st ∈ {k}_chain α, SpecLocal {k}_sz st.spec :=",
     ]
-    for j in range(n):
-        out.append(f"  · exact {k}_s{j}_loc")
+    out += _forall_mem(n, lambda j: f"{k}_s{j}_loc")
     out += [
         "",
         f"/-- Correctness certificate for {k}: the whole chain. -/",
@@ -850,6 +842,21 @@ def _emit_chain(inst: "Instance") -> List[str]:
         "",
     ]
     return out
+
+
+def _forall_mem(n: int, proof) -> List[str]:
+    """`\u2200 st \u2208 chain, P st` as a term rather than a case split.
+
+    The tactic form -- unfold the list, then `rcases` an `n`-deep `Or` -- is
+    quadratic in the length of the chain, which a 454-stage network does not
+    survive. Nesting `List.forall_mem_cons` is linear and says the same thing:
+    the property holds of the head, and of everything after it.
+    """
+    lines = []
+    for j in range(n):
+        lines.append("  " * 0 + f"  List.forall_mem_cons.mpr \u27e8{proof(j)},")
+    lines.append("  List.forall_mem_nil _" + "\u27e9" * n)
+    return lines
 
 
 def _chain_reads(st, tag: str, arity: int, nstages: int) -> List[int]:

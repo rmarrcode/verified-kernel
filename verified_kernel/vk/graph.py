@@ -495,6 +495,40 @@ def _is_pointwise(node: fx.Node, gm: fx.GraphModule) -> bool:
     return False
 
 
+def _perm_of(n: fx.Node, rank: Optional[int]) -> Optional[List[int]]:
+    """The axis permutation this node applies, or `None` if it is not one.
+
+    `.T`, `transpose(a, b)` and `permute(...)` differ only in how the permutation is
+    written down, so they are recognised together and lowered once.
+    """
+    name = op_name(n.target)
+    if rank is None or not n.all_input_nodes:
+        return None
+    if name == "getattr" and len(n.args) > 1 and n.args[1] == "T":
+        if rank != 2:
+            raise Unsupported(f".T on a {rank}-D tensor")
+        return [1, 0]
+    if name == "t":
+        if rank > 2:
+            raise Unsupported(f"t() on a {rank}-D tensor")
+        return list(range(rank))[::-1]
+    if name == "transpose" and len(n.args) == 3:
+        a, b = n.args[1], n.args[2]
+        if not isinstance(a, int) or not isinstance(b, int):
+            return None
+        a, b = a % rank, b % rank
+        perm = list(range(rank))
+        perm[a], perm[b] = perm[b], perm[a]
+        return perm
+    if name == "permute":
+        dims = n.args[1] if len(n.args) == 2 and isinstance(n.args[1], (list, tuple)) \
+            else list(n.args[1:])
+        if len(dims) != rank or not all(isinstance(d, int) for d in dims):
+            return None
+        return [d % rank for d in dims]
+    return None
+
+
 def _pointwise_se(node: fx.Node, gm: fx.GraphModule, args: List[Any]) -> S.SE:
     from .frontend import POINTWISE_FUNCS, POINTWISE_MODULES
     if node.op == "call_module":
@@ -587,8 +621,9 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
             continue                      # a relabelling emits no stage
         if n not in shapes or op_name(n.target) == "tensor":
             continue                      # shape arithmetic or a literal, not data
-        if op_name(n.target) == "getattr" and len(n.args) > 1 and n.args[1] == "T":
-            continue                      # a transpose is emitted directly
+        src0 = n.all_input_nodes[0] if n.all_input_nodes else None
+        if _perm_of(n, len(shapes[src0]) if src0 in shapes else None) is not None:
+            continue                      # an axis permutation is emitted directly
         sub = gm.get_submodule(n.target) if n.op == "call_module" else n.target
         ins = [shapes[a] for a in n.all_input_nodes if a in shapes]
         low = _lower_one(sub, ins, mode, n)
@@ -664,24 +699,30 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                     produced_by[n] = produced_by[al]
                 continue
 
-        # `x.T` is a relabelling of the *index map*, not of the buffer, so it is one
-        # stage rather than an alias.
-        if op_name(n.target) == "getattr" and len(n.args) > 1 and n.args[1] == "T":
-            src = n.args[0]
-            sv = env[src].shape
-            if len(sv) != 2:
-                raise Unsupported(f".T on a {len(sv)}-D tensor")
-            a_, b_ = sv
-            q = I.Pid()
+        # A reordering of axes is a relabelling of the *index map*, not of the
+        # buffer, so it is one stage rather than an alias. The IR deliberately
+        # cannot express a reshape -- but it does not have to: a permutation is
+        # absorbed into the index map of the stage that reads the result.
+        perm = _perm_of(n, len(env[n.all_input_nodes[0]].shape)
+                        if n.all_input_nodes and n.all_input_nodes[0] in env else None)
+        if perm is not None:
+            src = n.all_input_nodes[0]
+            sv = list(env[src].shape)
+            so = [sv[d] for d in perm]
+            # out[i_0..i_r] = x[j_0..j_r] with j_{perm[d]} = i_d
+            inv = [0] * len(perm)
+            for d, pd in enumerate(perm):
+                inv[pd] = d
+            coords = unpack(I.Pid(), so)
             st = Lowered(
                 family="genred", body=S.Inp(env[src].buf), arity=ch.nbuf + 1,
-                out_size=a_ * b_, out_shape=(b_, a_),
+                out_size=_prod(so), out_shape=tuple(so),
                 tensor_arg_index=list(ch.arg_index), K=1,
-                offs=ch.pad({env[src].buf: (q % I.Lit(a_)) * I.Lit(b_)
-                             + q // I.Lit(a_)}),
+                offs=ch.pad({env[src].buf: pack([coords[inv[k]]
+                                                 for k in range(len(sv))], sv)}),
                 post_offs=ch.pad({}), post=S.Inp(0),
-                notes=[f"transpose {sv} -> {(b_, a_)}"])
-            env[n] = ch.emit(st, (b_, a_))
+                notes=[f"permute {tuple(sv)} -> {tuple(so)} by {tuple(perm)}"])
+            env[n] = ch.emit(st, tuple(so))
             produced_by[n] = len(ch.stages) - 1
             continue
 
