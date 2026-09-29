@@ -402,6 +402,18 @@ def _prodred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
             for ln in _genred_defs(name, low, block, nkb, nout)]
 
 
+def _init_for(st, name: str) -> str:
+    """The accumulator's starting value for a stage.
+
+    Zero for a sum and one for a product -- but a *max* has no identity, so it starts
+    from the element at reduction index 0. Starting it at zero silently computes
+    `max(0, xs)`, which is wrong exactly when every element is negative.
+    """
+    if st.family == "maxred":
+        return f"{name}_g.seed"
+    return "FE.oneC" if st.family == "prodred" else "FE.zeroC"
+
+
 def _drop_kernel_def(lines: List[str]) -> List[str]:
     """Strip a stage's `ReduceKernel` definition.
 
@@ -654,7 +666,7 @@ def _emit_pipeline3(inst: "Instance") -> List[str]:
             f"def {nm}_kernel : ReduceKernel :=",
             f"  {{ name := \"{nm}\", arity := {st.arity}, block := {nm}_block,"
             f" nkb := {nm}_nkb, nout := {nout},"
-            f" init := {'FE.oneC' if st.family == 'prodred' else 'FE.zeroC'},"
+            f" init := {_init_for(st, nm)},"
             f" step := {nm}_g.step {nm}_block,"
             f" stored := {nm}_g.stored {nm}_block }}",
         ]
@@ -782,7 +794,7 @@ def _emit_chain(inst: "Instance") -> List[str]:
             f"def {k}_s{j}_kernel : ReduceKernel :=",
             f"  {{ name := \"{k}_s{j}\", arity := {A + j}, block := {k}_s{j}_block,"
             f" nkb := {k}_s{j}_nkb, nout := {st.out_size},"
-            f" init := {'FE.oneC' if st.family == 'prodred' else 'FE.zeroC'},"
+            f" init := {_init_for(st, f'{k}_s{j}')},"
             f" step := {k}_s{j}_g.step {k}_s{j}_block,"
             f" stored := {k}_s{j}_g.stored {k}_s{j}_block }}",
         ]

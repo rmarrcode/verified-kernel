@@ -48,7 +48,10 @@ def main() -> int:
         ref = task.module.Model(*init).cuda()
         named = dict(ref.named_parameters())
         named.update(dict(ref.named_buffers()))
-        params = [named[nm] for nm in p["param_paths"]]
+        # `fx` lifts literal tensors in a forward into attributes named
+        # `_tensor_constant*`, which are neither parameters nor registered buffers.
+        params = [named[nm] if nm in named else getattr(ref, nm)
+                  for nm in p["param_paths"]]
         new = GeneratedModel(key, tuple(p["out_shape"]), p["tensor_arg_index"],
                              params, p.get("out_dtype"))
 

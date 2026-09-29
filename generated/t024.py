@@ -25,7 +25,7 @@ def t024_s0(out, ins):
 
 @triton.jit
 def t024_s1_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr):
-    _acc0 = tl.zeros([16], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([16], dtype=tl.float32) + (((0.0 * (1.0 / 1.0)) - tl.load(in3_ptr + ((((((tl.program_id(0) // 900) * 22) + 0) * 900) + (tl.program_id(0) % 900))))))
     for _lv0 in range(0, 2):
         _acc0 = tl.maximum(_acc0, ((0.0 * (1.0 / 1.0)) - tl.load(in3_ptr + ((((((tl.program_id(0) // 900) * 22) + tl.maximum(((_lv0 * 16) + tl.arange(0, 16)) - tl.maximum(((_lv0 * 16) + tl.arange(0, 16)) - 21, 0), 0)) * 900) + (tl.program_id(0) % 900))))))
     _v = ((0.0 * (1.0 / 1.0)) - tl.max(_acc0, axis=0))

@@ -83,6 +83,8 @@ def make_plan(task, budget: int, min_scale: int = 1) -> Tuple[Optional[Plan], Li
                 p_ = dict(model.named_parameters()).get(nm)
                 if p_ is None:
                     p_ = dict(model.named_buffers()).get(nm)
+                if p_ is None:
+                    p_ = getattr(model, nm, None)
                 if p_ is not None:
                     need += p_.numel() * 4
             fits = need <= budget
