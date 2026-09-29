@@ -13,6 +13,6 @@ def t041_kernel(out_ptr, in0_ptr):
 
 
 def t041(out, ins):
-    grid = (402573312,)
+    grid = (201286656,)
     t041_kernel[grid](out, ins[0])
     return out

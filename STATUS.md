@@ -8,14 +8,14 @@ design problems standing between here and 100% on Level 1.
 
 ```
   KernelBench Level 1                     100
-  lowered to a specification               89
-  correctness certificate checked by Lean   89
-  matched PyTorch on this GPU               84   (41 at declared size, 43 reduced)
-  certified, not run (serial)                5
+  lowered to a specification               91
+  correctness certificate checked by Lean   91
+  matched PyTorch on this GPU               91   (43 at declared size, 48 reduced)
   mismatched or errored                      0
 ```
 
-Every kernel that ran matched: 84 of 84, across four runs and every family.
+Every task that lowers both certifies and runs correctly: 91 of 91, with no
+mismatch in any run of any family.
 
 The gap to 100 is **coverage**, not correctness — tasks the frontend declines to
 lower, since it refuses rather than guesses — plus 5 that are certified but whose
