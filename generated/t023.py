@@ -13,7 +13,7 @@ def t023_s1_kernel(out_ptr, in0_ptr):
 
 
 def t023_s1(out, ins):
-    grid = (512,)
+    grid = (1024,)
     t023_s1_kernel[grid](out, ins[0])
     return out
 
@@ -28,13 +28,13 @@ def t023_s2_kernel(out_ptr, in0_ptr, in1_ptr):
 
 
 def t023_s2(out, ins):
-    grid = (201326592,)
+    grid = (402653184,)
     t023_s2_kernel[grid](out, ins[0], ins[1])
     return out
 
 
 def t023(out, ins):
-    _tmp = torch.empty(512, device=ins[0].device, dtype=torch.float32)
+    _tmp = torch.empty(1024, device=ins[0].device, dtype=torch.float32)
     t023_s1(_tmp, ins)
     t023_s2(out, list(ins) + [_tmp])
     return out

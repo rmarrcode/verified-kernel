@@ -1525,6 +1525,179 @@ def tree_split(low: Lowered, partials: int = TREE_PARTIALS) -> Lowered:
         notes=low.notes + [f"tree reduction: {K} elements -> {partials} partials"])
 
 
+SCAN_BLOCK = 32
+
+
+def _scan_block(K: int) -> int:
+    """A block size that *divides* the scan extent.
+
+    Divisibility is not cosmetic: the certificate bounds a block coordinate with
+    `bound_group`, which needs `K = nblocks * block` exactly. Work is
+    `K*block + (K/block)^2` per row, minimised near sqrt-ish block sizes; among the
+    divisors near that, take the largest power of two.
+    """
+    best = 1
+    b = 1
+    while b <= 256:
+        if K % b == 0:
+            best = b
+        b *= 2
+    return max(best, 1)
+
+
+def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower a cumulative sum as three ordinary reductions.
+
+    A scan looks like it needs an IR that can store *inside* the accumulator loop,
+    since it writes one output per iteration rather than one per program. It does
+    not: a blocked scan decomposes into three reductions this framework already
+    proves.
+
+        stage 1   block sums            s1[r,b] = sum over block b of row r
+        stage 2   prefix over blocks    s2[r,b] = sum of s1[r,b'] for b' < b
+        stage 3   intra-block prefix    out[r,k] = s2[r,b] + sum_{j' <= j} x[r,b,j']
+
+    Work is `K*block + (K/block)^2` per row instead of the naive `K^2`, which is the
+    difference between running and not: `3.5e13` operations against `7e10`.
+
+    `reverse` and `exclusive` change only the two guards; a mask changes only the
+    summand. None of them touches the kernel theorems.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    with torch.no_grad():
+        y = model(*example_args)
+
+    # --- recognise the shape of the graph
+    variant = "inclusive"
+    dim: Optional[int] = None
+    masked = False
+    nflip = 0
+    saw_cat = saw_narrow = False
+    # Values derived from `size` are *shape* arithmetic, not data. Keeping the two
+    # apart matters: blanket-allowing `sub` so that `x.size(d) - 1` traces would
+    # also let `cumsum(a - b)` through with the subtraction silently dropped.
+    shape_nodes: set = set()
+    DATA_OPS = {"cumsum", "flip", "mul", "cat", "narrow", "zeros_like",
+                "select", "unsqueeze"}
+    for node in gm.graph.nodes:
+        if node.op in ("call_function", "call_method"):
+            tgt = node.target
+            nm = tgt if isinstance(tgt, str) else getattr(tgt, "__name__", str(tgt))
+            args = [a for a in node.args if isinstance(a, fx.Node)]
+            if nm == "size":
+                shape_nodes.add(node)
+                continue
+            if args and all(a in shape_nodes for a in args):
+                shape_nodes.add(node)          # arithmetic on shapes
+                continue
+            if nm not in DATA_OPS:
+                raise Unsupported(f"{tgt!r} alongside a cumsum")
+            if nm == "cumsum":
+                if dim is not None:
+                    raise Unsupported("more than one cumsum")
+                dim = _kw(node, "dim", 1, None)
+            elif nm == "flip":
+                nflip += 1
+            elif nm == "mul":
+                masked = True
+            elif nm == "cat":
+                saw_cat = True
+            elif nm == "narrow":
+                saw_narrow = True
+        elif node.op == "call_module":
+            raise Unsupported("module call alongside a cumsum")
+    if dim is None:
+        raise Unsupported("no cumsum in the graph")
+    if nflip == 2:
+        variant = "reverse"
+    elif nflip:
+        raise Unsupported(f"{nflip} flips around a cumsum")
+    if saw_cat and saw_narrow:
+        variant = "exclusive"
+    elif saw_cat or saw_narrow:
+        raise Unsupported("unrecognised narrow/cat pattern around a cumsum")
+
+    x = example_args[0]
+    sx = tuple(x.shape)
+    d = dim if dim >= 0 else dim + len(sx)
+    if _prod(sx[d + 1:]) != 1:
+        raise Unsupported("cumsum over a non-final axis")
+    outer, K = _prod(sx[:d]), sx[d]
+    if tuple(y.shape) != sx:
+        raise Unsupported(f"output {tuple(y.shape)} differs from input {sx}")
+
+    B = _scan_block(K)
+    NB = K // B
+    arity = 2 if masked else 1
+    T1, T2 = arity, arity + 1
+    nbuf = T2 + 1
+
+    def pad(entries: Dict[int, I.IE]) -> List[I.IE]:
+        return [entries.get(b, I.Lit(0)) for b in range(nbuf)]
+
+    q = I.Pid()
+    body: S.SE = S.Inp(0) * S.Inp(1) if masked else S.Inp(0)
+
+    # stage 1: block sums, one program per (row, block)
+    r1, b1 = q // I.Lit(NB), q % I.Lit(NB)
+    off1 = r1 * I.Lit(K) + b1 * I.Lit(B) + I.Rk()
+    s1 = Lowered(
+        family="genred", body=body, arity=arity,
+        out_size=outer * NB, out_shape=(outer * NB,),
+        tensor_arg_index=list(range(arity)), K=B,
+        offs=pad({b: off1 for b in range(arity)}), post_offs=pad({}),
+        post=S.Inp(0),
+        notes=[f"stage 1: block sums, {NB} blocks of {B} per row"])
+
+    # stage 2: prefix over blocks (the direction is the whole difference between
+    # an inclusive, exclusive and reverse scan at this level)
+    guard2 = I.lt(b1, I.Rk()) if variant == "reverse" else I.lt(I.Rk(), b1)
+    s2 = Lowered(
+        family="genred", body=S.Inp(T1), arity=T1 + 1,
+        out_size=outer * NB, out_shape=(outer * NB,),
+        tensor_arg_index=list(range(arity)), K=NB,
+        offs=pad({T1: r1 * I.Lit(NB) + I.Rk()}), post_offs=pad({}),
+        in_range=guard2, post=S.Inp(0),
+        notes=[f"stage 2: {variant} prefix over blocks"])
+
+    # stage 3: intra-block prefix, plus the block prefix from stage 2
+    r3 = q // I.Lit(K)
+    b3 = (q % I.Lit(K)) // I.Lit(B)
+    j3 = q % I.Lit(B)          # valid because B divides K
+    if variant == "reverse":
+        guard3 = I.le(j3, I.Rk())
+    elif variant == "exclusive":
+        guard3 = I.lt(I.Rk(), j3)
+    else:
+        guard3 = I.le(I.Rk(), j3)
+    off3 = r3 * I.Lit(K) + b3 * I.Lit(B) + I.Rk()
+    s3 = Lowered(
+        family="genred", body=body, arity=nbuf,
+        out_size=y.numel(), out_shape=tuple(y.shape),
+        tensor_arg_index=list(range(arity)), K=B,
+        offs=pad({b: off3 for b in range(arity)}),
+        post_offs=pad({T2: r3 * I.Lit(NB) + b3}),
+        in_range=guard3,
+        post=S.Bin("add", S.Inp(0), S.Inp(T2 + 1)),
+        notes=[f"stage 3: intra-block {variant} prefix plus the block prefix"])
+
+    return Lowered(
+        family="pipeline3", body=body, arity=arity,
+        out_size=y.numel(), out_shape=tuple(y.shape),
+        tensor_arg_index=list(range(arity)),
+        stages=[s1, s2, s3], n1=outer * NB, n2=outer * NB, K=B,
+        bounds={
+            "l2": ("packs", [("div", outer, NB), ("hk",)], [outer, NB]),
+            "l3a": ("zero", outer * NB),
+            "l3b": ("zero", outer * NB),
+            "l3bpost": ("packs", [("div", outer, K),
+                                  ("divmod", K, B, NB, "q")], [outer, NB]),
+        },
+        notes=[f"{variant} scan over dim {d} of {sx}: {outer} rows, "
+               f"{NB} blocks of {B}" + (", masked" if masked else "")])
+
+
 def lower_sepconv(model: nn.Module, example_args: List[Any]) -> Lowered:
     """Lower a depthwise-separable convolution: a depthwise conv then a pointwise
     one, as two stages.
@@ -1900,7 +2073,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
     lower_maxpool, lower_maxmin, lower_rownorm, lower_normalize, lower_triplet,
-    lower_sepconv,
+    lower_sepconv, lower_scan,
     lower_broadcast_pointwise]
 
 

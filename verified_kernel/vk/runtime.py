@@ -60,6 +60,13 @@ def _check(t: torch.Tensor, what: str) -> torch.Tensor:
         raise RuntimeError(f"{what} is {type(t).__name__}, expected a Tensor")
     if not t.is_cuda:
         raise RuntimeError(f"{what} is on {t.device}, expected CUDA")
+    if t.dtype is torch.bool:
+        # A boolean mask denotes 0 and 1, and `False -> 0.0`, `True -> 1.0` is an
+        # exact embedding into the reals the spec quantifies over -- which is also
+        # what PyTorch does when such a tensor meets a float in an arithmetic op.
+        # Every other dtype is refused rather than coerced: an int64 conversion
+        # would be lossy above 2^24, and a float64 one changes the arithmetic.
+        return t.to(torch.float32).contiguous()
     if t.dtype is not torch.float32:
-        raise RuntimeError(f"{what} is {t.dtype}, expected float32")
+        raise RuntimeError(f"{what} is {t.dtype}, expected float32 (or bool)")
     return t.contiguous()

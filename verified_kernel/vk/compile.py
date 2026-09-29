@@ -333,7 +333,7 @@ def _emit_pipeline(inst: "Instance") -> List[str]:
         # A type ascription lets `decide` see a closed proposition; the lambda's
         # body is then checked against the expected type by defeq, which reduces
         # the index map away.
-        f"    (fun _ _ => (by decide : (0 : Nat) < {low.n1}))",
+        "    " + _bound_proof_post(low.bounds.get("l2post", ("zero", low.n1))),
         "",
         f"/-- Correctness certificate for {k}: the composed pipeline. -/",
         f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
@@ -389,6 +389,12 @@ def _bound_atom(sb: Tuple) -> str:
         _, outer, K, inner = sb
         return (f"(bound_row (outer := {outer}) (K := {K}) (inner := {inner})"
                 f" (by decide) hq)")
+    if kind == "divmod":
+        # `(x % C) / CG < G`, for a coordinate split out of a packed index. Needs
+        # `C = G * CG`, i.e. the block size to divide the extent.
+        _, C, CG, G, xexpr = sb
+        return (f"(bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := {xexpr})"
+                f" (by decide) (by decide) (by decide))")
     if kind == "group":
         _, C, CG, G, SP = sb
         return (f"(bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := q / {SP})"
@@ -410,6 +416,18 @@ def _bound_atom(sb: Tuple) -> str:
             A *= B
         return term
     raise AssertionError(f"unknown bound {sb!r}")
+
+
+def _bound_proof_post(sb: Tuple) -> str:
+    """Locality proof for a stage's *post* read of an intermediate.
+
+    `GenRed.loc`'s second obligation is quantified over `q` only -- there is no
+    reduction index in the post stage -- so these lambdas take two arguments where
+    the reduced-stage ones take four.
+    """
+    if sb[0] == "zero":
+        return f"(fun _ _ => (by decide : (0 : Nat) < {sb[1]}))"
+    return f"(fun q hq => {_bound_atom(sb)})"
 
 
 def _bound_proof(sb: Tuple) -> str:
@@ -453,22 +471,23 @@ def _emit_pipeline3(inst: "Instance") -> List[str]:
     b2 = _bound_proof(low.bounds["l2"])
     b3a = _bound_proof(low.bounds["l3a"])
     b3b = _bound_proof(low.bounds["l3b"])
-    zero_n1 = f"(fun _ _ => (by decide : (0 : Nat) < {low.n1}))"
-    zero_n2 = f"(fun _ _ => (by decide : (0 : Nat) < {low.n2}))"
+    p2 = _bound_proof_post(low.bounds.get("l2post", ("zero", low.n1)))
+    p3a = _bound_proof_post(low.bounds.get("l3apost", ("zero", low.n1)))
+    p3b = _bound_proof_post(low.bounds.get("l3bpost", ("zero", low.n2)))
     out += [
         f"/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/",
         f"theorem {k}_l2 {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s2_g.spec (α := α)) {t1} {low.n1} :=",
-        f"  GenRed.loc {k}_s2_g {t1} {low.n1} {b2} {zero_n1}",
+        f"  GenRed.loc {k}_s2_g {t1} {low.n1} {b2} {p2}",
         "",
         f"/-- Stage 3 reads each intermediate only where its stage wrote it. -/",
         f"theorem {k}_l3a {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s3_g.spec (α := α)) {t1} {low.n1} :=",
-        f"  GenRed.loc {k}_s3_g {t1} {low.n1} {b3a} {zero_n1}",
+        f"  GenRed.loc {k}_s3_g {t1} {low.n1} {b3a} {p3a}",
         "",
         f"theorem {k}_l3b {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s3_g.spec (α := α)) {t2} {low.n2} :=",
-        f"  GenRed.loc {k}_s3_g {t2} {low.n2} {b3b} {zero_n2}",
+        f"  GenRed.loc {k}_s3_g {t2} {low.n2} {b3b} {p3b}",
         "",
         f"/-- Correctness certificate for {k}: the composed three-stage pipeline. -/",
         f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
