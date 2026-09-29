@@ -51,17 +51,22 @@ depend only on `propext`, `Quot.sound` and `Classical.choice`):
 | `Kernels/Elementwise.lean` | `SE.flat_correct` |
 | `Kernels/GenRed.lean` | `GenRed.prog_implements` — the general reducing family |
 | `Kernels/MaxRed.lean` | `MaxRed.prog_implements` — clamping rather than masking |
+| `Kernels/ProdRed.lean` | `ProdRed.prog_implements` — the same, multiplicatively |
 | `Pipeline.lean`, `Pipeline3.lean` | `two_stage`, `three_stage`, and the `Loc` obligations |
 
 **Families and what they cover:**
 
-| Family | Tasks |
-|---|---|
-| element-wise | 14 activations and pointwise ops |
-| general reduction | axis reductions, losses, contractions, all 34 convolutions, average pooling, broadcasting |
-| max/min reduction | max pooling, max/min over a dimension |
-| two-stage pipeline | softmax, log-softmax, RMS/L1/L2 norms, tree reductions, depthwise-separable conv |
-| three-stage pipeline | batch/instance/group/layer norm, Frobenius norm, triplet loss |
+| Family | Theorem | Tasks |
+|---|---|---|
+| general reduction | `GenRed.prog_implements` | 56 |
+| element-wise | `SE.flat_correct` | 14 |
+| three-stage pipeline | `three_stage` | 13 |
+| two-stage pipeline | `two_stage` | 10 |
+| max/min reduction | `MaxRed.prog_implements` | 5 |
+| composed max (argmax) | `two_stage` over `MaxRed` | 2 |
+
+Covering: 34 convolutions, 18 contractions, 14 activations, 8 normalisations, 7
+reductions, 6 losses, 6 poolings, 5 scans, attention, and the rest.
 
 **Pipeline** (`verified_kernel/vk/`, `harness/`): fx-based frontend, Lean certificate
 generator, Triton runtime, subprocess-isolated orchestrator, and
@@ -71,50 +76,56 @@ Each task compiles to a `theorem` in `lean/Generated/Emit.lean` instantiating it
 family's theorem at the chosen block size and grid; `lake build` checking that file
 is the gate on emission.
 
-## Not built, and what each needs
+## What is not proved
 
-Nine tasks remain. None is more plumbing of the same kind; each needs a distinct
-piece of design, and they are listed with what that piece actually is.
+### Rounding
+Certificates state equivalence **in exact arithmetic**. That this implies agreement
+within KernelBench's 1e-2 is empirical -- every kernel that has run has matched --
+not proved. A bound would need a Flocq-style IEEE-754 development, which does not
+exist usably for Lean 4. This is the single largest remaining gap in the guarantee.
 
-### 1. Scans — 5 tasks
-Tasks 89–93 (cumsum, cumprod, reverse, exclusive, masked).
+### The frontend
+There is no formal semantics of PyTorch to prove the lowering against, so a
+mis-lowering produces a kernel provably equal to the *wrong* spec. It is written to
+refuse rather than guess, but that is a discipline, not a proof. Both real bugs
+found this way lived here:
 
-Needs an **IR extension**. Every family here stores *after* its accumulator loop,
-because every family here computes one output per program. A scan writes one output
-per *iteration*, so `Stmt` needs a form that threads memory as well as the
-accumulator through the loop, and its correctness proof needs two injectivity
-obligations the present families never incur: that a program's stores across
-iterations land on distinct addresses, and that different programs' stores are
-disjoint.
+- clamping a pooling *coordinate* is sound only for an undilated window; with
+  dilation the window is a strided set (tasks 41, 43);
+- ignoring an `unsqueeze` silently transposed a broadcast (task 12).
 
-Expressing a scan inside the existing reducing family *is* possible — `out[q]` is a
-reduction guarded by `rk <= k(q)` — and would be correct, but it is quadratic:
-3.5 x 10^13 operations for task 89. Not a real option.
+Neither was catchable by proof. Running the kernels is what found them.
 
-### 2. Argmax / argmin — 2 tasks
-Tasks 51, 52. The reduced value is an *index*, so the accumulator must carry a pair
-and the comparison must break ties the way PyTorch does (first occurrence). Needs a
-product accumulator in the IR, and an integer output dtype in the runtime, which
-currently allocates `float32` unconditionally.
+### The trusted last mile
+`Render.lean` (one string template per node), the modelled `tl.*` semantics
+(differential-tested by `harness/axiom_tests.py`), the Lean kernel, and Triton's
+own compiler.
 
-### 3. Cross-entropy — 1 task
-Task 95 needs a **data-dependent index map**: the log-probability is gathered at an
-integer label read from another tensor. `IE.qkOnly` deliberately forbids this —
-index maps are functions of the output and reduction indices only, which is what
-makes `instK_eval` true and every tiling argument sound. Lifting it is a real
-extension, not a missing case.
+## Design notes worth keeping
 
-### 4. Attention — 1 task
-Task 97 is two contractions around a softmax: four or five stages. `two_stage` and
-`three_stage` are fixed-arity; this wants the list-based pipeline, whose
-compositionality theorem is an induction over the stage list rather than the
-two unfoldings written out.
+Three things initially looked like they needed IR extensions and did not. Recording
+them because the instinct to extend the IR was wrong each time:
 
-### 5. Rounding
-No error bound is proved. Certificates state exact-arithmetic equivalence; that this
-implies agreement within KernelBench's 1e-2 is empirical (every kernel that has run
-has matched), not proved. A bound would need a Flocq-style IEEE-754 development,
-which does not exist usably for Lean 4.
+- **A gather is a masked sum.** `x[i,label] = sum_j x[i,j] * [j = label]`, and
+  `[j = label]` compares two *values* -- the label read as an ordinary element,
+  against the reduction index. So `IE.qkOnly` can keep forbidding data-dependent
+  index maps, which is what makes `instK_eval` and every tiling argument true.
+- **A scan is three reductions.** Block sums, a prefix over blocks, an intra-block
+  prefix. Work drops from `K^2` to `K*block + (K/block)^2` per row -- 7e10
+  operations rather than 3.5e13.
+- **Attention is three contractions.** The scores must be materialised, since a
+  score is itself a reduction and this family has one reduction level.
+
+And two traps:
+
+- **Do not add a bottom element to the scalar field** to make `max` work.
+  `le bot a` for every `a` plus the field axioms gives `bot <= bot - 1 < bot`; the
+  axioms become inconsistent and every theorem turns *vacuous* rather than failing.
+  `MaxRed` clamps its index maps instead. A product needs no such manoeuvre, because
+  it has an identity -- which is why `ProdRed` can mask like the additive family.
+- **Generated proof terms must supply every implicit argument.** Left to inference
+  they become metavariables Lean must solve against a numeral
+  (`67108864 =?= ?a * ?d`), which has no unique solution.
 
 ## Measurement caveat: this GPU
 

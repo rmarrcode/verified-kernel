@@ -48,8 +48,9 @@ correctly — swap `arangeRows` for `arangeCols` and the proof stops going throu
 | element-wise | `SE.flat_correct` | activations, scalar products, pointwise stages |
 | general reduction | `GenRed.prog_implements` | axis reductions, losses, **contractions**, **convolution**, average pooling, broadcasting |
 | max/min reduction | `MaxRed.prog_implements` | max pooling, max/min over a dimension |
+| product reduction | `ProdRed.prog_implements` | cumulative products |
 | two-stage pipeline | `two_stage` | softmax, log-softmax, norms, tree reductions, separable conv |
-| three-stage pipeline | `three_stage` | batch/instance/group/layer norm, triplet loss |
+| three-stage pipeline | `three_stage` | norms, scans, attention, cross-entropy, triplet loss |
 
 The second is the load-bearing one. Reductions, matrix products, convolutions and
 pooling are the same kernel shape — one output per program, reduce over a window —
