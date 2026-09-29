@@ -50,6 +50,14 @@ class Lowered:
     # How the final stage's statistic index is bounded, so the generated certificate
     # can cite the right lemma: ("div", n1, span) | ("mod", c) | ("pack", ...)
     stat_bound: Tuple = ()
+    # True when a pipeline came from `tree_split`, whose second stage reads the
+    # intermediate at `rk` and so has a trivial locality bound.
+    tree: bool = False
+    # How each stage's reads of an intermediate are bounded, so the generated
+    # certificate cites the right lemma. Keys "l2", "l3a", "l3b"; values are one of
+    # ("pid", n) | ("rk", n) | ("zero", n) | ("div", n, span) | ("mod", c)
+    # | ("pack", N, G, C, SP, CG) | ("row", outer, K, inner)
+    bounds: Dict[str, Tuple] = field(default_factory=dict)
     # `genred` family: out[q] = guard(q) * post(sum_{k<K} range(q,k) * body(ins at offs(q,k)))
     K: int = 0
     offs: List[I.IE] = field(default_factory=list)
@@ -457,7 +465,7 @@ def lower_reduce(model: nn.Module, example_args: List[Any]) -> Lowered:
                 tail = full[len(in_shape) - len(si):]
                 sel = [I.Lit(0) if sz == 1 else cc for cc, sz in zip(tail, si)]
                 offs.append(pack(sel, list(si)))
-            return Lowered(
+            base = Lowered(
                 family="genred", body=red.body, arity=len(tensor_idx),
                 out_size=n_out, out_shape=tuple(out_val.shape),
                 tensor_arg_index=tensor_idx,
@@ -466,6 +474,10 @@ def lower_reduce(model: nn.Module, example_args: List[Any]) -> Lowered:
                 post=post,
                 notes=[f"reduce over dim {red.dim} of {in_shape} "
                        f"(inputs {in_shapes}): outer={outer} K={K} inner={inner}"])
+            # A reduction to a single element has no parallelism; split it.
+            if n_out == 1 and K > TREE_THRESHOLD:
+                return tree_split(base)
+            return base
         else:
             raise Unsupported(f"unhandled fx op {node.op}")
 
@@ -1015,12 +1027,59 @@ def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
                 post_offs=[I.Lit(0)] * (arity + 1), post=S.Inp(0),
                 notes=[f"stage 2: normalise, row index into a {n1}-element buffer"])
 
+            if n1 == 1 and K > TREE_THRESHOLD:
+                # A whole-tensor statistic (a Frobenius norm) makes stage 1 a single
+                # program looping over everything. Split it, which costs a third
+                # stage but no new theorem: partial sums, their total, then the
+                # normalisation reading the total.
+                P = TREE_PARTIALS
+                chunk = (K + P - 1) // P
+                k_of_p = I.Pid() * I.Lit(chunk) + I.Rk()
+                T1, T2 = arity, arity + 1
+                nbuf3 = T2 + 1
+
+                def pad3(entries: Dict[int, I.IE]) -> List[I.IE]:
+                    return [entries.get(b, I.Lit(0)) for b in range(nbuf3)]
+
+                t1 = Lowered(
+                    family="genred", body=red.body, arity=arity,
+                    out_size=P, out_shape=(P,), tensor_arg_index=tensor_idx,
+                    K=chunk,
+                    # With one statistic the original map's `pid` was always 0;
+                    # in the tree it ranges over partials, so substituting into it
+                    # would scale the index by the whole extent. For a whole-tensor
+                    # reduction the input index is just the flat element index.
+                    offs=pad3({b: k_of_p for b in range(arity)}),
+                    post_offs=pad3({}),
+                    in_range=I.lt(k_of_p, I.Lit(K)), post=S.Inp(0),
+                    notes=[f"stage 1: {P} partial sums of {chunk} each"])
+                t2 = Lowered(
+                    family="genred", body=S.Inp(T1), arity=T1 + 1,
+                    out_size=1, out_shape=(1,), tensor_arg_index=tensor_idx,
+                    K=P, offs=pad3({T1: I.Rk()}), post_offs=pad3({}), post=S.Inp(0),
+                    notes=["stage 2: total of the partial sums"])
+                t3 = Lowered(
+                    family="genred",
+                    body=_subst_slot(body2, arity, lambda r: S.Inp(T2)),
+                    arity=nbuf3, out_size=out_val.numel(),
+                    out_shape=tuple(out_val.shape), tensor_arg_index=tensor_idx,
+                    K=1, offs=pad3({0: I.Pid()}), post_offs=pad3({}), post=S.Inp(0),
+                    notes=["stage 3: normalise by the total"])
+                return Lowered(
+                    family="pipeline3", body=t3.body, arity=arity,
+                    out_size=out_val.numel(), out_shape=tuple(out_val.shape),
+                    tensor_arg_index=tensor_idx, stages=[t1, t2, t3],
+                    n1=P, n2=1, K=chunk,
+                    bounds={"l2": ("rk", P), "l3a": ("zero", P), "l3b": ("zero", 1)},
+                    notes=[f"whole-tensor normalisation over {in_shape}: "
+                           f"tree reduction of {K} elements via {P} partials"])
             return Lowered(
                 family="pipeline", body=body2, arity=arity,
                 out_size=out_val.numel(), out_shape=tuple(out_val.shape),
                 tensor_arg_index=tensor_idx, stages=[stage1, stage2], n1=n1,
                 K=K, offs=[], post_offs=[],
                 outer=outer, inner=inner,
+                bounds={"l2": ("row", outer, K, inner)},
                 notes=[f"row normalisation over dim {red.dim} of {in_shape}: "
                        f"outer={outer} K={K} inner={inner}, intermediate {n1}"])
         else:
@@ -1387,10 +1446,142 @@ def lower_normalize(model: nn.Module, example_args: List[Any]) -> Lowered:
         out_size=y.numel(), out_shape=tuple(y.shape), tensor_arg_index=[0],
         stages=[s1, s2, s3], n1=plan.n1, n2=plan.n1, K=plan.K,
         stat_bound=plan.stat_bound,
+        bounds={"l2": ("pid", plan.n1), "l3a": plan.stat_bound,
+                "l3b": plan.stat_bound},
         param_paths=[f"{norm_target}.{pp}" for pp in params],
         notes=[f"{type(norm).__name__} on {sx}: {plan.n1} statistics over "
                f"{plan.K} elements, eps={eps}"
                + (", affine" if plan.affine_of_q is not None else "")])
+
+
+# ---------------------------------------------------------------------------
+# Tree reductions
+# ---------------------------------------------------------------------------
+
+TREE_PARTIALS = 4096
+TREE_THRESHOLD = 1 << 16
+
+
+def tree_split(low: Lowered, partials: int = TREE_PARTIALS) -> Lowered:
+    """Turn a single-output reduction into a two-stage tree.
+
+    A reduction to one element gives the reducing family one program looping over
+    the whole input -- certified, but with no parallelism at all, so not worth
+    running. Splitting it into `partials` partial sums and then reducing those
+    gives the same answer with the same theorems: the first stage is the original
+    reduction over a chunk, the second sums the chunks.
+
+    Nothing new is proved. The first stage's index map is the original one with
+    `rk` replaced by `pid * chunk + rk`, and its guard gains the bound that keeps
+    the last chunk from running off the end. The second stage reads the
+    intermediate at `rk`, so its locality obligation is `k < K`, which is a
+    hypothesis it already has.
+    """
+    assert low.family == "genred" and low.out_size == 1, low.family
+    K = low.K
+    chunk = (K + partials - 1) // partials
+    k_of_p = I.Pid() * I.Lit(chunk) + I.Rk()
+    t1 = low.arity
+
+    s1 = Lowered(
+        family="genred", body=low.body, arity=low.arity,
+        out_size=partials, out_shape=(partials,),
+        tensor_arg_index=low.tensor_arg_index, param_paths=low.param_paths,
+        K=chunk,
+        offs=[I.subst_rk(o, k_of_p) for o in low.offs],
+        post_offs=[I.Lit(0)] * low.arity,
+        in_range=I.all_of([I.subst_rk(low.in_range, k_of_p), I.lt(k_of_p, I.Lit(K))]),
+        post=S.Inp(0),
+        notes=[f"stage 1: {partials} partial sums of {chunk} elements each"])
+    s2 = Lowered(
+        family="genred", body=S.Inp(t1), arity=t1 + 1,
+        out_size=1, out_shape=low.out_shape,
+        tensor_arg_index=low.tensor_arg_index, param_paths=low.param_paths,
+        K=partials,
+        offs=[I.Lit(0)] * low.arity + [I.Rk()],
+        post_offs=[I.Lit(0)] * (t1 + 1),
+        post=low.post,
+        notes=["stage 2: sum of the partial sums"])
+    return Lowered(
+        family="pipeline", body=low.body, arity=low.arity,
+        out_size=1, out_shape=low.out_shape,
+        tensor_arg_index=low.tensor_arg_index, param_paths=low.param_paths,
+        stages=[s1, s2], n1=partials, K=chunk,
+        tree=True, bounds={"l2": ("rk", partials)},
+        notes=low.notes + [f"tree reduction: {K} elements -> {partials} partials"])
+
+
+def lower_triplet(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower `nn.TripletMarginLoss` as three stages.
+
+    `mean_i relu(d(a_i, p_i) - d(a_i, n_i) + margin)` with `d` a pairwise distance.
+    Two row reductions are needed and neither depends on the other, so the chain is
+    `sum (a-p+eps)^2` -> `sum (a-n+eps)^2` -> reduce over the batch. `three_stage`
+    does not require stage 2 to read stage 1's buffer, only that it *may*.
+
+    PyTorch's `pairwise_distance` adds `eps` to the difference before the norm, not
+    to the sum under the root; the spec follows it.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    loss = None
+    for node in gm.graph.nodes:
+        if node.op == "call_module":
+            sub = gm.get_submodule(node.target)
+            if isinstance(sub, nn.TripletMarginLoss):
+                if loss is not None:
+                    raise Unsupported("more than one loss")
+                loss = sub
+            else:
+                raise Unsupported(f"module {type(sub).__name__} alongside a triplet loss")
+        elif node.op in ("call_function", "call_method"):
+            raise Unsupported(f"{node.target!r} alongside a triplet loss")
+    if loss is None:
+        raise Unsupported("no TripletMarginLoss module")
+    if float(loss.p) != 2.0:
+        raise Unsupported(f"triplet loss with p={loss.p}")
+    if getattr(loss, "swap", False):
+        raise Unsupported("triplet loss with swap")
+    if loss.reduction != "mean":
+        raise Unsupported(f"triplet loss reduction={loss.reduction!r}")
+
+    shapes = [tuple(v.shape) for v in example_args if isinstance(v, torch.Tensor)]
+    if len(shapes) != 3 or len(set(shapes)) != 1:
+        raise Unsupported(f"expected three equally-shaped inputs, got {shapes}")
+    sx = shapes[0]
+    B = sx[0]
+    F_ = _prod(sx[1:])
+    T1, T2 = 3, 4
+    nbuf = 5
+    eps = S.lit(float(loss.eps))
+    margin = S.lit(float(loss.margin))
+
+    def pad(entries: Dict[int, I.IE]) -> List[I.IE]:
+        return [entries.get(b, I.Lit(0)) for b in range(nbuf)]
+
+    row = I.Pid() * I.Lit(F_) + I.Rk()
+    dp = S.Inp(0) - S.Inp(1) + eps
+    dn = S.Inp(0) - S.Inp(2) + eps
+    s1 = Lowered(family="genred", body=dp * dp, arity=3, out_size=B,
+                 out_shape=(B,), tensor_arg_index=[0, 1, 2], K=F_,
+                 offs=pad({0: row, 1: row}), post_offs=pad({}), post=S.Inp(0),
+                 notes=["stage 1: squared distance to the positive, per row"])
+    s2 = Lowered(family="genred", body=dn * dn, arity=T1 + 1, out_size=B,
+                 out_shape=(B,), tensor_arg_index=[0, 1, 2], K=F_,
+                 offs=pad({0: row, 2: row}), post_offs=pad({}), post=S.Inp(0),
+                 notes=["stage 2: squared distance to the negative, per row"])
+    hinge = S.maxv(S.sqrt(S.Inp(T1)) - S.sqrt(S.Inp(T2)) + margin, 0)
+    s3 = Lowered(family="genred", body=hinge, arity=nbuf, out_size=1,
+                 out_shape=(), tensor_arg_index=[0, 1, 2], K=B,
+                 offs=pad({T1: I.Rk(), T2: I.Rk()}), post_offs=pad({}),
+                 post=S.Bin("mul", S.Inp(0), S.lit(Fraction(1, B))),
+                 notes=["stage 3: mean of the hinged differences over the batch"])
+    return Lowered(
+        family="pipeline3", body=hinge, arity=3, out_size=1, out_shape=(),
+        tensor_arg_index=[0, 1, 2], stages=[s1, s2, s3], n1=B, n2=B, K=F_,
+        bounds={"l2": ("zero", B), "l3a": ("rk", B), "l3b": ("rk", B)},
+        notes=[f"triplet margin loss: batch {B}, {F_} features, "
+               f"margin={float(loss.margin)}, eps={float(loss.eps)}"])
 
 
 AVGPOOL = (nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d)
@@ -1592,7 +1783,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
-    lower_maxpool, lower_maxmin, lower_rownorm, lower_normalize,
+    lower_maxpool, lower_maxmin, lower_rownorm, lower_normalize, lower_triplet,
     lower_broadcast_pointwise]
 
 

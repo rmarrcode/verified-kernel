@@ -120,5 +120,26 @@ def all_of(ms: List[BE]) -> BE:
     return out
 
 
+def subst_rk(e, repl: IE):
+    """Replace the reduction placeholder `Rk` by `repl` throughout an index or mask
+    expression.
+
+    Used to split a reduction into a tree: the outer stage's lane `p` covers the
+    chunk starting at `p * chunk`, so its index map is the original one with `rk`
+    replaced by `pid * chunk + rk`.
+    """
+    if isinstance(e, Rk):
+        return repl
+    if isinstance(e, (Pid, Lit, TT)):
+        return e
+    if isinstance(e, Cmp):
+        return Cmp(e.op, subst_rk(e.a, repl), subst_rk(e.b, repl))
+    if isinstance(e, And):
+        return And(subst_rk(e.a, repl), subst_rk(e.b, repl))
+    if hasattr(e, "a") and hasattr(e, "b"):
+        return type(e)(subst_rk(e.a, repl), subst_rk(e.b, repl))
+    raise TypeError(f"cannot substitute in {type(e).__name__}")
+
+
 def lean_list(es) -> str:
     return "[" + ", ".join(e.to_lean() for e in es) + "]"

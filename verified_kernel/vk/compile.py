@@ -326,8 +326,10 @@ def _emit_pipeline(inst: "Instance") -> List[str]:
         # `hq : q < g.nout` is definitionally `q < <numeral>`, and the bound the
         # lemma wants is the same numeral written as a product, so `hq` is accepted
         # directly. `omega` cannot do this: it sees an opaque projection.
-        f"    (fun q _ hq _ => bound_row (outer := {low.outer}) (K := {s1.K})",
-        f"      (inner := {low.inner}) (by decide) hq)",
+        # A tree reduction's second stage reads the intermediate at `rk`, so the
+        # bound it needs is `k < K` -- a hypothesis it already has. A
+        # row-normalising stage reads one value per row, and needs `bound_row`.
+        "    " + _bound_proof(low.bounds["l2"]),
         # A type ascription lets `decide` see a closed proposition; the lambda's
         # body is then checked against the expected type by defeq, which reduces
         # the index map away.
@@ -361,33 +363,45 @@ def _emit_pipeline(inst: "Instance") -> List[str]:
     return out
 
 
-def _stat_bound_proof(sb: Tuple, n1: int) -> str:
-    """The proof term bounding a final stage's statistic index.
+def _bound_proof(sb: Tuple) -> str:
+    """The proof term bounding one stage's reads of an intermediate buffer.
 
     Which lemma applies is a fact about the *shape*, so the generator records it
-    during lowering rather than trying to rediscover it here.
+    during lowering rather than rediscovering it here. The trivial cases are the
+    common ones: a tree reduction's second stage reads at `rk` and already has
+    `k < K` as a hypothesis; a stage that does not read a buffer at all indexes it
+    at 0.
 
     Every implicit argument is supplied explicitly. Left to inference they become
-    metavariables that Lean must solve against a *numeral* -- `67108864 =?= ?a * ?d`
-    has no unique solution, so inference either fails outright or drives the kernel
-    into a deep unfolding. `hq : q < nout` is then accepted directly, since `nout`
-    is definitionally that numeral.
+    metavariables Lean must solve against a *numeral* -- `67108864 =?= ?a * ?d` has
+    no unique solution, so inference either fails or drives the kernel into a deep
+    unfolding. `hq : q < nout` and `hk : k < K` are then accepted directly, since
+    each is definitionally the numeral the lemma wants.
     """
     kind = sb[0]
+    if kind == "pid":
+        return "(fun q _ hq _ => hq)"
+    if kind == "rk":
+        return "(fun _ k _ hk => hk)"
+    if kind == "zero":
+        return f"(fun _ _ _ _ => (by decide : (0 : Nat) < {sb[1]}))"
     if kind == "div":
         _, n, span = sb
         return f"(fun q _ hq _ => bound_div (a := {n}) (d := {span}) hq)"
     if kind == "mod":
         c = sb[1]
-        return (f"(fun q _ _ _ => bound_mod (c := {c}) "
-                f"(by decide : (0 : Nat) < {c}))")
+        return f"(fun q _ _ _ => bound_mod (c := {c}) (by decide : (0 : Nat) < {c}))"
+    if kind == "row":
+        _, outer, K, inner = sb
+        return (f"(fun q _ hq _ => bound_row (outer := {outer}) (K := {K})"
+                f" (inner := {inner}) (by decide) hq)")
     if kind == "pack":
         _, N, G, C, SP, CG = sb
         return (f"(fun q _ hq _ => bound_pack (A := {N}) (B := {G})"
                 f" (bound_div (a := {N}) (d := {C * SP}) hq)"
                 f" (bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := q / {SP})"
                 f" (by decide) (by decide) (by decide)))")
-    raise AssertionError(f"unknown statistic bound {sb!r}")
+    raise AssertionError(f"unknown bound {sb!r}")
 
 
 def _emit_pipeline3(inst: "Instance") -> List[str]:
@@ -412,22 +426,25 @@ def _emit_pipeline3(inst: "Instance") -> List[str]:
                          (f"{k}_s3", s3, inst.out_size)):
         b = choose_block_red(st.K)
         out += _genred_defs(nm, st, b, (st.K + b - 1) // b, nout)
-    bnd = _stat_bound_proof(low.stat_bound, low.n1)
+    b2 = _bound_proof(low.bounds["l2"])
+    b3a = _bound_proof(low.bounds["l3a"])
+    b3b = _bound_proof(low.bounds["l3b"])
     zero_n1 = f"(fun _ _ => (by decide : (0 : Nat) < {low.n1}))"
+    zero_n2 = f"(fun _ _ => (by decide : (0 : Nat) < {low.n2}))"
     out += [
         f"/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/",
         f"theorem {k}_l2 {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s2_g.spec (α := α)) {t1} {low.n1} :=",
-        f"  GenRed.loc {k}_s2_g {t1} {low.n1} (fun q _ hq _ => hq) {zero_n1}",
+        f"  GenRed.loc {k}_s2_g {t1} {low.n1} {b2} {zero_n1}",
         "",
         f"/-- Stage 3 reads each intermediate only where its stage wrote it. -/",
         f"theorem {k}_l3a {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s3_g.spec (α := α)) {t1} {low.n1} :=",
-        f"  GenRed.loc {k}_s3_g {t1} {low.n1} {bnd} {zero_n1}",
+        f"  GenRed.loc {k}_s3_g {t1} {low.n1} {b3a} {zero_n1}",
         "",
         f"theorem {k}_l3b {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s3_g.spec (α := α)) {t2} {low.n2} :=",
-        f"  GenRed.loc {k}_s3_g {t2} {low.n2} {bnd} {zero_n1}",
+        f"  GenRed.loc {k}_s3_g {t2} {low.n2} {b3b} {zero_n2}",
         "",
         f"/-- Correctness certificate for {k}: the composed three-stage pipeline. -/",
         f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
