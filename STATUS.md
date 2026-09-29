@@ -6,20 +6,16 @@ design problems standing between here and 100% on Level 1.
 
 ## Measured (RTX 4070, 12GB; torch 2.14, triton 3.8, Lean 4.34.1)
 
-Most recent complete run, at 85 lowered:
-
 ```
   KernelBench Level 1                     100
-  lowered to a specification               85
-  correctness certificate checked by Lean   85
-  matched PyTorch on this GPU               80   (40 at declared size, 40 reduced)
+  lowered to a specification               89
+  correctness certificate checked by Lean   89
+  matched PyTorch on this GPU               84   (41 at declared size, 43 reduced)
   certified, not run (serial)                5
   mismatched or errored                      0
 ```
 
-Every kernel that ran matched: 80 of 80. Since that run the four remaining
-normalisations were added and individually verified (33, 34, 35, 40 all pass), so
-lowering now reaches **89**; a full re-run is what confirms the combined figure.
+Every kernel that ran matched: 84 of 84, across four runs and every family.
 
 The gap to 100 is **coverage**, not correctness — tasks the frontend declines to
 lower, since it refuses rather than guesses — plus 5 that are certified but whose
