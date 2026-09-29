@@ -71,15 +71,30 @@ def t023_s3(out, ins):
 @triton.jit
 def t023_s4_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr):
     _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 465):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 475200) & True), tl.load(in8_ptr + (((tl.program_id(0) * 475200) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 475200) & True), other=0.0), 0.0))
-    _v = (tl.sum(_acc0, axis=0) * (1.0 * (1.0 / 475200.0)))
+    for _lv0 in range(0, 2):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 1857) & ((((tl.program_id(0) % 256) * 1857) + ((_lv0 * 1024) + tl.arange(0, 1024))) < 475200)), tl.load(in8_ptr + (tl.maximum((((tl.program_id(0) // 256) * 475200) + (((tl.program_id(0) % 256) * 1857) + ((_lv0 * 1024) + tl.arange(0, 1024)))) - tl.maximum((((tl.program_id(0) // 256) * 475200) + (((tl.program_id(0) % 256) * 1857) + ((_lv0 * 1024) + tl.arange(0, 1024)))) - 60825599, 0), 0) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 1857) & ((((tl.program_id(0) % 256) * 1857) + ((_lv0 * 1024) + tl.arange(0, 1024))) < 475200)), other=0.0), 0.0))
+    _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t023_s4(out, ins):
-    grid = (128,)
+    grid = (32768,)
     t023_s4_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8])
+    return out
+
+
+@triton.jit
+def t023_s5_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr):
+    _acc0 = tl.zeros([256], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 1):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 256) + tl.arange(0, 256)) < 256) & True), tl.load(in9_ptr + (((tl.program_id(0) * 256) + ((_lv0 * 256) + tl.arange(0, 256))) + 0 * tl.arange(0, 256)), mask=((((_lv0 * 256) + tl.arange(0, 256)) < 256) & True), other=0.0), 0.0))
+    _v = (tl.sum(_acc0, axis=0) * (1.0 * (1.0 / 475200.0)))
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t023_s5(out, ins):
+    grid = (128,)
+    t023_s5_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9])
     return out
 
 
@@ -88,9 +103,11 @@ def t023(out, ins):
     _t1 = torch.empty(1024, device=ins[0].device, dtype=torch.float32)
     _t2 = torch.empty(1024, device=ins[0].device, dtype=torch.float32)
     _t3 = torch.empty(60825600, device=ins[0].device, dtype=torch.float32)
+    _t4 = torch.empty(32768, device=ins[0].device, dtype=torch.float32)
     t023_s0(_t0, list(ins))
     t023_s1(_t1, list(ins) + [_t0])
     t023_s2(_t2, list(ins) + [_t0, _t1])
     t023_s3(_t3, list(ins) + [_t0, _t1, _t2])
-    t023_s4(out, list(ins) + [_t0, _t1, _t2, _t3])
+    t023_s4(_t4, list(ins) + [_t0, _t1, _t2, _t3])
+    t023_s5(out, list(ins) + [_t0, _t1, _t2, _t3, _t4])
     return out

@@ -70,7 +70,7 @@ def t075_s3(out, ins):
 
 @triton.jit
 def t075_s4_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr):
-    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([1024], dtype=tl.float32) + (((0.0 * (1.0 / 1.0)) - tl.load(in9_ptr + (((tl.program_id(0) * 8192) + 0)))))
     for _lv0 in range(0, 8):
         _acc0 = tl.maximum(_acc0, ((0.0 * (1.0 / 1.0)) - tl.load(in9_ptr + (((tl.program_id(0) * 8192) + tl.maximum(((_lv0 * 1024) + tl.arange(0, 1024)) - tl.maximum(((_lv0 * 1024) + tl.arange(0, 1024)) - 8191, 0), 0))))))
     _v = ((0.0 * (1.0 / 1.0)) - tl.max(_acc0, axis=0))

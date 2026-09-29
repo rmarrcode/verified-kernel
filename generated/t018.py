@@ -40,7 +40,7 @@ def t018_s1(out, ins):
 
 @triton.jit
 def t018_s2_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr):
-    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([1], dtype=tl.float32) + (tl.load(in4_ptr + (tl.maximum((tl.program_id(0) + 0) - tl.maximum((tl.program_id(0) + 0) - 1023, 0), 0))))
     for _lv0 in range(0, 1):
         _acc0 = tl.maximum(_acc0, tl.load(in4_ptr + (tl.maximum((tl.program_id(0) + tl.maximum(((_lv0 * 1) + tl.arange(0, 1)) - tl.maximum(((_lv0 * 1) + tl.arange(0, 1)) - 0, 0), 0)) - tl.maximum((tl.program_id(0) + tl.maximum(((_lv0 * 1) + tl.arange(0, 1)) - tl.maximum(((_lv0 * 1) + tl.arange(0, 1)) - 0, 0), 0)) - 1023, 0), 0))))
     _v = tl.max(_acc0, axis=0)

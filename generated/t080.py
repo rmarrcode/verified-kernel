@@ -25,7 +25,7 @@ def t080_s0(out, ins):
 
 @triton.jit
 def t080_s1_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr):
-    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([1024], dtype=tl.float32) + (tl.load(in3_ptr + (((tl.program_id(0) * 8192) + 0))))
     for _lv0 in range(0, 8):
         _acc0 = tl.maximum(_acc0, tl.load(in3_ptr + (((tl.program_id(0) * 8192) + tl.maximum(((_lv0 * 1024) + tl.arange(0, 1024)) - tl.maximum(((_lv0 * 1024) + tl.arange(0, 1024)) - 8191, 0), 0)))))
     _v = tl.max(_acc0, axis=0)

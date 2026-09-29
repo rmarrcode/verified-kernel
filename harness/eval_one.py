@@ -17,6 +17,7 @@ import os
 import sys
 
 import torch
+import torch.fx
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(
@@ -25,6 +26,9 @@ sys.path.insert(0, os.path.join(
 import evaluate as E
 from tasks import load, task_files
 from vk.runtime import GeneratedModel
+
+# `fx` names each literal tensor it lifts out of a forward `_tensor_constant<n>`.
+CONST_PREFIX = "_tensor_constant"
 
 
 def main() -> int:
@@ -50,7 +54,27 @@ def main() -> int:
         named.update(dict(ref.named_buffers()))
         # `fx` lifts literal tensors in a forward into attributes named
         # `_tensor_constant*`, which are neither parameters nor registered buffers.
-        params = [named[nm] if nm in named else getattr(ref, nm)
+        # Their *numbering* is not stable: each trace installs a fresh attribute on
+        # the root, so a model the frontend retried 17 lowerings against recorded
+        # `_tensor_constant17` for what a clean trace calls `_tensor_constant0`. The
+        # order they appear in is stable, so match on that rather than on the name.
+        wanted = [nm for nm in p["param_paths"] if nm not in named
+                  and nm.startswith(CONST_PREFIX)]
+        const: dict = {}
+        if wanted:
+            gm = torch.fx.symbolic_trace(ref)
+            have = [n.target for n in gm.graph.nodes
+                    if n.op == "get_attr" and str(n.target).startswith(CONST_PREFIX)]
+            if len(have) != len(wanted):
+                raise RuntimeError(
+                    f"traced {len(have)} lifted constants, plan names {len(wanted)}")
+            # These are installed by the trace itself, so they missed the
+            # model's `.cuda()` and are still on the host.
+            const = {nm: getattr(gm, tgt).cuda()
+                     for nm, tgt in zip(wanted, have)}
+        params = [named[nm] if nm in named
+                  else const[nm] if nm in const
+                  else getattr(ref, nm)
                   for nm in p["param_paths"]]
         new = GeneratedModel(key, tuple(p["out_shape"]), p["tensor_arg_index"],
                              params, p.get("out_dtype"))

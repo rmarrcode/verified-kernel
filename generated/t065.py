@@ -41,22 +41,39 @@ def t065_s1(out, ins):
 @triton.jit
 def t065_s2_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr):
     _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 565):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 577600) & True), tl.load(in4_ptr + (((tl.program_id(0) * 577600) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 577600) & True), other=0.0), 0.0))
+    for _lv0 in range(0, 3):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 2257) & ((((tl.program_id(0) % 256) * 2257) + ((_lv0 * 1024) + tl.arange(0, 1024))) < 577600)), tl.load(in4_ptr + (tl.maximum((((tl.program_id(0) // 256) * 577600) + (((tl.program_id(0) % 256) * 2257) + ((_lv0 * 1024) + tl.arange(0, 1024)))) - tl.maximum((((tl.program_id(0) // 256) * 577600) + (((tl.program_id(0) % 256) * 2257) + ((_lv0 * 1024) + tl.arange(0, 1024)))) - 73932799, 0), 0) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 2257) & ((((tl.program_id(0) % 256) * 2257) + ((_lv0 * 1024) + tl.arange(0, 1024))) < 577600)), other=0.0), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t065_s2(out, ins):
-    grid = (128,)
+    grid = (32768,)
     t065_s2_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4])
+    return out
+
+
+@triton.jit
+def t065_s3_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr):
+    _acc0 = tl.zeros([256], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 1):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 256) + tl.arange(0, 256)) < 256) & True), tl.load(in5_ptr + (((tl.program_id(0) * 256) + ((_lv0 * 256) + tl.arange(0, 256))) + 0 * tl.arange(0, 256)), mask=((((_lv0 * 256) + tl.arange(0, 256)) < 256) & True), other=0.0), 0.0))
+    _v = tl.sum(_acc0, axis=0)
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t065_s3(out, ins):
+    grid = (128,)
+    t065_s3_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5])
     return out
 
 
 def t065(out, ins):
     _t0 = torch.empty(1195409408, device=ins[0].device, dtype=torch.float32)
     _t1 = torch.empty(73932800, device=ins[0].device, dtype=torch.float32)
+    _t2 = torch.empty(32768, device=ins[0].device, dtype=torch.float32)
     t065_s0(_t0, list(ins))
     t065_s1(_t1, list(ins) + [_t0])
-    t065_s2(out, list(ins) + [_t0, _t1])
+    t065_s2(_t2, list(ins) + [_t0, _t1])
+    t065_s3(out, list(ins) + [_t0, _t1, _t2])
     return out

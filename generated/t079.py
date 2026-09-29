@@ -100,7 +100,7 @@ def t079_s5(out, ins):
 
 @triton.jit
 def t079_s6_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr):
-    _acc0 = tl.zeros([16], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([16], dtype=tl.float32) + (tl.load(in9_ptr + ((((((tl.program_id(0) // 12600) * 16) + 0) * 12600) + (tl.program_id(0) % 12600)))))
     for _lv0 in range(0, 1):
         _acc0 = tl.maximum(_acc0, tl.load(in9_ptr + ((((((tl.program_id(0) // 12600) * 16) + tl.maximum(((_lv0 * 16) + tl.arange(0, 16)) - tl.maximum(((_lv0 * 16) + tl.arange(0, 16)) - 15, 0), 0)) * 12600) + (tl.program_id(0) % 12600)))))
     _v = tl.max(_acc0, axis=0)

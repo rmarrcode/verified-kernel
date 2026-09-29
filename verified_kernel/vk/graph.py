@@ -42,6 +42,22 @@ class Val:
         return _prod(self.shape)
 
 
+# A stage narrow enough that one program per output leaves the GPU idle, and long
+# enough that splitting it pays for the extra pass.
+TREE_STAGE_MAX_OUT = 1024
+TREE_STAGE_MIN_K = 1 << 16
+TREE_STAGE_PARTIALS = 256
+
+
+def _worth_splitting(st: Lowered, shape: Tuple[int, ...]) -> bool:
+    """Only sums split this way. A max has no identity, so its family clamps the
+    reduction range rather than masking it, and a short final chunk would not be
+    harmless -- see `MaxRed`.
+    """
+    return (st.family == "genred" and st.K > TREE_STAGE_MIN_K
+            and _prod(shape) <= TREE_STAGE_MAX_OUT)
+
+
 @dataclass
 class Chain:
     """A compilation in progress."""
@@ -75,6 +91,11 @@ class Chain:
 
     def emit(self, st: Lowered, shape: Tuple[int, ...]) -> Val:
         """Append a stage writing a fresh buffer, and return the value it holds."""
+        if _worth_splitting(st, shape):
+            return self._emit_tree(st, shape)
+        return self._emit1(st, shape)
+
+    def _emit1(self, st: Lowered, shape: Tuple[int, ...]) -> Val:
         buf = self.arity + len(self.stages)
         st.out_shape = tuple(shape)
         st.out_size = _prod(shape)
@@ -82,6 +103,56 @@ class Chain:
         self.sizes.append(st.out_size)
         self.shapes.append(tuple(shape))
         return Val(buf, tuple(shape))
+
+    def _emit_tree(self, st: Lowered, shape: Tuple[int, ...]) -> Val:
+        """Emit a long, narrow reduction as two stages instead of one.
+
+        A stage with sixteen outputs and sixteen million summands each -- a
+        BatchNorm's mean, say -- is one program per output looping the whole way.
+        It is just as verified as any other, but it is not worth running. The split
+        is the same idea `tree_split` uses for a whole-tensor reduction, done to one
+        link of a chain: the first stage computes `P` partial sums per output, the
+        second sums those. Nothing new is proved. Both halves are the same reducing
+        family at the same theorem, and `stages_correct` already composes stage
+        lists of any length.
+
+        The lane of the first stage carries `(output, chunk)` packed together, so
+        the original index map is reindexed at both placeholders at once: `pid`
+        becomes the output half, `rk` the chunk offset.
+        """
+        n_out, K = _prod(shape), st.K
+        P = min(TREE_STAGE_PARTIALS, K)
+        chunk = (K + P - 1) // P
+        q, p_ = I.Pid() // I.Lit(P), I.Pid() % I.Lit(P)
+        k = p_ * I.Lit(chunk) + I.Rk()
+
+        first = Lowered(
+            family="genred", body=st.body, arity=st.arity,
+            out_size=n_out * P, out_shape=(n_out, P),
+            tensor_arg_index=list(st.tensor_arg_index), K=chunk,
+            offs=[I.subst(o, q, k) for o in st.offs],
+            post_offs=[I.Lit(0)] * len(st.offs),
+            # Beyond the end the summand is masked to zero, so a short final chunk
+            # contributes nothing and the partials still sum to the whole.
+            in_range=I.all_of([I.subst(st.in_range, q, k), I.lt(k, I.Lit(K))]),
+            post=S.Inp(0),
+            notes=[f"tree stage 1: {P} partial sums of {chunk} each, per output"])
+        tv = self._emit1(first, (n_out, P))
+
+        w = self.nbuf + 1
+        second = Lowered(
+            family="genred", body=S.Inp(tv.buf), arity=w,
+            out_size=n_out, out_shape=tuple(shape),
+            tensor_arg_index=list(st.tensor_arg_index), K=P,
+            offs=[(I.Pid() * I.Lit(P) + I.Rk()) if b == tv.buf else I.Lit(0)
+                  for b in range(w)],
+            post_offs=[st.post_offs[b] if b < len(st.post_offs) else I.Lit(0)
+                       for b in range(w)],
+            post=st.post,
+            notes=[f"tree stage 2: sum of the {P} partials"])
+        self.notes.append(
+            f"split a {n_out}-output reduction over {K} into {P} partials")
+        return self._emit1(second, shape)
 
     def record_bounds(self) -> None:
         """For every stage, how it stays inside each intermediate buffer.
@@ -694,19 +765,21 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
             sizes = ([low.n1] if low.family in ("pipeline", "pipeline_max")
                      else [low.n1, low.n2])
             base = k
+            # Which chain buffer each of this operator's own sub-stages ended up
+            # in. Not `nbuf - (j - i)`: a sub-stage may be emitted as more than one
+            # chain stage (a long, narrow reduction is split), so the buffer a
+            # later sub-stage must read is the one `emit` actually returned.
+            made: List[int] = []
             for j, sub in enumerate(low.stages):
                 nbuf = ch.nbuf + 1
-                for i in range(len(low.stages) - 1):
-                    if base + i in bmap:
-                        continue
                 bm = dict(bmap)
-                for i in range(j):
-                    bm[base + i] = ch.arity + len(ch.stages) - (j - i)
+                for i, b in enumerate(made):
+                    bm[base + i] = b
                 stg = relocate(sub, bm, nbuf, NO_IDX_SLOT)
                 stg.family = sub.family
                 shape = shapes[n] if j == len(low.stages) - 1 else (sizes[j],)
-                ch.emit(stg, shape)
-            env[n] = Val(ch.nbuf - 1, shapes[n])
+                made.append(ch.emit(stg, shape).buf)
+            env[n] = Val(made[-1], shapes[n])
             produced_by[n] = len(ch.stages) - 1
             continue
 

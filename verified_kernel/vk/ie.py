@@ -179,5 +179,28 @@ def subst_rk(e, repl: IE):
     raise TypeError(f"cannot substitute in {type(e).__name__}")
 
 
+def subst(e, pid: IE, rk: IE):
+    """Simultaneously replace the two placeholders `Pid` and `Rk`.
+
+    `subst_rk` covers splitting a reduction whose output is a single element, where
+    the lane index is free. Splitting a *stage* of a chain needs both at once: the
+    lane now carries an output coordinate and a chunk number packed together, so the
+    original `pid` becomes one half of it and `rk` is offset by the other.
+    """
+    if isinstance(e, Pid):
+        return pid
+    if isinstance(e, Rk):
+        return rk
+    if isinstance(e, (Lit, TT)):
+        return e
+    if isinstance(e, Cmp):
+        return Cmp(e.op, subst(e.a, pid, rk), subst(e.b, pid, rk))
+    if isinstance(e, And):
+        return And(subst(e.a, pid, rk), subst(e.b, pid, rk))
+    if hasattr(e, "a") and hasattr(e, "b"):
+        return type(e)(subst(e.a, pid, rk), subst(e.b, pid, rk))
+    raise TypeError(f"cannot substitute in {type(e).__name__}")
+
+
 def lean_list(es) -> str:
     return "[" + ", ".join(e.to_lean() for e in es) + "]"
