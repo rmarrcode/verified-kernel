@@ -1672,8 +1672,9 @@ def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
     # apart matters: blanket-allowing `sub` so that `x.size(d) - 1` traces would
     # also let `cumsum(a - b)` through with the subtraction silently dropped.
     shape_nodes: set = set()
-    DATA_OPS = {"cumsum", "flip", "mul", "cat", "narrow", "zeros_like",
+    DATA_OPS = {"cumsum", "cumprod", "flip", "mul", "cat", "narrow", "zeros_like",
                 "select", "unsqueeze"}
+    prod = False
     for node in gm.graph.nodes:
         if node.op in ("call_function", "call_method"):
             tgt = node.target
@@ -1687,9 +1688,10 @@ def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
                 continue
             if nm not in DATA_OPS:
                 raise Unsupported(f"{tgt!r} alongside a cumsum")
-            if nm == "cumsum":
+            if nm in ("cumsum", "cumprod"):
                 if dim is not None:
-                    raise Unsupported("more than one cumsum")
+                    raise Unsupported("more than one scan")
+                prod = nm == "cumprod"
                 dim = _kw(node, "dim", 1, None)
             elif nm == "flip":
                 nflip += 1
@@ -1702,7 +1704,9 @@ def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
         elif node.op == "call_module":
             raise Unsupported("module call alongside a cumsum")
     if dim is None:
-        raise Unsupported("no cumsum in the graph")
+        raise Unsupported("no scan in the graph")
+    if prod and (variant != "inclusive" or masked or saw_cat):
+        raise Unsupported("only an inclusive cumprod is handled")
     if nflip == 2:
         variant = "reverse"
     elif nflip:
@@ -1732,23 +1736,27 @@ def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
 
     q = I.Pid()
     body: S.SE = S.Inp(0) * S.Inp(1) if masked else S.Inp(0)
+    # A product has an identity, so the multiplicative family masks like the
+    # additive one; only the fold and the identity differ.
+    fam = "prodred" if prod else "genred"
+    word = "products" if prod else "sums"
 
     # stage 1: block sums, one program per (row, block)
     r1, b1 = q // I.Lit(NB), q % I.Lit(NB)
     off1 = r1 * I.Lit(K) + b1 * I.Lit(B) + I.Rk()
     s1 = Lowered(
-        family="genred", body=body, arity=arity,
+        family=fam, body=body, arity=arity,
         out_size=outer * NB, out_shape=(outer * NB,),
         tensor_arg_index=list(range(arity)), K=B,
         offs=pad({b: off1 for b in range(arity)}), post_offs=pad({}),
         post=S.Inp(0),
-        notes=[f"stage 1: block sums, {NB} blocks of {B} per row"])
+        notes=[f"stage 1: block {word}, {NB} blocks of {B} per row"])
 
     # stage 2: prefix over blocks (the direction is the whole difference between
     # an inclusive, exclusive and reverse scan at this level)
     guard2 = I.lt(b1, I.Rk()) if variant == "reverse" else I.lt(I.Rk(), b1)
     s2 = Lowered(
-        family="genred", body=S.Inp(T1), arity=T1 + 1,
+        family=fam, body=S.Inp(T1), arity=T1 + 1,
         out_size=outer * NB, out_shape=(outer * NB,),
         tensor_arg_index=list(range(arity)), K=NB,
         offs=pad({T1: r1 * I.Lit(NB) + I.Rk()}), post_offs=pad({}),
@@ -1767,13 +1775,13 @@ def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
         guard3 = I.le(I.Rk(), j3)
     off3 = r3 * I.Lit(K) + b3 * I.Lit(B) + I.Rk()
     s3 = Lowered(
-        family="genred", body=body, arity=nbuf,
+        family=fam, body=body, arity=nbuf,
         out_size=y.numel(), out_shape=tuple(y.shape),
         tensor_arg_index=list(range(arity)), K=B,
         offs=pad({b: off3 for b in range(arity)}),
         post_offs=pad({T2: r3 * I.Lit(NB) + b3}),
         in_range=guard3,
-        post=S.Bin("add", S.Inp(0), S.Inp(T2 + 1)),
+        post=S.Bin("mul" if prod else "add", S.Inp(0), S.Inp(T2 + 1)),
         notes=[f"stage 3: intra-block {variant} prefix plus the block prefix"])
 
     return Lowered(
@@ -1788,8 +1796,9 @@ def lower_scan(model: nn.Module, example_args: List[Any]) -> Lowered:
             "l3bpost": ("packs", [("div", outer, K),
                                   ("divmod", K, B, NB, "q")], [outer, NB]),
         },
-        notes=[f"{variant} scan over dim {d} of {sx}: {outer} rows, "
-               f"{NB} blocks of {B}" + (", masked" if masked else "")])
+        notes=[f"{variant} {'product ' if prod else ''}scan over dim {d} of {sx}: "
+               f"{outer} rows, {NB} blocks of {B}"
+               + (", masked" if masked else "")])
 
 
 def lower_sepconv(model: nn.Module, example_args: List[Any]) -> Lowered:

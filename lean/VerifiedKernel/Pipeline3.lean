@@ -139,4 +139,11 @@ theorem GenRed.loc (g : GenRed) (t n : Nat)
     Loc (g.spec (α := α)) t n :=
   fun bufs u v huv q hq => GenRed.spec_locality g t n hb1 hb2 bufs u v huv q hq
 
+/-- The same, for a multiplicative stage. -/
+theorem ProdRed.loc (g : ProdRed) (t n : Nat)
+    (hb1 : ∀ q k, q < g.nout → k < g.K → (g.offs t).evalQK q k < n)
+    (hb2 : ∀ q, q < g.nout → (g.postOffs t).evalQK q 0 < n) :
+    Loc (g.spec (α := α)) t n :=
+  fun bufs u v huv q hq => ProdRed.spec_locality g t n hb1 hb2 bufs u v huv q hq
+
 end VerifiedKernel

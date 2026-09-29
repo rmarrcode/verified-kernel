@@ -18,6 +18,7 @@ composed theorem would be false. `hloc` is where that obligation lives, and
 -/
 import VerifiedKernel.Kernels.GenRed
 import VerifiedKernel.Kernels.MaxRed
+import VerifiedKernel.Kernels.ProdRed
 
 namespace VerifiedKernel
 
@@ -183,6 +184,69 @@ theorem spec_locality (g : MaxRed) (t n : Nat) (hK : 0 < g.K)
       (fun b hbt => by rw [hbt]; exact hb2 q hq) b'
 
 end MaxRed
+
+namespace ProdRed
+
+/--
+**Locality of a reducing spec.** If every index this stage takes into buffer `t`
+lands below `n1`, its output does not depend on what buffer `t` holds above `n1`.
+
+The two bounds are the real obligations, and they are what a generated pipeline
+certificate has to prove: for a row-normalising stage they amount to
+`q / inner < outer`, which is exactly `Nat.div_lt_of_lt_mul`.
+-/
+theorem spec_locality (g : ProdRed) (t n1 : Nat)
+    (hb1 : ∀ q k, q < g.nout → k < g.K → (g.offs t).evalQK q k < n1)
+    (hb2 : ∀ q, q < g.nout → (g.postOffs t).evalQK q 0 < n1) :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < n1 → u i = v i) →
+      ∀ q, q < g.nout →
+        (g.spec (α := α)).out (subst bufs t u) q
+          = (g.spec (α := α)).out (subst bufs t v) q := by
+  intro bufs u v huv q hq
+  have hget : ∀ (idx : Nat → Nat) (bnd : ∀ b, b = t → idx b < n1) (b : Nat),
+      subst bufs t u b (idx b) = subst bufs t v b (idx b) := by
+    intro idx bnd b
+    by_cases hbt : b = t
+    · subst hbt
+      simp only [subst_same]
+      exact huv (idx b) (bnd b rfl)
+    · simp only [subst_other hbt]
+  show (if _ then _ else _) = (if _ then _ else _)
+  have hred : ExactScalar.prod g.K (fun k =>
+        if (g.inRange).evalQK q k
+        then g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat k
+                                     else subst bufs t u b ((g.offs b).evalQK q k))
+        else ExactScalar.one)
+      = ExactScalar.prod g.K (fun k =>
+        if (g.inRange).evalQK q k
+        then g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat k
+                                     else subst bufs t v b ((g.offs b).evalQK q k))
+        else ExactScalar.one) := by
+    refine ExactScalar.prod_congr (fun k hk => ?_)
+    by_cases hr : (g.inRange).evalQK q k = true
+    · simp only [hr, if_true]
+      refine SE.denote_congr (fun b => ?_) g.body
+      -- the index slot reads no memory, so it agrees on the nose
+      by_cases hs : b = g.idxSlot
+      · simp only [hs, if_true]
+      · simp only [hs, if_false]
+        exact hget (fun b => (g.offs b).evalQK q k)
+          (fun b hbt => by rw [hbt]; exact hb1 q k hq hk) b
+    · simp only [Bool.not_eq_true] at hr
+      simp only [hr, Bool.false_eq_true, if_false]
+  by_cases hg : (g.outGuard).evalQK q 0 = true
+  · simp only [hg, if_true]
+    refine SE.denote_congr (fun b => ?_) g.post
+    cases b with
+    | zero => exact hred
+    | succ b' =>
+      exact hget (fun b => (g.postOffs b).evalQK q 0)
+        (fun b hbt => by subst hbt; exact hb2 q hq) b'
+  · simp only [Bool.not_eq_true] at hg
+    simp only [hg, Bool.false_eq_true, if_false]
+
+end ProdRed
 
 /-! ## Bounds helpers
 

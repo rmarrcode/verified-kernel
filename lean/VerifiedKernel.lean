@@ -9,6 +9,7 @@ import VerifiedKernel.Kernels.Elementwise
 import VerifiedKernel.Kernels.Reduce
 import VerifiedKernel.Kernels.GenRed
 import VerifiedKernel.Kernels.MaxRed
+import VerifiedKernel.Kernels.ProdRed
 import VerifiedKernel.Pipeline
 import VerifiedKernel.Pipeline3
 import VerifiedKernel.Render

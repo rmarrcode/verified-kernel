@@ -179,6 +179,7 @@ flat mode, where the row coordinate is pinned to 0. -/
 
 inductive PFE where
   | zeroC
+  | oneC
   | ofI (e : PIE)
   | load (buf : Nat) (off : PIE) (mask : PBE)
   | bin (op : Bop) (a b : PFE)
@@ -196,6 +197,7 @@ variable {α : Type} [ExactScalar α]
 
 def PFE.eval (env : Env α) (i j : Nat) : PFE → α
   | .zeroC => ExactScalar.zero
+  | .oneC => ExactScalar.one
   | .ofI e => ExactScalar.ofNat (e.eval env i j)
   | .load b off mask =>
       if mask.eval env i j then env.bufs b (off.eval env i j) else ExactScalar.zero
@@ -216,7 +218,7 @@ def PFE.eval (env : Env α) (i j : Nat) : PFE → α
 evaluate an operand at a row other than the current one, so they need a genuinely
 2-D tile; admitting them in flat mode is precisely the bug this rules out. -/
 def FE.flatOk : FE → Bool
-  | .zeroC | .ofI _ | .acc _ => true
+  | .zeroC | .oneC | .ofI _ | .acc _ => true
   | .load _ _ _ => true
   | .bin _ a b => a.flatOk && b.flatOk
   | .un _ a => a.flatOk
@@ -250,6 +252,7 @@ theorem emitBE_sound (env : Env α) (rows cols : Nat) :
 
 def emitFE (tk : TileKind) (rows cols : Nat) : FE → PFE
   | .zeroC => .zeroC
+  | .oneC => .oneC
   | .ofI e => .ofI (emitIE tk rows cols e)
   | .load b off mask =>
       .load b (emitIE tk rows cols off) (emitBE tk rows cols mask)
@@ -274,6 +277,7 @@ theorem emitFE_sound (env : Env α) (rows cols : Nat) :
   intro e
   induction e with
   | zeroC => intro i j tk _ _; rfl
+  | oneC => intro i j tk _ _; rfl
   | acc k => intro i j tk _ _; rfl
   | ofI e => intro i j tk h _; simp only [emitFE, PFE.eval, FE.eval, emitIE_sound env rows cols e i j tk h]
   | load b off mask =>

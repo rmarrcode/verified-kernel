@@ -380,6 +380,20 @@ def _emit_maxred(inst: "Instance") -> List[str]:
     ]
 
 
+def _prodred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
+    """The `ProdRed` value and its certificate -- `_genred_defs` multiplicatively."""
+    return [ln.replace("GenRed", "ProdRed").replace("init := FE.zeroC",
+                                                    "init := FE.oneC")
+            for ln in _genred_defs(name, low, block, nkb, nout)]
+
+
+def _stage_defs(name: str, st, block: int, nkb: int, nout: int) -> List[str]:
+    """Emit one pipeline stage, additive or multiplicative."""
+    if st.family == "prodred":
+        return _prodred_defs(name, st, block, nkb, nout)
+    return _genred_defs(name, st, block, nkb, nout)
+
+
 def _emit_pipeline(inst: "Instance") -> List[str]:
     """A two-stage pipeline: both stages certified, plus the locality obligation
     that licenses composing them.
@@ -556,7 +570,7 @@ def _emit_pipeline3(inst: "Instance") -> List[str]:
     for nm, st, nout in ((f"{k}_s1", s1, low.n1), (f"{k}_s2", s2, low.n2),
                          (f"{k}_s3", s3, inst.out_size)):
         b = choose_block_red(st.K)
-        out += _genred_defs(nm, st, b, (st.K + b - 1) // b, nout)
+        out += _stage_defs(nm, st, b, (st.K + b - 1) // b, nout)
     b2 = _bound_proof(low.bounds["l2"])
     b3a = _bound_proof(low.bounds["l3a"])
     b3b = _bound_proof(low.bounds["l3b"])
@@ -567,16 +581,19 @@ def _emit_pipeline3(inst: "Instance") -> List[str]:
         f"/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/",
         f"theorem {k}_l2 {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s2_g.spec (α := α)) {t1} {low.n1} :=",
-        f"  GenRed.loc {k}_s2_g {t1} {low.n1} {b2} {p2}",
+        f"  {s2.family.replace('prodred','ProdRed').replace('genred','GenRed')}"
+        f".loc {k}_s2_g {t1} {low.n1} {b2} {p2}",
         "",
         f"/-- Stage 3 reads each intermediate only where its stage wrote it. -/",
         f"theorem {k}_l3a {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s3_g.spec (α := α)) {t1} {low.n1} :=",
-        f"  GenRed.loc {k}_s3_g {t1} {low.n1} {b3a} {p3a}",
+        f"  {s3.family.replace('prodred','ProdRed').replace('genred','GenRed')}"
+        f".loc {k}_s3_g {t1} {low.n1} {b3a} {p3a}",
         "",
         f"theorem {k}_l3b {{α : Type}} [ExactScalar α] :",
         f"    Loc ({k}_s3_g.spec (α := α)) {t2} {low.n2} :=",
-        f"  GenRed.loc {k}_s3_g {t2} {low.n2} {b3b} {p3b}",
+        f"  {s3.family.replace('prodred','ProdRed').replace('genred','GenRed')}"
+        f".loc {k}_s3_g {t2} {low.n2} {b3b} {p3b}",
         "",
         f"/-- Correctness certificate for {k}: the composed three-stage pipeline. -/",
         f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
@@ -597,7 +614,8 @@ def _emit_pipeline3(inst: "Instance") -> List[str]:
         out += [
             f"def {nm}_kernel : ReduceKernel :=",
             f"  {{ name := \"{nm}\", arity := {st.arity}, block := {nm}_block,"
-            f" nkb := {nm}_nkb, nout := {nout}, init := FE.zeroC,"
+            f" nkb := {nm}_nkb, nout := {nout},"
+            f" init := {'FE.oneC' if st.family == 'prodred' else 'FE.zeroC'},"
             f" step := {nm}_g.step {nm}_block,"
             f" stored := {nm}_g.stored {nm}_block }}",
         ]

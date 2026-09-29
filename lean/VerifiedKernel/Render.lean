@@ -75,6 +75,7 @@ axis of a *rank-1* tile is `axis=0`, while on a 2-D tile it is `axis=1`. Emittin
 `axis=1` on a flat tile is a shape error at best and a wrong answer at worst. -/
 def renderPFE (tk : TileKind) (width : Nat) : PFE → String
   | .zeroC => "0.0"
+  | .oneC => "1.0"
   -- A compile-time constant must become a Python float literal: `tl` arithmetic
   -- accepts `5.0`, but a bare Python `int` has no `.to` method.
   | .ofI (.lit n) => s!"{n}.0"
@@ -128,12 +129,18 @@ def inPtrs (arity : Nat) : String :=
 def inArgs (arity : Nat) : String :=
   String.intercalate ", " ((List.range arity).map (fun i => s!"ins[{i}]"))
 
+def preamble : String :=
+  "import torch\nimport triton\nimport triton.language as tl\n\n\n" ++
+  -- Triton has no built-in product reduction; `tl.reduce` takes a combine
+  -- function, which must itself be a `@triton.jit` definition.
+  "@triton.jit\ndef _mul_combine(a, b):\n    return a * b\n\n\n"
+
 def FlatKernel.render (k : FlatKernel) : String :=
   let body := renderPFE .flat k.block (emitFE .flat 1 k.block k.val)
   let off := renderPIE (emitIE .flat 1 k.block (flatOff k.block))
   let msk := renderPBE (emitBE .flat 1 k.block (flatMask k.block k.n))
   let args := inArgs k.arity
-  "import torch\nimport triton\nimport triton.language as tl\n\n\n" ++
+  preamble ++
   "@triton.jit\n" ++
   s!"def {k.name}_kernel(out_ptr, {inPtrs k.arity}):\n" ++
   s!"    _off = {off}\n" ++
@@ -193,9 +200,6 @@ def ReduceKernel.renderBody (k : ReduceKernel) : String :=
   s!"    grid = ({k.nout},)\n" ++
   s!"    {k.name}_kernel[grid](out, {args})\n" ++
   "    return out\n"
-
-def preamble : String :=
-  "import torch\nimport triton\nimport triton.language as tl\n\n\n"
 
 def ReduceKernel.render (k : ReduceKernel) : String :=
   preamble ++ k.renderBody

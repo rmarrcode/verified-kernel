@@ -73,6 +73,9 @@ is pure data that the backend can render to Triton source. -/
 inductive FE where
   /-- the additive identity -/
   | zeroC
+  /-- the multiplicative identity, which a masked-off lane of a *product*
+  contributes -- the role `zeroC` plays for a sum -/
+  | oneC
   /-- reinterpret an index expression as a scalar (`i.to(tl.float32)`) -/
   | ofI (e : IE)
   /-- `tl.load(buf + off, mask=mask, other=0.0)` -/
@@ -210,6 +213,7 @@ def RedOp.fold (op : RedOp) (n : Nat) (f : Nat → α) : α :=
 /-- `⟦e⟧ env i j` -- scalar expressions. -/
 def FE.eval (env : Env α) (i j : Nat) : FE → α
   | .zeroC => ExactScalar.zero
+  | .oneC => ExactScalar.one
   | .ofI e => ExactScalar.ofNat (e.eval env i j)
   | .load b off mask =>
       if mask.eval env i j then env.bufs b (off.eval env i j) else ExactScalar.zero

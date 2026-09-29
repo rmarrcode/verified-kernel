@@ -4,6 +4,11 @@ import triton.language as tl
 
 
 @triton.jit
+def _mul_combine(a, b):
+    return a * b
+
+
+@triton.jit
 def t063_kernel(out_ptr, in0_ptr, in1_ptr):
     _acc0 = tl.zeros([128], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 2):
@@ -13,6 +18,6 @@ def t063_kernel(out_ptr, in0_ptr, in1_ptr):
 
 
 def t063(out, ins):
-    grid = (267387904,)
+    grid = (534775808,)
     t063_kernel[grid](out, ins[0], ins[1])
     return out

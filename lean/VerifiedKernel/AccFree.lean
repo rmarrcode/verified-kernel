@@ -44,7 +44,7 @@ theorem BE.eval_congr {α : Type} {env env' : Env α}
 
 /-- An expression that mentions no accumulator. -/
 def FE.accFree : FE → Bool
-  | .zeroC | .ofI _ => true
+  | .zeroC | .oneC | .ofI _ => true
   | .load _ _ _ => true
   | .acc _ => false
   | .bin _ a b => a.accFree && b.accFree
@@ -67,6 +67,7 @@ theorem FE.eval_accFree {env env' : Env α}
   intro e
   induction e with
   | zeroC => intro _ i j; rfl
+  | oneC => intro _ i j; rfl
   | ofI x => intro _ i j; simp only [FE.eval, IE.eval_congr hp hi]
   | load b off mask =>
     intro _ i j

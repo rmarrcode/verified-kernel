@@ -4,6 +4,11 @@ import triton.language as tl
 
 
 @triton.jit
+def _mul_combine(a, b):
+    return a * b
+
+
+@triton.jit
 def t041_kernel(out_ptr, in0_ptr):
     _acc0 = tl.zeros([8], dtype=tl.float32) + (tl.load(in0_ptr + ((((((tl.program_id(0) // 12580416) * 192) + ((tl.program_id(0) // 65523) % 192)) * 65536) + tl.maximum(((tl.program_id(0) % 65523) + (tl.maximum((0 + tl.maximum(((tl.maximum(4 - (tl.program_id(0) % 65523), 0) + 2) // 3) - 0, 0)) - tl.maximum((0 + tl.maximum(((tl.maximum(4 - (tl.program_id(0) % 65523), 0) + 2) // 3) - 0, 0)) - (tl.maximum(65539 - (tl.program_id(0) % 65523), 0) // 3), 0), 0) * 3)) - 4, 0)))))
     for _lv0 in range(0, 1):

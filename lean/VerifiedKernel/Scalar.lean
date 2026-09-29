@@ -353,5 +353,72 @@ theorem sum_mul_split (A B : Nat) (g : Nat → α) :
     have hmul : (k + 1) * B = k * B + B := by rw [Nat.succ_mul]
     rw [hmul, sum_add_sum, ih, sum_succ]
 
+/-! ### The same algebra, multiplicatively
+
+A cumulative *product* needs every lemma the tiled sum needed, with `mul` for `add`
+and `one` for `zero`. Masked-off lanes contribute the multiplicative identity, which
+`one` supplies -- unlike a maximum, a product has one, so this family masks rather
+than clamps. -/
+
+theorem one_mul (a : α) : mul one a = a := by rw [mul_comm]; exact mul_one a
+
+@[simp] theorem prod_const_one (n : Nat) : prod (α := α) n (fun _ => one) = one := by
+  induction n with
+  | zero => rfl
+  | succ k ih => simp only [prod_succ, ih, mul_one]
+
+/-- Products multiply pointwise. -/
+theorem prod_mul_distrib (n : Nat) (f h : Nat → α) :
+    prod n (fun i => mul (f i) (h i)) = mul (prod n f) (prod n h) := by
+  induction n with
+  | zero => simp [one_mul]
+  | succ k ih =>
+    simp only [prod_succ, ih]
+    rw [mul_assoc, ← mul_assoc (prod k h) (f k) (h k), mul_comm (prod k h) (f k),
+        mul_assoc (f k) (prod k h) (h k), ← mul_assoc]
+
+/-- **Fubini, multiplicatively.** -/
+theorem prod_comm (A B : Nat) (g : Nat → Nat → α) :
+    prod A (fun a => prod B (fun b => g a b)) = prod B (fun b => prod A (fun a => g a b)) := by
+  induction A with
+  | zero => simp
+  | succ k ih =>
+    simp only [prod_succ, ih]
+    exact (prod_mul_distrib B (fun b => prod k (fun a => g a b)) (fun b => g k b)).symm
+
+theorem prod_mul_prod (n m : Nat) (f : Nat → α) :
+    prod (n + m) f = mul (prod n f) (prod m (fun i => f (n + i))) := by
+  induction m with
+  | zero => simp [mul_one]
+  | succ k ih =>
+    show prod (n + k + 1) f = _
+    simp only [prod_succ]
+    rw [ih, mul_assoc]
+
+/-- **Splitting a flat range into tiles**, multiplicatively. -/
+theorem prod_mul_split (A B : Nat) (g : Nat → α) :
+    prod (A * B) g = prod A (fun a => prod B (fun b => g (a * B + b))) := by
+  induction A with
+  | zero => simp
+  | succ k ih =>
+    have hmul : (k + 1) * B = k * B + B := by rw [Nat.succ_mul]
+    rw [hmul, prod_mul_prod, ih, prod_succ]
+
+/-- Terms equal to `one` do not contribute to a product -- the masking lemma. -/
+theorem prod_eq_of_one_beyond {n m : Nat} {f : Nat → α} (hnm : n ≤ m)
+    (ho : ∀ i, n ≤ i → i < m → f i = one) :
+    prod m f = prod n f := by
+  induction m with
+  | zero =>
+    have : n = 0 := Nat.le_zero.mp hnm
+    subst this; rfl
+  | succ k ih =>
+    rcases Nat.lt_or_ge k n with hk | hk
+    · have : n = k + 1 := Nat.le_antisymm hnm (Nat.succ_le_of_lt hk)
+      subst this; rfl
+    · simp only [prod_succ]
+      rw [ho k hk (Nat.lt_succ_self k), mul_one]
+      exact ih hk (fun i h1 h2 => ho i h1 (Nat.lt_succ_of_lt h2))
+
 end ExactScalar
 end VerifiedKernel

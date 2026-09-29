@@ -4,6 +4,11 @@ import triton.language as tl
 
 
 @triton.jit
+def _mul_combine(a, b):
+    return a * b
+
+
+@triton.jit
 def t020_kernel(out_ptr, in0_ptr):
     _off = ((tl.program_id(0) * 1024) + tl.arange(0, 1024))
     _m = (((tl.program_id(0) * 1024) + tl.arange(0, 1024)) < 402653184)

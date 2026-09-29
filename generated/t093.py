@@ -4,6 +4,11 @@ import triton.language as tl
 
 
 @triton.jit
+def _mul_combine(a, b):
+    return a * b
+
+
+@triton.jit
 def t093_s1_kernel(out_ptr, in0_ptr, in1_ptr):
     _acc0 = tl.zeros([256], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 1):
