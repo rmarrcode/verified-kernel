@@ -34,6 +34,7 @@ import evaluate as E
 from tasks import all_tasks, fake_instance
 from vk import compile as C
 from vk import frontend
+from vk import graph
 from vk.runtime import GeneratedModel
 
 GB = 1024 ** 3
@@ -65,8 +66,14 @@ def make_plan(task, budget: int, min_scale: int = 1) -> Tuple[Optional[Plan], Li
         with mode_fake:
             red = E.shrink(list(inputs), scale)
             low, reasons = frontend.lower(model, red)
-            if low is None:
-                return None, reasons
+        if low is None:
+            # A single-operator lowering did not apply; compile the whole graph as
+            # a chain of stages instead.
+            try:
+                low = graph.compile_chain(model, red, mode_fake)
+            except Exception as e:
+                return None, reasons + [f"compile_chain: {type(e).__name__}: {e}"]
+        with mode_fake:
             out = model(*red)
             # reference output + our output + headroom for the reference module's
             # own temporaries, plus the inputs and any weights

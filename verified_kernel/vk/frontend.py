@@ -1307,7 +1307,10 @@ def clamp_tap(o_d: I.IE, stride_d: int, pad_d: int, dil_d: int, Din_d: int,
     lo = (I.Lit(pad_d) - base + I.Lit(dil_d - 1)) // I.Lit(dil_d)
     hi = (I.Lit(Din_d - 1 + pad_d) - base) // I.Lit(dil_d)
     kc = clamp_hi(clamp_lo(kk_d, lo), hi)
-    return base + kc * I.Lit(dil_d) - I.Lit(pad_d)
+    # The tap clamp already puts this inside `[0, Din)`; the outer clamp makes that
+    # *syntactic*, so a later stage reading this buffer can discharge its locality
+    # obligation with `clamp_lt` instead of re-deriving the window geometry.
+    return clamp_hi(base + kc * I.Lit(dil_d) - I.Lit(pad_d), Din_d - 1)
 
 
 def lower_maxmin(model: nn.Module, example_args: List[Any]) -> Lowered:

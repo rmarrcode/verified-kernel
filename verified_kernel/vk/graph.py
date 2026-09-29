@@ -50,6 +50,7 @@ class Chain:
     param_paths: List[str] = field(default_factory=list)
     stages: List[Lowered] = field(default_factory=list)
     sizes: List[int] = field(default_factory=list)
+    shapes: List[Tuple[int, ...]] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
 
     @property
@@ -79,7 +80,42 @@ class Chain:
         st.out_size = _prod(shape)
         self.stages.append(st)
         self.sizes.append(st.out_size)
+        self.shapes.append(tuple(shape))
         return Val(buf, tuple(shape))
+
+    def record_bounds(self) -> None:
+        """For every stage, how it stays inside each intermediate buffer.
+
+        A stage may read any buffer written before it, so the obligation covers all
+        of them; where it does not touch one the map is the constant 0 and the bound
+        is trivial.
+
+        When an index map's range is not evident from its *shape*, the map is
+        clamped into the buffer. That is a no-op on any well-formed graph -- the
+        index is already in range, because the producing stage wrote exactly this
+        tensor -- and it makes the obligation uniform rather than a growing list of
+        recognised arithmetic. It also makes the kernel memory-safe by construction:
+        a chain stage cannot read past what an earlier stage wrote, whatever the
+        frontend got wrong. The claim the frontend still owns is that the clamp never
+        fires, which is the same shape-correctness claim it already makes everywhere.
+        """
+        for j, st in enumerate(self.stages):
+            bounds: Dict[str, Tuple] = {}
+            for b in range(self.arity, self.arity + len(self.stages)):
+                size = self.sizes[b - self.arity]
+                shp = self.shapes[b - self.arity]
+                for tag, lst in (("b", st.offs), ("p", st.post_offs)):
+                    e = lst[b] if b < len(lst) else I.Lit(0)
+                    bd = buffer_bound(e, size, st.out_size, shp)
+                    if bd is None:
+                        e = I.Sub(e, I.Sub(e, I.Lit(size - 1)))   # min(e, size-1)
+                        while b >= len(lst):
+                            lst.append(I.Lit(0))
+                        lst[b] = e
+                        bd = ("clamp", size)
+                        st.notes.append(f"read of buffer {b} clamped into range")
+                    bounds[f"{tag}{b}"] = bd
+            st.bounds = bounds
 
     def pad(self, entries: Dict[int, I.IE], extra: int = 1) -> List[I.IE]:
         """Index maps for every buffer a stage may see: all inputs, every earlier
@@ -110,6 +146,23 @@ def identity_stage(ch: Chain, v: Val, body: S.SE, shape: Tuple[int, ...],
 # Relocating a standalone lowering into a chain
 # ---------------------------------------------------------------------------
 
+def _subst_slot0(e: S.SE, repl: S.SE) -> S.SE:
+    """Replace slot 0 -- this operator's input -- by the expression producing it."""
+    if isinstance(e, S.Inp):
+        return repl if e.b == 0 else e
+    if isinstance(e, S.Lit):
+        return e
+    if isinstance(e, S.Bin):
+        return S.Bin(e.op, _subst_slot0(e.a, repl), _subst_slot0(e.b, repl))
+    if isinstance(e, S.Un):
+        return S.Un(e.f, _subst_slot0(e.a, repl))
+    if isinstance(e, S.Recip):
+        return S.Recip(_subst_slot0(e.a, repl))
+    if isinstance(e, S.SelLe):
+        return S.SelLe(*(_subst_slot0(x, repl) for x in (e.a, e.b, e.t, e.e)))
+    raise Unsupported(f"cannot substitute in {type(e).__name__}")
+
+
 def _remap_se(e: S.SE, f) -> S.SE:
     """Rewrite every input slot of a spec body through `f`."""
     if isinstance(e, S.Inp):
@@ -125,6 +178,100 @@ def _remap_se(e: S.SE, f) -> S.SE:
     if isinstance(e, S.SelLe):
         return S.SelLe(*(_remap_se(x, f) for x in (e.a, e.b, e.t, e.e)))
     raise Unsupported(f"cannot remap {type(e).__name__}")
+
+
+def _lit(e) -> Optional[int]:
+    return e.n if isinstance(e, I.Lit) else None
+
+
+def split_pack(e: I.IE, dims: List[int]) -> Optional[List[I.IE]]:
+    """Recover the coordinates of a row-major index map, if that is its shape.
+
+    `pack` builds `((c0*d1 + c1)*d2 + c2)...`, and the smart constructors fold away
+    any axis of extent one, so those contribute no structure and their coordinate is
+    the constant 0.
+    """
+    coords: List[I.IE] = []
+    cur = e
+    for d in reversed(dims[1:]):
+        if d == 1:
+            coords.append(I.Lit(0))
+            continue
+        if (isinstance(cur, I.Add) and isinstance(cur.a, I.Mul)
+                and _lit(cur.a.b) == d):
+            coords.append(cur.b)
+            cur = cur.a.a
+        elif isinstance(cur, I.Mul) and _lit(cur.b) == d:
+            coords.append(I.Lit(0))         # trailing coordinate folded away
+            cur = cur.a
+        else:
+            return None
+    coords.append(cur)
+    return list(reversed(coords))
+
+
+def _is_clamp(c: I.IE, d: int) -> bool:
+    """`a - (a - (d-1))` is `min a (d-1)`, hence below `d`."""
+    return (isinstance(c, I.Sub) and isinstance(c.b, I.Sub)
+            and c.b.a == c.a and _lit(c.b.b) == d - 1)
+
+
+def coord_bound(c: I.IE, d: int, nout: int) -> Optional[Tuple]:
+    """How to prove one coordinate is below its axis extent."""
+    if _is_clamp(c, d):
+        return ("clamp", d)
+    if _lit(c) == 0:
+        return ("zerolt", d)
+    if isinstance(c, I.Rk):
+        return ("hk",)
+    if isinstance(c, I.Pid):
+        return ("hq",) if d == nout else None
+    if isinstance(c, I.Div) and isinstance(c.a, I.Pid) and _lit(c.b) is not None:
+        return ("div", d, _lit(c.b))
+    if isinstance(c, I.Mod) and _lit(c.b) == d:
+        return ("mod", d)                   # `q % d` or `(q / x) % d`
+    return None
+
+
+def buffer_bound(e: I.IE, size: int, nout: int,
+                 shape: Optional[Tuple[int, ...]] = None) -> Optional[Tuple]:
+    """How to prove this index map stays inside a buffer of `size` elements.
+
+    Reading past a written buffer is reading uninitialised memory, which is exactly
+    what the locality obligation exists to rule out -- so anything unrecognised
+    returns `None` and the caller refuses to emit rather than guessing.
+    """
+    if _lit(e) == 0:
+        return ("zerolt", size)                 # not read at all
+    if isinstance(e, I.Pid) and size == nout:
+        return ("hq",)                          # read at the output index
+    if shape and len(shape) > 1:
+        coords = split_pack(e, list(shape))
+        if coords is not None:
+            bs = [coord_bound(c, d, nout) for c, d in zip(coords, shape)]
+            if all(b is not None for b in bs):
+                return ("packs", bs, list(shape))
+    # A reduction views the buffer it consumes as `[outer, K, inner]` rather than by
+    # its logical shape, so try that reading too.
+    if isinstance(e, I.Add) and isinstance(e.a, I.Mul) and isinstance(e.a.a, I.Pid):
+        x = _lit(e.a.b)
+        if x is not None and isinstance(e.b, I.Rk) and nout * x == size:
+            return ("packs", [("hq",), ("hk",)], [nout, x])
+    if isinstance(e, I.Add) and isinstance(e.a, I.Mul):
+        inner = _lit(e.a.b)
+        if inner is not None and inner > 0 and size % inner == 0:
+            mid = e.a.a
+            if (isinstance(mid, I.Add) and isinstance(mid.a, I.Mul)
+                    and isinstance(mid.b, I.Rk)):
+                K = _lit(mid.a.b)
+                row = mid.a.a
+                if K is not None and K > 0 and size % (K * inner) == 0:
+                    outer = size // (K * inner)
+                    cb = coord_bound(row, outer, nout)
+                    tb = coord_bound(e.b, inner, nout)
+                    if cb is not None and tb is not None:
+                        return ("packs", [cb, ("hk",), tb], [outer, K, inner])
+    return None
 
 
 def relocate(st: Lowered, bmap: Dict[int, int], nbuf: int, idx_slot: int) -> Lowered:
@@ -411,6 +558,7 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                 raise Unsupported("the graph returns an input unchanged")
             if out.buf != ch.nbuf - 1:
                 raise Unsupported("the output is not the last stage's result")
+            ch.record_bounds()
             last = ch.stages[-1]
             return Lowered(
                 family="chain", body=last.body, arity=ch.arity,
@@ -475,10 +623,11 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                              else (_const_of(a) if isinstance(a, fx.Node) else a))
                        for a in n.args]
             if fuse:
+                # Compose with the stage's existing `post`, do not replace it: that
+                # `post` may already add a bias, and slot 0 there is the reduced
+                # value, not this operator's input.
                 prev = ch.stages[-1]
-                prev.post = _remap_se(_pointwise_se(n, gm, se_args),
-                                      lambda b: 0 if b == 0 else b)
-                prev.post = S.Bin("mul", prev.post, S.lit(1)) if False else prev.post
+                prev.post = _subst_slot0(_pointwise_se(n, gm, se_args), prev.post)
                 env[n] = env[src]
                 produced_by[n] = produced_by[src]
                 ch.notes.append(f"fused {n.target} into stage {produced_by[src]}")

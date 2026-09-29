@@ -83,19 +83,21 @@ def dump_plans(plans: List[Plan], path: str, acc: Dict[str, dict]) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--level", type=int, default=1, help="KernelBench level")
     ap.add_argument("--only", default=None)
     ap.add_argument("--timeout", type=int, default=240,
                     help="seconds per task before it is recorded as too slow")
     ap.add_argument("--rounds", type=int, default=3)
     args = ap.parse_args()
 
-    tasks = all_tasks()
+    os.environ["KB_LEVEL"] = str(args.level)
+    tasks = all_tasks(args.level)
     if args.only:
         want = {int(x) for x in args.only.split(",")}
         tasks = [t for t in tasks if t.num in want]
 
     print(f"GPU: {torch.cuda.get_device_name()}   usable {E.budget_bytes()/GB:.2f}GB")
-    print(f"L1 tasks: {len(tasks)}\n", flush=True)
+    print(f"L{args.level} tasks: {len(tasks)}\n", flush=True)
 
     min_scale = {t.num: 1 for t in tasks}
     declined: List[Tuple[object, List[str]]] = []
@@ -191,7 +193,7 @@ def main() -> None:
     unrun = [t.num for t in pending]
 
     print("\n" + "=" * 70)
-    print(f"  KernelBench Level 1                     {len(tasks)}")
+    print(f"  KernelBench Level {args.level}                     {len(tasks)}")
     print(f"  lowered to a specification              {len(labels)}")
     print(f"  correctness certificate checked by Lean {len(certified)}")
     print(f"  matched PyTorch on this GPU             {len(npass)}"

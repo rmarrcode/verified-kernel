@@ -49,6 +49,12 @@ class Instance:
     @property
     def stage_blocks(self) -> List[Tuple[int, int, int]]:
         """(block, nkb, nout) per stage. A single-stage family has one entry."""
+        if self.low.family == "chain":
+            out = []
+            for st in self.low.stages:
+                b = choose_block_red(st.K)
+                out.append((b, (st.K + b - 1) // b, st.out_size))
+            return out
         if self.low.family == "pipeline3":
             out = []
             for st, nout in zip(self.low.stages,
@@ -85,6 +91,12 @@ class Instance:
         """The decidable facts the family theorem needs. Checked here so a
         generator bug is caught before Lean is even invoked."""
         assert self.block > 0, f"{self.key}: block must be positive"
+        if self.low.family == "chain":
+            for i, st in enumerate(self.low.stages):
+                b = choose_block_red(st.K)
+                assert b > 0 and st.K <= ((st.K + b - 1) // b) * b, (
+                    f"{self.key}: stage {i} loop does not cover extent {st.K}")
+            return
         if self.low.family in ("pipeline", "pipeline3", "pipeline_max"):
             for i, (st, (b, nkb, _)) in enumerate(zip(self.low.stages,
                                                       self.stage_blocks)):
@@ -156,6 +168,9 @@ def emit_lean(instances: List[Instance]) -> str:
             continue
         if low.family == "pipeline3":
             out += _emit_pipeline3(inst)
+            continue
+        if low.family == "chain":
+            out += _emit_chain(inst)
             continue
         if low.family == "genred":
             from . import ie as I
@@ -508,6 +523,9 @@ def _bound_atom(sb: Tuple) -> str:
                 f" (bound_div (a := {N}) (d := {C * SP}) hq)"
                 f" (bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := q / {SP})"
                 f" (by decide) (by decide) (by decide)))")
+    if kind == "clamp":
+        d = sb[1]
+        return f"(ExactScalar.clamp_lt (c := {d}) (by decide : (0 : Nat) < {d}))"
     if kind == "packs":
         # A row-major index built from several coordinates: fold `bound_pack` along
         # it, carrying the running product of extents as the bound.
@@ -627,6 +645,136 @@ def _emit_pipeline3(inst: "Instance") -> List[str]:
         "",
     ]
     return out
+
+
+FAM_LEAN = {"genred": "GenRed", "maxred": "MaxRed", "prodred": "ProdRed"}
+
+
+def _emit_chain(inst: "Instance") -> List[str]:
+    """A chain of stages, composed by `stages_correct`.
+
+    Beyond each stage's own certificate, the composition needs one locality fact per
+    stage: that it does not read any intermediate buffer past what was written there.
+    Those are stated against the *final* size map, which is why there is one per
+    stage rather than one per pair of stages.
+    """
+    k, low = inst.key, inst.low
+    A = low.arity
+    n = len(low.stages)
+    out: List[str] = [
+        f"-- {k}: a chain of {n} stage(s), {A} input buffer(s)",
+        f"--   {'; '.join(low.notes[:3]) if low.notes else ''}",
+        f"def {k}_sz : Sizes",
+    ]
+    for j, sz in enumerate(low.sizes):
+        out.append(f"  | {A + j} => some {sz}")
+    out += ["  | _ => none", ""]
+
+    for j, st in enumerate(low.stages):
+        b = choose_block_red(st.K)
+        out += _stage_defs(f"{k}_s{j}", st, b, (st.K + b - 1) // b, st.out_size)
+
+    # one locality fact per stage
+    for j, st in enumerate(low.stages):
+        fam = FAM_LEAN[st.family]
+        hb1 = " ".join(
+            f"| {A + i} => fun _ _ hn q k hq hk => {_chain_bound(st, 'b', A + i, low)}"
+            for i in range(n))
+        out += [
+            f"/-- Stage {j} reads no intermediate past what was written there. -/",
+            f"theorem {k}_s{j}_loc {{α : Type}} [ExactScalar α] :",
+            f"    SpecLocal {k}_sz ({k}_s{j}_g.spec (α := α)) :=",
+            f"  {fam}.specLocal {k}_s{j}_g {k}_sz",
+            f"    (fun b nn hn q kk hq hk => by",
+            f"      match b, hn with",
+        ]
+        # every index is enumerated so that the size function reduces in each arm;
+        # a bare wildcard leaves `sz b` stuck on a variable
+        for i in range(A):
+            out.append(f"      | {i}, hn => simp [{k}_sz] at hn")
+        for i in range(n):
+            out.append(f"      | {A + i}, hn => simp [{k}_sz] at hn; subst hn; "
+                       f"exact {_chain_bound(low.stages[j], 'b', A + i, low)}")
+        out += [
+            f"      | (_ + {A + n}), hn => simp [{k}_sz] at hn)",
+            f"    (fun b nn hn q hq => by",
+            f"      match b, hn with",
+        ]
+        for i in range(A):
+            out.append(f"      | {i}, hn => simp [{k}_sz] at hn")
+        for i in range(n):
+            out.append(f"      | {A + i}, hn => simp [{k}_sz] at hn; subst hn; "
+                       f"exact {_chain_bound(low.stages[j], 'p', A + i, low)}")
+        out += [f"      | (_ + {A + n}), hn => simp [{k}_sz] at hn)", ""]
+
+    stage_list = ", ".join(
+        f"⟨{k}_s{j}_g.prog {k}_s{j}_block {k}_s{j}_nkb, {k}_s{j}_g.spec (α := α), {A + j}⟩"
+        for j in range(n))
+    out += [
+        f"def {k}_chain (α : Type) [ExactScalar α] : List (Stage α) := [{stage_list}]",
+        "",
+        f"theorem {k}_imp {{α : Type}} [ExactScalar α] :",
+        f"    ∀ st ∈ {k}_chain α, Implements st.prog st.spec := by",
+        f"  intro st hst",
+        f"  simp only [{k}_chain, List.mem_cons, List.not_mem_nil, or_false] at hst",
+        "  rcases hst with " + " | ".join("rfl" for _ in range(n)),
+    ]
+    for j in range(n):
+        out.append(f"  · exact {k}_s{j}_impl")
+    out += [
+        "",
+        f"theorem {k}_szok {{α : Type}} [ExactScalar α] :",
+        f"    ∀ st ∈ {k}_chain α, {k}_sz st.out = some st.spec.outSize := by",
+        f"  intro st hst",
+        f"  simp only [{k}_chain, List.mem_cons, List.not_mem_nil, or_false] at hst",
+        "  rcases hst with " + " | ".join("rfl" for _ in range(n)),
+    ]
+    for j in range(n):
+        out.append(f"  · rfl")
+    out += [
+        "",
+        f"theorem {k}_loc {{α : Type}} [ExactScalar α] :",
+        f"    ∀ st ∈ {k}_chain α, SpecLocal {k}_sz st.spec := by",
+        f"  intro st hst",
+        f"  simp only [{k}_chain, List.mem_cons, List.not_mem_nil, or_false] at hst",
+        "  rcases hst with " + " | ".join("rfl" for _ in range(n)),
+    ]
+    for j in range(n):
+        out.append(f"  · exact {k}_s{j}_loc")
+    out += [
+        "",
+        f"/-- Correctness certificate for {k}: the whole chain. -/",
+        f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
+        f"    ∀ (f : Nat → Buf α) (m : Mem α),",
+        f"      Compat (sizesAfter ({k}_chain α) emptySizes)",
+        f"        (runStages ({k}_chain α) f m) (specStages ({k}_chain α) f) :=",
+        f"  fun f m => stages_correct {k}_sz ({k}_chain α) emptySizes f f m",
+        f"    (Compat.refl _ _) (emptySizes_sub {k}_sz)",
+        f"    {k}_szok {k}_imp {k}_loc",
+        "",
+    ]
+    for j, st in enumerate(low.stages):
+        # the launcher hands stage j the inputs plus the j intermediates written so
+        # far -- not its own output buffer, which it writes
+        out += [
+            f"def {k}_s{j}_kernel : ReduceKernel :=",
+            f"  {{ name := \"{k}_s{j}\", arity := {A + j}, block := {k}_s{j}_block,"
+            f" nkb := {k}_s{j}_nkb, nout := {st.out_size},"
+            f" init := {'FE.oneC' if st.family == 'prodred' else 'FE.zeroC'},"
+            f" step := {k}_s{j}_g.step {k}_s{j}_block,"
+            f" stored := {k}_s{j}_g.stored {k}_s{j}_block }}",
+        ]
+    out += [
+        f"def {k}_kernel : ChainKernel :=",
+        f"  {{ name := \"{k}\", arity := {A}, sizes := {low.sizes},",
+        f"    stages := [" + ", ".join(f"{k}_s{j}_kernel" for j in range(n)) + "] }",
+        "",
+    ]
+    return out
+
+
+def _chain_bound(st, tag: str, buf: int, low) -> str:
+    return _bound_atom(tuple(st.bounds[f"{tag}{buf}"]))
 
 
 def _env() -> Dict[str, str]:

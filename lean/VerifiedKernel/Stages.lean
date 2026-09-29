@@ -49,6 +49,14 @@ theorem Compat.weaken {sz sz' : Sizes} {f g : Nat → Buf α}
 def SpecLocal (sz : Sizes) (s : Spec α) : Prop :=
   ∀ (f g : Nat → Buf α), Compat sz f g → ∀ q, q < s.outSize → s.out f q = s.out g q
 
+/-- Nothing written yet: the starting point of any chain. -/
+def emptySizes : Sizes := fun _ => none
+
+theorem emptySizes_sub (szF : Sizes) :
+    ∀ b n, emptySizes b = some n → szF b = some n := by
+  intro b n h
+  simp [emptySizes] at h
+
 /-- Record that buffer `t` now holds `n` written elements. -/
 def setSize (t n : Nat) (sz : Sizes) : Sizes :=
   fun b => if b = t then some n else sz b
