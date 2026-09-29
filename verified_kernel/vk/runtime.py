@@ -72,6 +72,16 @@ def _check(t: torch.Tensor, what: str) -> torch.Tensor:
         # Every other dtype is refused rather than coerced: an int64 conversion
         # would be lossy above 2^24, and a float64 one changes the arithmetic.
         return t.to(torch.float32).contiguous()
+    if t.dtype in (torch.int32, torch.int64):
+        # Integer labels denote exactly the integers the spec quantifies over.
+        # float32 represents every integer below 2^24; rather than assume the
+        # values are in range, check the round trip -- it is one cheap comparison
+        # against silently wrong answers.
+        f = t.to(torch.float32)
+        if not torch.equal(f.to(t.dtype), t):
+            raise RuntimeError(
+                f"{what} has integer values that float32 cannot represent exactly")
+        return f.contiguous()
     if t.dtype is not torch.float32:
-        raise RuntimeError(f"{what} is {t.dtype}, expected float32 (or bool)")
+        raise RuntimeError(f"{what} is {t.dtype}, expected float32 (or bool/int)")
     return t.contiguous()

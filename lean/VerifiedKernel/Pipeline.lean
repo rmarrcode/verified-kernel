@@ -103,18 +103,24 @@ theorem spec_locality (g : GenRed) (t n1 : Nat)
   show (if _ then _ else _) = (if _ then _ else _)
   have hred : ExactScalar.sum g.K (fun k =>
         if (g.inRange).evalQK q k
-        then g.body.denote (fun b => subst bufs t u b ((g.offs b).evalQK q k))
+        then g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat k
+                                     else subst bufs t u b ((g.offs b).evalQK q k))
         else ExactScalar.zero)
       = ExactScalar.sum g.K (fun k =>
         if (g.inRange).evalQK q k
-        then g.body.denote (fun b => subst bufs t v b ((g.offs b).evalQK q k))
+        then g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat k
+                                     else subst bufs t v b ((g.offs b).evalQK q k))
         else ExactScalar.zero) := by
     refine ExactScalar.sum_congr (fun k hk => ?_)
     by_cases hr : (g.inRange).evalQK q k = true
     · simp only [hr, if_true]
-      exact SE.denote_congr
-        (hget (fun b => (g.offs b).evalQK q k)
-          (fun b hbt => by subst hbt; exact hb1 q k hq hk)) g.body
+      refine SE.denote_congr (fun b => ?_) g.body
+      -- the index slot reads no memory, so it agrees on the nose
+      by_cases hs : b = g.idxSlot
+      · simp only [hs, if_true]
+      · simp only [hs, if_false]
+        exact hget (fun b => (g.offs b).evalQK q k)
+          (fun b hbt => by rw [hbt]; exact hb1 q k hq hk) b
     · simp only [Bool.not_eq_true] at hr
       simp only [hr, Bool.false_eq_true, if_false]
   by_cases hg : (g.outGuard).evalQK q 0 = true

@@ -180,6 +180,12 @@ structure GenRed where
   second pass. Mentions `pid` only. -/
   outGuard : BE
   nInp : Nat
+  /-- A distinguished slot of `body` denoting the *reduction index itself*, as a
+  scalar, rather than a buffer read. A gather uses it: "this element, if its
+  position equals the label" is a comparison against `k`, which keeps the index map
+  a function of `q` and `k` alone and so keeps `instK_eval` true. Set it outside the
+  buffer range when unused. -/
+  idxSlot : Nat
 
 /-- An index map is well-formed when it mentions only `pid` and `rk`. -/
 def BE.qkOnly : BE → Bool
@@ -241,7 +247,8 @@ def spec (g : GenRed) : Spec α :=
   , out := fun ins q =>
       let red := ExactScalar.sum g.K (fun k =>
         if (g.inRange).evalQK q k
-        then g.body.denote (fun b => ins b ((g.offs b).evalQK q k))
+        then g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat k
+                                     else ins b ((g.offs b).evalQK q k))
         else ExactScalar.zero)
       if (g.outGuard).evalQK q 0 then
         g.post.denote (fun b => match b with
@@ -253,7 +260,9 @@ def spec (g : GenRed) : Spec α :=
 a body like `exp x` sends a zeroed load to `1`, which would corrupt the sum. -/
 def summand (g : GenRed) (block : Nat) : FE :=
   .sel ((g.live).instK block)
-    (SE.toFEWith (fun b => .load b ((g.offs b).instK block) ((g.live).instK block)) g.body)
+    (SE.toFEWith
+      (fun b => if b = g.idxSlot then .ofI (kIE block)
+                else .load b ((g.offs b).instK block) ((g.live).instK block)) g.body)
     .zeroC
 
 def step (g : GenRed) (block : Nat) : FE := .bin .add (.acc 0) (g.summand block)
@@ -282,8 +291,9 @@ structure Wf (g : GenRed) : Prop where
 theorem summand_accFree (g : GenRed) (block : Nat) :
     (g.summand block).accFree = true := by
   have h := SE.toFEWith_accFree
-    (f := fun b => FE.load b ((g.offs b).instK block) ((g.live).instK block))
-    (fun _ => rfl) g.body
+    (f := fun b => if b = g.idxSlot then FE.ofI (kIE block)
+                   else FE.load b ((g.offs b).instK block) ((g.live).instK block))
+    (fun b => by by_cases hb : b = g.idxSlot <;> simp [hb, FE.accFree]) g.body
   simp [summand, FE.accFree, h]
 
 theorem live_eval (g : GenRed) (block : Nat) (hw : Wf g) (bufs : Nat → Buf α)
@@ -302,7 +312,9 @@ theorem summand_eval (g : GenRed) (block : Nat) (hw : Wf g) (bufs : Nat → Buf 
     (g.summand block).eval ((flatEnv bufs q).pushStep kb a) 0 j
       = (if kb * block + j < g.K then
            (if (g.inRange).evalQK q (kb * block + j)
-            then g.body.denote (fun b => bufs b ((g.offs b).evalQK q (kb * block + j)))
+            then g.body.denote (fun b =>
+                if b = g.idxSlot then ExactScalar.ofNat (kb * block + j)
+                else bufs b ((g.offs b).evalQK q (kb * block + j)))
             else ExactScalar.zero)
          else ExactScalar.zero) := by
   have hl := live_eval g block hw bufs q kb j a
@@ -311,10 +323,13 @@ theorem summand_eval (g : GenRed) (block : Nat) (hw : Wf g) (bufs : Nat → Buf 
   · by_cases h2 : (g.inRange).evalQK q (kb * block + j) = true
     · simp only [h1, h2, decide_true, Bool.and_true, if_true]
       refine SE.toFEWith_eval (fun b => ?_) g.body
-      simp only [FE.eval, hl, h1, h2, decide_true, Bool.and_true, if_true,
-        IE.instK_eval (block := block) (env := (flatEnv bufs q).pushStep kb a)
-          (q := q) (kb := kb) j rfl rfl _ (hw.offs_ok b),
-        Env.pushStep_bufs, flatEnv_bufs]
+      by_cases hb : b = g.idxSlot
+      · simp only [hb, if_true, FE.eval, kIE, IE.eval, Env.pushStep_ivs0]
+      · simp only [hb, if_false, FE.eval, hl, h1, h2, decide_true, Bool.and_true,
+          if_true,
+          IE.instK_eval (block := block) (env := (flatEnv bufs q).pushStep kb a)
+            (q := q) (kb := kb) j rfl rfl _ (hw.offs_ok b),
+          Env.pushStep_bufs, flatEnv_bufs]
     · simp only [Bool.not_eq_true] at h2
       simp only [h1, h2, decide_true, Bool.and_false, Bool.false_eq_true, if_false,
         if_true]
@@ -334,14 +349,17 @@ theorem prog_implements (g : GenRed) (block nkb : Nat) (hw : Wf g)
       (fun p => accOf (flatEnv bufs q) nkb .zeroC (g.step block) 0 p)
       = ExactScalar.sum g.K (fun k =>
           if (g.inRange).evalQK q k
-          then g.body.denote (fun b => bufs b ((g.offs b).evalQK q k))
+          then g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat k
+                                       else bufs b ((g.offs b).evalQK q k))
           else ExactScalar.zero) := by
     have hstep : ∀ p : Nat,
         accOf (flatEnv bufs q) nkb .zeroC (g.step block) 0 p
           = ExactScalar.sum nkb (fun kb =>
               if kb * block + p < g.K then
                 (if (g.inRange).evalQK q (kb * block + p)
-                 then g.body.denote (fun b => bufs b ((g.offs b).evalQK q (kb * block + p)))
+                 then g.body.denote (fun b =>
+                        if b = g.idxSlot then ExactScalar.ofNat (kb * block + p)
+                        else bufs b ((g.offs b).evalQK q (kb * block + p)))
                  else ExactScalar.zero)
               else ExactScalar.zero) := by
       intro p
@@ -351,7 +369,8 @@ theorem prog_implements (g : GenRed) (block nkb : Nat) (hw : Wf g)
     rw [ExactScalar.sum_congr (fun p _ => hstep p)]
     exact sum_tile_mask block nkb g.K
       (fun i => if (g.inRange).evalQK q i
-                then g.body.denote (fun b => bufs b ((g.offs b).evalQK q i))
+                then g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat i
+                                             else bufs b ((g.offs b).evalQK q i))
                 else ExactScalar.zero) hK
   have hguard : ((g.outGuard).instK block).eval ((flatEnv bufs q).pushAcc
       (accOf (flatEnv bufs q) nkb .zeroC (g.step block))) 0 0
@@ -368,7 +387,9 @@ theorem prog_implements (g : GenRed) (block nkb : Nat) (hw : Wf g)
         = (match b with
            | 0 => ExactScalar.sum g.K (fun k =>
                     if (g.inRange).evalQK q k
-                    then g.body.denote (fun b => bufs b ((g.offs b).evalQK q k))
+                    then g.body.denote (fun b =>
+                           if b = g.idxSlot then ExactScalar.ofNat k
+                           else bufs b ((g.offs b).evalQK q k))
                     else ExactScalar.zero)
            | b + 1 => bufs b ((g.postOffs b).evalQK q 0)) := by
     intro b

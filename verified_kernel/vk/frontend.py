@@ -26,6 +26,10 @@ import torch.nn.functional as F
 from . import ie as I
 from . import se as S
 
+# A slot number no family will ever use for a buffer, so the index slot is inert
+# unless a family deliberately sets it.
+NO_IDX_SLOT = 1 << 20
+
 
 @dataclass
 class Lowered:
@@ -58,8 +62,10 @@ class Lowered:
     # ("pid", n) | ("rk", n) | ("zero", n) | ("div", n, span) | ("mod", c)
     # | ("pack", N, G, C, SP, CG) | ("row", outer, K, inner)
     bounds: Dict[str, Tuple] = field(default_factory=dict)
-    # `maxred` only: the SE slot denoting the reduction index rather than a buffer.
-    idx_slot: int = 0
+    # The SE slot denoting the reduction index rather than a buffer read. The
+    # default must sit *outside* any buffer range: at 0 it would shadow input 0,
+    # silently replacing that input's values with the loop counter.
+    idx_slot: int = NO_IDX_SLOT
     # Output dtype, when it is not float32 (an argmax returns indices).
     out_dtype: Optional[str] = None
     # `genred` family: out[q] = guard(q) * post(sum_{k<K} range(q,k) * body(ins at offs(q,k)))
@@ -1888,6 +1894,90 @@ def lower_sepconv(model: nn.Module, example_args: List[Any]) -> Lowered:
                f"{N}x{Cin}x{Hm}x{Wm} -> {tuple(y.shape)}"])
 
 
+def lower_cross_entropy(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower `F.cross_entropy(logits, labels)` as three stages.
+
+    `mean_i (logsumexp(x_i) - x[i, label_i])`. The second term is a *gather*, which
+    looks like it needs an index map that depends on buffer contents -- exactly what
+    `IE.qkOnly` forbids, and for good reason: index maps being functions of `q` and
+    `k` alone is what makes `instK_eval`, and so every tiling argument, true.
+
+    It is not needed. A gather is a masked sum:
+
+        x[i, label_i] = sum_j x[i,j] * [j == label_i]
+
+    and `[j == label_i]` is a comparison of two *values* -- the label, read as an
+    ordinary buffer element, against the reduction index, supplied by the index
+    slot. The index map stays affine.
+
+    Labels arrive as `int64` and are converted exactly (see the runtime); the
+    comparison is between integers that float32 represents exactly.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    ce = None
+    for node in gm.graph.nodes:
+        if node.op in ("call_function", "call_method"):
+            if node.target in (F.cross_entropy, torch.nn.functional.cross_entropy):
+                if ce is not None:
+                    raise Unsupported("more than one cross_entropy")
+                ce = node
+            else:
+                raise Unsupported(f"{node.target!r} alongside cross_entropy")
+        elif node.op == "call_module":
+            raise Unsupported("module call alongside cross_entropy")
+    if ce is None:
+        raise Unsupported("no cross_entropy")
+    if _kw(ce, "reduction", 4, "mean") != "mean":
+        raise Unsupported("cross_entropy with a non-mean reduction")
+    if _kw(ce, "weight", 2, None) is not None:
+        raise Unsupported("weighted cross_entropy")
+    if float(_kw(ce, "label_smoothing", 6, 0.0)) != 0.0:
+        raise Unsupported("cross_entropy with label smoothing")
+
+    x, lab = example_args[0], example_args[1]
+    if x.dim() != 2:
+        raise Unsupported(f"logits are {x.dim()}-D")
+    B, C = x.shape
+    if tuple(lab.shape) != (B,):
+        raise Unsupported(f"labels {tuple(lab.shape)} do not match a batch of {B}")
+
+    T1, T2, IDX = 2, 3, 4
+    nbuf = 4
+
+    def pad(entries: Dict[int, I.IE]) -> List[I.IE]:
+        return [entries.get(b, I.Lit(0)) for b in range(nbuf)]
+
+    row = I.Pid() * I.Lit(C) + I.Rk()
+    # stage 1: the softmax denominators
+    s1 = Lowered(
+        family="genred", body=S.exp(S.Inp(0)), arity=1, out_size=B,
+        out_shape=(B,), tensor_arg_index=[0, 1], K=C,
+        offs=pad({0: row}), post_offs=pad({}), post=S.Inp(0),
+        notes=["stage 1: sum of exponentials, per row"])
+    # stage 2: the gathered logit, as a masked sum
+    lv, iv = S.Inp(1), S.Inp(IDX)
+    picked = S.SelLe(lv, iv, S.SelLe(iv, lv, S.Inp(0), S.lit(0)), S.lit(0))
+    s2 = Lowered(
+        family="genred", body=picked, arity=2, out_size=B,
+        out_shape=(B,), tensor_arg_index=[0, 1], K=C,
+        offs=pad({0: row, 1: I.Pid()}), post_offs=pad({}), post=S.Inp(0),
+        idx_slot=IDX,
+        notes=["stage 2: the labelled logit, gathered as a masked sum"])
+    # stage 3: the mean over the batch
+    s3 = Lowered(
+        family="genred", body=S.log(S.Inp(T1)) - S.Inp(T2), arity=nbuf,
+        out_size=1, out_shape=(), tensor_arg_index=[0, 1], K=B,
+        offs=pad({T1: I.Rk(), T2: I.Rk()}), post_offs=pad({}),
+        post=S.Bin("mul", S.Inp(0), S.lit(Fraction(1, B))),
+        notes=["stage 3: mean of (logsumexp - labelled logit)"])
+    return Lowered(
+        family="pipeline3", body=s3.body, arity=2, out_size=1, out_shape=(),
+        tensor_arg_index=[0, 1], stages=[s1, s2, s3], n1=B, n2=B, K=C,
+        bounds={"l2": ("zero", B), "l3a": ("rk", B), "l3b": ("rk", B)},
+        notes=[f"cross entropy: batch {B}, {C} classes"])
+
+
 def lower_triplet(model: nn.Module, example_args: List[Any]) -> Lowered:
     """Lower `nn.TripletMarginLoss` as three stages.
 
@@ -2160,7 +2250,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
-    lower_maxpool, lower_maxmin, lower_argmaxmin, lower_rownorm, lower_normalize, lower_triplet,
+    lower_maxpool, lower_maxmin, lower_argmaxmin, lower_rownorm, lower_normalize, lower_triplet, lower_cross_entropy,
     lower_sepconv, lower_scan,
     lower_broadcast_pointwise]
 
