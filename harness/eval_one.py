@@ -49,7 +49,8 @@ def main() -> int:
         named = dict(ref.named_parameters())
         named.update(dict(ref.named_buffers()))
         params = [named[nm] for nm in p["param_paths"]]
-        new = GeneratedModel(key, tuple(p["out_shape"]), p["tensor_arg_index"], params)
+        new = GeneratedModel(key, tuple(p["out_shape"]), p["tensor_arg_index"],
+                             params, p.get("out_dtype"))
 
         def make_inputs():
             raw = task.module.get_inputs()

@@ -17,6 +17,7 @@ composed theorem would be false. `hloc` is where that obligation lives, and
 `GenRed.spec_locality` is how a reducing stage discharges it.
 -/
 import VerifiedKernel.Kernels.GenRed
+import VerifiedKernel.Kernels.MaxRed
 
 namespace VerifiedKernel
 
@@ -128,6 +129,54 @@ theorem spec_locality (g : GenRed) (t n1 : Nat)
     simp only [hg, Bool.false_eq_true, if_false]
 
 end GenRed
+
+namespace MaxRed
+
+/-- **Locality of a max-reducing spec**, the analogue of `GenRed.spec_locality`.
+Needed so an argmax can be two composed max stages: the second reads the first's
+maximum out of an intermediate buffer.
+
+`hidx` rules out the degenerate case where the substituted buffer *is* the index
+slot, which denotes the reduction index rather than any memory. -/
+theorem spec_locality (g : MaxRed) (t n : Nat) (hK : 0 < g.K)
+    (hidx : t ≠ g.idxSlot)
+    (hb1 : ∀ q k, q < g.nout → k < g.K → (g.offs t).evalQK q k < n)
+    (hb2 : ∀ q, q < g.nout → (g.postOffs t).evalQK q 0 < n) :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < n → u i = v i) →
+      ∀ q, q < g.nout →
+        (g.spec (α := α)).out (subst bufs t u) q
+          = (g.spec (α := α)).out (subst bufs t v) q := by
+  intro bufs u v huv q hq
+  -- Reads of ordinary buffers agree; used for both `elem` and `post`.
+  have hbuf : ∀ (idx : Nat → Nat), (∀ b, b = t → idx b < n) → ∀ b,
+      subst bufs t u b (idx b) = subst bufs t v b (idx b) := by
+    intro idx bnd b
+    by_cases hbt : b = t
+    · rw [hbt]
+      simp only [subst_same]
+      exact huv (idx t) (bnd t rfl)
+    · simp only [subst_other hbt]
+  -- `elem`'s slot map additionally pins the index slot to a value that does not
+  -- come from memory at all, so it agrees on the nose.
+  have helem : ∀ k, k < g.K →
+      g.elem (subst bufs t u) q k = g.elem (subst bufs t v) q k := by
+    intro k hk
+    refine SE.denote_congr (fun b => ?_) g.body
+    by_cases hs : b = g.idxSlot
+    · simp only [hs, if_true]
+    · simp only [hs, if_false]
+      exact hbuf (fun b => (g.offs b).evalQK q k)
+        (fun b hbt => by rw [hbt]; exact hb1 q k hq hk) b
+  refine SE.denote_congr (fun b => ?_) g.post
+  cases b with
+  | zero =>
+    exact ExactScalar.foldMax_congr (helem 0 hK) (fun i hi => helem i hi)
+  | succ b' =>
+    exact hbuf (fun b => (g.postOffs b).evalQK q 0)
+      (fun b hbt => by rw [hbt]; exact hb2 q hq) b'
+
+end MaxRed
 
 /-! ## Bounds helpers
 

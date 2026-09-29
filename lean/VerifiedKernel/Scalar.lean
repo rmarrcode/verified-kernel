@@ -279,6 +279,16 @@ theorem foldMaxFrom_le {s : α} {n : Nat} {g : Nat → α} {c : α}
 /-- `foldMax` is the seeded fold started at the first element. -/
 theorem foldMax_eq_from (n : Nat) (f : Nat → α) : foldMax n f = foldMaxFrom (f 0) n f := rfl
 
+/-- Max-folds agree when their summands do. Agreement is needed at the seed as well
+as on `[0, n)`, since the fold starts from `f 0`. -/
+theorem foldMax_congr {n : Nat} {f g : Nat → α}
+    (h0 : f 0 = g 0) (h : ∀ i, i < n → f i = g i) : foldMax n f = foldMax n g := by
+  induction n with
+  | zero => exact h0
+  | succ k ih =>
+    simp only [foldMax_succ, ih (fun i hi => h i (Nat.lt_succ_of_lt hi)),
+      h k (Nat.lt_succ_self k)]
+
 /-- Two max-folds over sets that bound each other are equal. This is how a tiled,
 duplicate-containing fold is shown equal to a contiguous one. -/
 theorem foldMax_eq {n m : Nat} {f g : Nat → α}

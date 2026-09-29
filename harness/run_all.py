@@ -73,7 +73,8 @@ def dump_plans(plans: List[Plan], path: str, acc: Dict[str, dict]) -> None:
         acc[p.key] = {"num": p.task.num, "scale": p.scale, "mode": p.mode,
                       "out_shape": list(p.out_shape),
                       "tensor_arg_index": list(p.low.tensor_arg_index),
-                      "param_paths": list(p.low.param_paths)}
+                      "param_paths": list(p.low.param_paths),
+                      "out_dtype": p.low.out_dtype}
     with open(path, "w") as f:
         json.dump(acc, f)
         f.flush()

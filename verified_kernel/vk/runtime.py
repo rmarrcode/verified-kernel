@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
-from typing import Any, List, Sequence, Tuple
+from typing import Any, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
@@ -33,7 +33,8 @@ class GeneratedModel(nn.Module):
 
     def __init__(self, key: str, out_shape: Tuple[int, ...],
                  tensor_arg_index: Sequence[int],
-                 params: Sequence[torch.Tensor] = ()):
+                 params: Sequence[torch.Tensor] = (),
+                 out_dtype: Optional[str] = None):
         super().__init__()
         self.launch = load_kernel(key)
         self.out_shape = tuple(out_shape)
@@ -42,6 +43,10 @@ class GeneratedModel(nn.Module):
         # Held by reference to the reference module's tensors so the comparison
         # tests the kernel rather than an initialisation difference.
         self.extra = [p for p in params]
+        # The kernel always writes float32. An argmax's result is an integer index,
+        # and the cast back is exact -- indices here are far below 2^24, where
+        # float32 represents every integer.
+        self.out_dtype = getattr(torch, out_dtype) if out_dtype else None
 
     def forward(self, *args: Any) -> torch.Tensor:
         ins: List[torch.Tensor] = []
@@ -52,7 +57,7 @@ class GeneratedModel(nn.Module):
         dev = ins[0].device if ins else torch.device("cuda")
         out = torch.empty(self.out_shape, device=dev, dtype=torch.float32)
         self.launch(out, ins)
-        return out
+        return out.to(self.out_dtype) if self.out_dtype is not None else out
 
 
 def _check(t: torch.Tensor, what: str) -> torch.Tensor:

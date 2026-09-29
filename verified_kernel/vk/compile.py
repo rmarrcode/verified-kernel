@@ -62,6 +62,12 @@ class Instance:
                 b = choose_block_red(st.K)
                 out.append((b, (st.K + b - 1) // b, nout))
             return out
+        if self.low.family == "pipeline_max":
+            out = []
+            for st, nout in zip(self.low.stages, (self.low.n1, self.out_size)):
+                b = choose_block_red(st.K)
+                out.append((b, (st.K + b - 1) // b, nout))
+            return out
         if self.low.family in ("genred", "maxred"):
             return [(self.block, self.nkb, self.out_size)]
         return [(self.block, 1, self.out_size)]
@@ -79,7 +85,7 @@ class Instance:
         """The decidable facts the family theorem needs. Checked here so a
         generator bug is caught before Lean is even invoked."""
         assert self.block > 0, f"{self.key}: block must be positive"
-        if self.low.family in ("pipeline", "pipeline3"):
+        if self.low.family in ("pipeline", "pipeline3", "pipeline_max"):
             for i, (st, (b, nkb, _)) in enumerate(zip(self.low.stages,
                                                       self.stage_blocks)):
                 assert b > 0 and st.K <= nkb * b, (
@@ -144,6 +150,9 @@ def emit_lean(instances: List[Instance]) -> str:
             continue
         if low.family == "maxred":
             out += _emit_maxred(inst)
+            continue
+        if low.family == "pipeline_max":
+            out += _emit_pipeline_max(inst)
             continue
         if low.family == "pipeline3":
             out += _emit_pipeline3(inst)
@@ -248,6 +257,86 @@ def _genred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
     ]
 
 
+def _maxred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
+    """The `MaxRed` value, its well-formedness, and its correctness certificate."""
+    from . import ie as I
+    return [
+        f"def {name}_g : MaxRed :=",
+        f"  {{ nout := {nout}, K := {low.K}",
+        f"  , offs := fun b => ({I.lean_list(low.offs)}).getD b (IE.lit 0)",
+        f"  , body := {low.body.to_lean()}",
+        f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
+        f"  , post := {low.post.to_lean()}",
+        f"  , nInp := {low.arity}, idxSlot := {low.idx_slot} }}",
+        f"def {name}_block : Nat := {block}",
+        f"def {name}_nkb : Nat := {nkb}",
+        "",
+        f"theorem {name}_wf : {name}_g.Wf :=",
+        f"  {{ offs_ok := IE.qkOnly_getD _ (by decide)",
+        f"  , post_ok := IE.qkOnly_getD _ (by decide) }}",
+        "",
+        f"theorem {name}_impl {{α : Type}} [ExactScalar α] :",
+        f"    Implements ({name}_g.prog {name}_block {name}_nkb) ({name}_g.spec (α := α)) :=",
+        f"  MaxRed.prog_implements {name}_g {name}_block {name}_nkb {name}_wf"
+        f" (by decide) (by decide) (by decide)",
+        "",
+        f"def {name}_kernel : ReduceKernel :=",
+        f"  {{ name := \"{name}\", arity := {low.arity}, block := {name}_block,"
+        f" nkb := {name}_nkb, nout := {nout}, init := {name}_g.seed,"
+        f" step := {name}_g.step {name}_block,"
+        f" stored := {name}_g.stored {name}_block }}",
+        "",
+    ]
+
+
+def _emit_pipeline_max(inst: "Instance") -> List[str]:
+    """Two composed max reductions -- an argmax.
+
+    Stage 1 takes the maximum of each row; stage 2 takes the *smallest index* whose
+    element equals it, which is a minimum and so is the same family with the summand
+    and result negated. The index enters the summand through `MaxRed`'s index slot.
+    """
+    k, low = inst.key, inst.low
+    s1, s2 = low.stages
+    t = low.arity
+    out: List[str] = [
+        f"-- {k}: composed max reductions, intermediate of {low.n1} at buffer {t}",
+        f"--   {'; '.join(low.notes)}",
+    ]
+    for nm, st in ((f"{k}_s1", s1), (f"{k}_s2", s2)):
+        b = choose_block_red(st.K)
+        out += _maxred_defs(nm, st, b, (st.K + b - 1) // b, low.n1 if st is s1
+                            else inst.out_size)
+    out += [
+        f"/-- Stage 2 reads the maxima only where stage 1 wrote them. -/",
+        f"theorem {k}_loc {{α : Type}} [ExactScalar α] :",
+        f"    ∀ (bufs : Nat → Buf α) (u v : Buf α),",
+        f"      (∀ i, i < ({k}_s1_g.spec (α := α)).outSize → u i = v i) →",
+        f"      ∀ q, q < ({k}_s2_g.spec (α := α)).outSize →",
+        f"        ({k}_s2_g.spec (α := α)).out (subst bufs {t} u) q",
+        f"          = ({k}_s2_g.spec (α := α)).out (subst bufs {t} v) q :=",
+        f"  MaxRed.spec_locality {k}_s2_g {t} {low.n1} (by decide) (by decide)",
+        f"    {_bound_proof(low.bounds['l2'])}",
+        f"    {_bound_proof_post(low.bounds.get('l2post', ('zero', low.n1)))}",
+        "",
+        f"/-- Correctness certificate for {k}. -/",
+        f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
+        f"    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),",
+        f"      q < ({k}_s2_g.spec (α := α)).outSize →",
+        f"      runTwo ({k}_s1_g.prog {k}_s1_block {k}_s1_nkb)",
+        f"             ({k}_s2_g.prog {k}_s2_block {k}_s2_nkb) {t} bufs m1 m2 q",
+        f"        = ({k}_s2_g.spec (α := α)).out",
+        f"            (subst bufs {t} (fun i => ({k}_s1_g.spec (α := α)).out bufs i)) q :=",
+        f"  two_stage {k}_s1_impl {k}_s2_impl {k}_loc",
+        "",
+        f"def {k}_kernel : PipelineKernel :=",
+        f"  {{ name := \"{k}\", arity := {low.arity}, n1 := {low.n1},"
+        f" stage1 := {k}_s1_kernel, stage2 := {k}_s2_kernel }}",
+        "",
+    ]
+    return out
+
+
 def _emit_maxred(inst: "Instance") -> List[str]:
     """A max (or min) reduction. No `inRange`: this family clamps its index maps so
     every lane reads a genuine element, which is how it avoids needing an identity
@@ -267,7 +356,7 @@ def _emit_maxred(inst: "Instance") -> List[str]:
         f"  , body := {low.body.to_lean()}",
         f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
         f"  , post := {low.post.to_lean()}",
-        f"  , nInp := {low.arity} }}",
+        f"  , nInp := {low.arity}, idxSlot := {low.idx_slot} }}",
         f"def {k}_block : Nat := {block}",
         f"def {k}_nkb : Nat := {nkb}",
         "",

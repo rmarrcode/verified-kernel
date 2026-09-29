@@ -51,6 +51,12 @@ structure MaxRed where
   postOffs : Nat → IE
   post : SE
   nInp : Nat
+  /-- A distinguished slot of `body` denoting the *reduction index itself*, as a
+  scalar, rather than a buffer read. An argmax needs it: its summand is
+  "this position, if it holds the maximum", and the position is `k`. Putting it in
+  the slot map keeps `SE` unchanged -- extending `SE.denote` with an index argument
+  would have rippled through every family's proofs. -/
+  idxSlot : Nat
 
 namespace MaxRed
 
@@ -58,7 +64,8 @@ variable {α : Type} [ExactScalar α]
 
 /-- The element at reduction index `k`. -/
 def elem (g : MaxRed) (bufs : Nat → Buf α) (q k : Nat) : α :=
-  g.body.denote (fun b => bufs b ((g.offs b).evalQK q k))
+  g.body.denote (fun b => if b = g.idxSlot then ExactScalar.ofNat k
+                          else bufs b ((g.offs b).evalQK q k))
 
 def spec (g : MaxRed) : Spec α :=
   { arity := g.nInp
@@ -71,12 +78,14 @@ def spec (g : MaxRed) : Spec α :=
 /-- The element this lane reads, at the clamped reduction index. -/
 def summand (g : MaxRed) (block : Nat) : FE :=
   SE.toFEWith
-    (fun b => .load b (IE.instWith (kIEclamped block g.K) (g.offs b)) .tt) g.body
+    (fun b => if b = g.idxSlot then .ofI (kIEclamped block g.K)
+              else .load b (IE.instWith (kIEclamped block g.K) (g.offs b)) .tt) g.body
 
 /-- The seed: the element at reduction index 0, a genuine element rather than a
 sentinel. -/
 def seed (g : MaxRed) : FE :=
-  SE.toFEWith (fun b => .load b (IE.instWith (.lit 0) (g.offs b)) .tt) g.body
+  SE.toFEWith (fun b => if b = g.idxSlot then .ofI (.lit 0)
+                        else .load b (IE.instWith (.lit 0) (g.offs b)) .tt) g.body
 
 def step (g : MaxRed) (block : Nat) : FE := .bin .max (.acc 0) (g.summand block)
 
@@ -98,10 +107,10 @@ structure Wf (g : MaxRed) : Prop where
 
 theorem summand_accFree (g : MaxRed) (block : Nat) :
     (g.summand block).accFree = true :=
-  SE.toFEWith_accFree (fun _ => rfl) g.body
+  SE.toFEWith_accFree (fun b => by by_cases h : b = g.idxSlot <;> simp [h, FE.accFree]) g.body
 
 theorem seed_accFree (g : MaxRed) : g.seed.accFree = true :=
-  SE.toFEWith_accFree (fun _ => rfl) g.body
+  SE.toFEWith_accFree (fun b => by by_cases h : b = g.idxSlot <;> simp [h, FE.accFree]) g.body
 
 /-- The lane reads the element at the clamped index. -/
 theorem summand_eval (g : MaxRed) (block : Nat) (hw : Wf g) (bufs : Nat → Buf α)
@@ -109,21 +118,26 @@ theorem summand_eval (g : MaxRed) (block : Nat) (hw : Wf g) (bufs : Nat → Buf 
     (g.summand block).eval ((flatEnv bufs q).pushStep kb a) 0 j
       = g.elem bufs q ((kb * block + j) - ((kb * block + j) - (g.K - 1))) := by
   refine SE.toFEWith_eval (fun b => ?_) g.body
-  have h := IE.instWith_eval
-    (env := (flatEnv bufs q).pushStep kb a) (q := q)
-    (kIEclamped block g.K) 0 j rfl (g.offs b) (hw.offs_ok b)
-  simp only [FE.eval, BE.eval, if_true, h, Env.pushStep_bufs, flatEnv_bufs]
-  rfl
+  by_cases hb : b = g.idxSlot
+  · simp only [hb, if_true, FE.eval, kIEclamped_eval, Env.pushStep_ivs0]
+  · have h := IE.instWith_eval
+      (env := (flatEnv bufs q).pushStep kb a) (q := q)
+      (kIEclamped block g.K) 0 j rfl (g.offs b) (hw.offs_ok b)
+    simp only [hb, if_false, FE.eval, BE.eval, if_true, h, Env.pushStep_bufs,
+      flatEnv_bufs]
+    rfl
 
 /-- The seed reads the element at index 0. -/
 theorem seed_eval (g : MaxRed) (hw : Wf g) (bufs : Nat → Buf α) (q : Nat)
     (i j : Nat) :
     g.seed.eval (flatEnv bufs q) i j = g.elem bufs q 0 := by
   refine SE.toFEWith_eval (fun b => ?_) g.body
-  have h := IE.instWith_eval
-    (env := flatEnv bufs q) (q := q) (.lit 0) i j rfl (g.offs b) (hw.offs_ok b)
-  simp only [FE.eval, BE.eval, if_true, h, flatEnv_bufs]
-  rfl
+  by_cases hb : b = g.idxSlot
+  · simp only [hb, if_true, FE.eval, IE.eval]
+  · have h := IE.instWith_eval
+      (env := flatEnv bufs q) (q := q) (.lit 0) i j rfl (g.offs b) (hw.offs_ok b)
+    simp only [hb, if_false, FE.eval, BE.eval, if_true, h, flatEnv_bufs]
+    rfl
 
 /-- The accumulator of lane `j`: a seeded max-fold over the loop steps.
 

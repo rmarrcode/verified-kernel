@@ -58,6 +58,10 @@ class Lowered:
     # ("pid", n) | ("rk", n) | ("zero", n) | ("div", n, span) | ("mod", c)
     # | ("pack", N, G, C, SP, CG) | ("row", outer, K, inner)
     bounds: Dict[str, Tuple] = field(default_factory=dict)
+    # `maxred` only: the SE slot denoting the reduction index rather than a buffer.
+    idx_slot: int = 0
+    # Output dtype, when it is not float32 (an argmax returns indices).
+    out_dtype: Optional[str] = None
     # `genred` family: out[q] = guard(q) * post(sum_{k<K} range(q,k) * body(ins at offs(q,k)))
     K: int = 0
     offs: List[I.IE] = field(default_factory=list)
@@ -1222,9 +1226,93 @@ def lower_maxmin(model: nn.Module, example_args: List[Any]) -> Lowered:
         family="maxred", body=body, arity=1,
         out_size=out_val.numel(), out_shape=tuple(out_val.shape),
         tensor_arg_index=[0],
-        K=K, offs=[idx], post_offs=[I.Lit(0)], post=post,
+        K=K, offs=[idx], post_offs=[I.Lit(0)], post=post, idx_slot=1,
         notes=[f"{kind} over dim {d} of {sx}: outer={outer} K={K} inner={inner}"
                + (", via -max(-x)" if kind == "min" else "")])
+
+
+def lower_argmaxmin(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower `torch.argmax(x, dim)` / `torch.argmin(x, dim)` as two max reductions.
+
+    Stage 1 takes each row's extremum. Stage 2 takes the *smallest index* whose
+    element equals it -- a minimum, hence the same family with summand and result
+    negated -- which is also how PyTorch breaks ties (first occurrence).
+
+    The index enters stage 2's summand through `MaxRed`'s index slot. Out-of-range
+    positions contribute the sentinel `K`, which is larger than any valid index, so
+    they never win the minimum; it is an ordinary value of the spec, not a bottom
+    element smuggled into the field.
+
+    The comparison `x == m` is exact: `m` is one of the `x` values, computed by the
+    same kernel and round-tripped through a float32 buffer without loss.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    with torch.no_grad():
+        y = model(*example_args)
+    kind: Optional[str] = None
+    dim: Optional[int] = None
+    for node in gm.graph.nodes:
+        if node.op in ("call_function", "call_method"):
+            tgt = node.target
+            nm = tgt if isinstance(tgt, str) else getattr(tgt, "__name__", str(tgt))
+            if nm in ("argmax", "argmin"):
+                if kind is not None:
+                    raise Unsupported("more than one argmax/argmin")
+                kind = nm
+                dim = _kw(node, "dim", 1, None)
+            else:
+                raise Unsupported(f"{tgt!r} alongside an argmax")
+        elif node.op == "call_module":
+            raise Unsupported("module call alongside an argmax")
+    if kind is None:
+        raise Unsupported("no argmax/argmin")
+    if dim is None:
+        raise Unsupported("argmax without a dim is a flat reduction")
+
+    x = example_args[0]
+    sx = tuple(x.shape)
+    d = dim if dim >= 0 else dim + len(sx)
+    outer, K, inner = _prod(sx[:d]), sx[d], _prod(sx[d + 1:])
+    if y.numel() != outer * inner:
+        raise Unsupported(f"expected {outer*inner} outputs, got {y.numel()}")
+
+    T1, IDX = 1, 2
+    nbuf = 3
+
+    def pad(entries: Dict[int, I.IE]) -> List[I.IE]:
+        return [entries.get(b, I.Lit(0)) for b in range(nbuf)]
+
+    row = ((I.Pid() // I.Lit(inner)) * I.Lit(K) + I.Rk()) * I.Lit(inner) \
+          + I.Pid() % I.Lit(inner)
+    neg = lambda e: S.lit(0) - e
+    # stage 1: the extremum of each row (a min is -max(-x))
+    # A minimum is `-max(-x)`, so `argmin` is `argmax` with the summand and the
+    # result negated; the index arithmetic is identical.
+    s1_body = S.Inp(0) if kind == "argmax" else neg(S.Inp(0))
+    s1_post = S.Inp(0) if kind == "argmax" else neg(S.Inp(0))
+    s1 = Lowered(
+        family="maxred", body=s1_body, arity=1, out_size=outer * inner,
+        out_shape=(outer * inner,), tensor_arg_index=[0], K=K,
+        offs=pad({0: row}), post_offs=pad({}), post=s1_post,
+        idx_slot=IDX,
+        notes=[f"stage 1: row {'maxima' if kind == 'argmax' else 'minima'}"])
+    # stage 2: the least index attaining it
+    xv, mv, iv = S.Inp(0), S.Inp(T1), S.Inp(IDX)
+    hit = S.SelLe(xv, mv, S.SelLe(mv, xv, iv, S.lit(K)), S.lit(K))
+    s2 = Lowered(
+        family="maxred", body=neg(hit), arity=T1 + 1, out_size=outer * inner,
+        out_shape=tuple(y.shape), tensor_arg_index=[0], K=K,
+        offs=pad({0: row, T1: I.Pid()}), post_offs=pad({}), post=neg(S.Inp(0)),
+        idx_slot=IDX,
+        notes=["stage 2: least index whose element equals the extremum"])
+    return Lowered(
+        family="pipeline_max", body=neg(hit), arity=1,
+        out_size=outer * inner, out_shape=tuple(y.shape), tensor_arg_index=[0],
+        stages=[s1, s2], n1=outer * inner, K=K,
+        bounds={"l2": ("pid", outer * inner)},
+        out_dtype="int64",
+        notes=[f"{kind} over dim {d} of {sx}: outer={outer} K={K} inner={inner}"])
 
 
 def lower_maxpool(model: nn.Module, example_args: List[Any]) -> Lowered:
@@ -1287,7 +1375,7 @@ def lower_maxpool(model: nn.Module, example_args: List[Any]) -> Lowered:
     return Lowered(
         family="maxred", body=S.Inp(0), arity=1,
         out_size=y.numel(), out_shape=tuple(y.shape), tensor_arg_index=[0],
-        K=_prod(Dk), offs=[off], post_offs=[I.Lit(0)], post=S.Inp(0),
+        K=_prod(Dk), offs=[off], post_offs=[I.Lit(0)], post=S.Inp(0), idx_slot=1,
         notes=[f"maxpool{rank}d: N={N} C={C} k={tuple(Dk)} stride={stride} "
                f"pad={pad} dil={dil}; coordinates clamped rather than masked"])
 
@@ -2072,7 +2160,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
-    lower_maxpool, lower_maxmin, lower_rownorm, lower_normalize, lower_triplet,
+    lower_maxpool, lower_maxmin, lower_argmaxmin, lower_rownorm, lower_normalize, lower_triplet,
     lower_sepconv, lower_scan,
     lower_broadcast_pointwise]
 

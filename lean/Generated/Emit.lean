@@ -1680,7 +1680,7 @@ def t041_g : MaxRed :=
   , body := (SE.inp 0)
   , postOffs := fun b => ([(IE.lit 0)]).getD b (IE.lit 0)
   , post := (SE.inp 0)
-  , nInp := 1 }
+  , nInp := 1, idxSlot := 1 }
 def t041_block : Nat := 8
 def t041_nkb : Nat := 1
 
@@ -1708,7 +1708,7 @@ def t042_g : MaxRed :=
   , body := (SE.inp 0)
   , postOffs := fun b => ([(IE.lit 0)]).getD b (IE.lit 0)
   , post := (SE.inp 0)
-  , nInp := 1 }
+  , nInp := 1, idxSlot := 1 }
 def t042_block : Nat := 16
 def t042_nkb : Nat := 1
 
@@ -1736,7 +1736,7 @@ def t043_g : MaxRed :=
   , body := (SE.inp 0)
   , postOffs := fun b => ([(IE.lit 0)]).getD b (IE.lit 0)
   , post := (SE.inp 0)
-  , nInp := 1 }
+  , nInp := 1, idxSlot := 1 }
 def t043_block : Nat := 16
 def t043_nkb : Nat := 2
 
@@ -1929,7 +1929,7 @@ def t049_g : MaxRed :=
   , body := (SE.inp 0)
   , postOffs := fun b => ([(IE.lit 0)]).getD b (IE.lit 0)
   , post := (SE.inp 0)
-  , nInp := 1 }
+  , nInp := 1, idxSlot := 1 }
 def t049_block : Nat := 1024
 def t049_nkb : Nat := 4
 
@@ -1982,6 +1982,142 @@ def t050_kernel : ReduceKernel :=
   , step := t050_g.step t050_block
   , stored := t050_g.stored t050_block }
 
+-- t051: composed max reductions, intermediate of 262080 at buffer 1
+--   argmax over dim 1 of (64, 4096, 4095): outer=64 K=4096 inner=4095
+def t051_s1_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := fun b => ([(IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))), (IE.lit 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , body := (SE.inp 0)
+  , postOffs := fun b => ([(IE.lit 0), (IE.lit 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 2 }
+def t051_s1_block : Nat := 1024
+def t051_s1_nkb : Nat := 4
+
+theorem t051_s1_wf : t051_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_getD _ (by decide)
+  , post_ok := IE.qkOnly_getD _ (by decide) }
+
+theorem t051_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t051_s1_g.prog t051_s1_block t051_s1_nkb) (t051_s1_g.spec (α := α)) :=
+  MaxRed.prog_implements t051_s1_g t051_s1_block t051_s1_nkb t051_s1_wf (by decide) (by decide) (by decide)
+
+def t051_s1_kernel : ReduceKernel :=
+  { name := "t051_s1", arity := 1, block := t051_s1_block, nkb := t051_s1_nkb, nout := 262080, init := t051_s1_g.seed, step := t051_s1_g.step t051_s1_block, stored := t051_s1_g.stored t051_s1_block }
+
+def t051_s2_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := fun b => ([(IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))), (IE.pid 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , body := (SE.bin .sub (SE.lit false 0 1) (SE.selLe (SE.inp 0) (SE.inp 1) (SE.selLe (SE.inp 1) (SE.inp 0) (SE.inp 2) (SE.lit false 4096 1)) (SE.lit false 4096 1)))
+  , postOffs := fun b => ([(IE.lit 0), (IE.lit 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , nInp := 2, idxSlot := 2 }
+def t051_s2_block : Nat := 1024
+def t051_s2_nkb : Nat := 4
+
+theorem t051_s2_wf : t051_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_getD _ (by decide)
+  , post_ok := IE.qkOnly_getD _ (by decide) }
+
+theorem t051_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t051_s2_g.prog t051_s2_block t051_s2_nkb) (t051_s2_g.spec (α := α)) :=
+  MaxRed.prog_implements t051_s2_g t051_s2_block t051_s2_nkb t051_s2_wf (by decide) (by decide) (by decide)
+
+def t051_s2_kernel : ReduceKernel :=
+  { name := "t051_s2", arity := 2, block := t051_s2_block, nkb := t051_s2_nkb, nout := 262080, init := t051_s2_g.seed, step := t051_s2_g.step t051_s2_block, stored := t051_s2_g.stored t051_s2_block }
+
+/-- Stage 2 reads the maxima only where stage 1 wrote them. -/
+theorem t051_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t051_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t051_s2_g.spec (α := α)).outSize →
+        (t051_s2_g.spec (α := α)).out (subst bufs 1 u) q
+          = (t051_s2_g.spec (α := α)).out (subst bufs 1 v) q :=
+  MaxRed.spec_locality t051_s2_g 1 262080 (by decide) (by decide)
+    (fun q _ hq _ => hq)
+    (fun _ _ => (by decide : (0 : Nat) < 262080))
+
+/-- Correctness certificate for t051. -/
+theorem t051_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t051_s2_g.spec (α := α)).outSize →
+      runTwo (t051_s1_g.prog t051_s1_block t051_s1_nkb)
+             (t051_s2_g.prog t051_s2_block t051_s2_nkb) 1 bufs m1 m2 q
+        = (t051_s2_g.spec (α := α)).out
+            (subst bufs 1 (fun i => (t051_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t051_s1_impl t051_s2_impl t051_loc
+
+def t051_kernel : PipelineKernel :=
+  { name := "t051", arity := 1, n1 := 262080, stage1 := t051_s1_kernel, stage2 := t051_s2_kernel }
+
+-- t052: composed max reductions, intermediate of 262080 at buffer 1
+--   argmin over dim 1 of (64, 4096, 4095): outer=64 K=4096 inner=4095
+def t052_s1_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := fun b => ([(IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))), (IE.lit 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , body := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , postOffs := fun b => ([(IE.lit 0), (IE.lit 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , nInp := 1, idxSlot := 2 }
+def t052_s1_block : Nat := 1024
+def t052_s1_nkb : Nat := 4
+
+theorem t052_s1_wf : t052_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_getD _ (by decide)
+  , post_ok := IE.qkOnly_getD _ (by decide) }
+
+theorem t052_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t052_s1_g.prog t052_s1_block t052_s1_nkb) (t052_s1_g.spec (α := α)) :=
+  MaxRed.prog_implements t052_s1_g t052_s1_block t052_s1_nkb t052_s1_wf (by decide) (by decide) (by decide)
+
+def t052_s1_kernel : ReduceKernel :=
+  { name := "t052_s1", arity := 1, block := t052_s1_block, nkb := t052_s1_nkb, nout := 262080, init := t052_s1_g.seed, step := t052_s1_g.step t052_s1_block, stored := t052_s1_g.stored t052_s1_block }
+
+def t052_s2_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := fun b => ([(IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))), (IE.pid 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , body := (SE.bin .sub (SE.lit false 0 1) (SE.selLe (SE.inp 0) (SE.inp 1) (SE.selLe (SE.inp 1) (SE.inp 0) (SE.inp 2) (SE.lit false 4096 1)) (SE.lit false 4096 1)))
+  , postOffs := fun b => ([(IE.lit 0), (IE.lit 0), (IE.lit 0)]).getD b (IE.lit 0)
+  , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , nInp := 2, idxSlot := 2 }
+def t052_s2_block : Nat := 1024
+def t052_s2_nkb : Nat := 4
+
+theorem t052_s2_wf : t052_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_getD _ (by decide)
+  , post_ok := IE.qkOnly_getD _ (by decide) }
+
+theorem t052_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t052_s2_g.prog t052_s2_block t052_s2_nkb) (t052_s2_g.spec (α := α)) :=
+  MaxRed.prog_implements t052_s2_g t052_s2_block t052_s2_nkb t052_s2_wf (by decide) (by decide) (by decide)
+
+def t052_s2_kernel : ReduceKernel :=
+  { name := "t052_s2", arity := 2, block := t052_s2_block, nkb := t052_s2_nkb, nout := 262080, init := t052_s2_g.seed, step := t052_s2_g.step t052_s2_block, stored := t052_s2_g.stored t052_s2_block }
+
+/-- Stage 2 reads the maxima only where stage 1 wrote them. -/
+theorem t052_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t052_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t052_s2_g.spec (α := α)).outSize →
+        (t052_s2_g.spec (α := α)).out (subst bufs 1 u) q
+          = (t052_s2_g.spec (α := α)).out (subst bufs 1 v) q :=
+  MaxRed.spec_locality t052_s2_g 1 262080 (by decide) (by decide)
+    (fun q _ hq _ => hq)
+    (fun _ _ => (by decide : (0 : Nat) < 262080))
+
+/-- Correctness certificate for t052. -/
+theorem t052_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t052_s2_g.spec (α := α)).outSize →
+      runTwo (t052_s1_g.prog t052_s1_block t052_s1_nkb)
+             (t052_s2_g.prog t052_s2_block t052_s2_nkb) 1 bufs m1 m2 q
+        = (t052_s2_g.spec (α := α)).out
+            (subst bufs 1 (fun i => (t052_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t052_s1_impl t052_s2_impl t052_loc
+
+def t052_kernel : PipelineKernel :=
+  { name := "t052", arity := 1, n1 := 262080, stage1 := t052_s1_kernel, stage2 := t052_s2_kernel }
+
 -- t053: max reduction, 1 input(s), 262080 outputs, extent 4096
 --   min over dim 1 of (64, 4096, 4095): outer=64 K=4096 inner=4095, via -max(-x)
 def t053_g : MaxRed :=
@@ -1990,7 +2126,7 @@ def t053_g : MaxRed :=
   , body := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
   , postOffs := fun b => ([(IE.lit 0)]).getD b (IE.lit 0)
   , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
-  , nInp := 1 }
+  , nInp := 1, idxSlot := 1 }
 def t053_block : Nat := 1024
 def t053_nkb : Nat := 4
 
@@ -4047,6 +4183,8 @@ def main : IO Unit := do
   IO.FS.writeFile "../generated/t048.py" t048_kernel.render
   IO.FS.writeFile "../generated/t049.py" t049_kernel.render
   IO.FS.writeFile "../generated/t050.py" t050_kernel.render
+  IO.FS.writeFile "../generated/t051.py" t051_kernel.render
+  IO.FS.writeFile "../generated/t052.py" t052_kernel.render
   IO.FS.writeFile "../generated/t053.py" t053_kernel.render
   IO.FS.writeFile "../generated/t054.py" t054_kernel.render
   IO.FS.writeFile "../generated/t055.py" t055_kernel.render
