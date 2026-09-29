@@ -168,11 +168,12 @@ structure ReduceKernel where
   step   : FE
   stored : FE
 
-def ReduceKernel.render (k : ReduceKernel) : String :=
+/-- Just the kernel and its launcher, without the module preamble, so a pipeline
+can concatenate two of them. -/
+def ReduceKernel.renderBody (k : ReduceKernel) : String :=
   let stepS := renderPFE .flat k.block (emitFE .flat 1 k.block k.step)
   let storedS := renderPFE .flat k.block (emitFE .flat 1 k.block k.stored)
   let args := inArgs k.arity
-  "import torch\nimport triton\nimport triton.language as tl\n\n\n" ++
   "@triton.jit\n" ++
   s!"def {k.name}_kernel(out_ptr, {inPtrs k.arity}):\n" ++
   -- The accumulator must start as a *tile*: a loop-carried value in Triton keeps
@@ -186,5 +187,36 @@ def ReduceKernel.render (k : ReduceKernel) : String :=
   s!"    grid = ({k.nout},)\n" ++
   s!"    {k.name}_kernel[grid](out, {args})\n" ++
   "    return out\n"
+
+def preamble : String :=
+  "import torch\nimport triton\nimport triton.language as tl\n\n\n"
+
+def ReduceKernel.render (k : ReduceKernel) : String :=
+  preamble ++ k.renderBody
+
+/-! ### Two-stage pipelines
+
+Stage 1 writes an intermediate buffer; stage 2 reads it as its *last* input, so the
+intermediate simply appends to the input list and no renumbering is needed. The
+launcher allocates it, which is the only place the runtime touches memory the
+proofs reason about -- hence `n1` comes from the certificate, not from a guess. -/
+
+structure PipelineKernel where
+  name   : String
+  /-- number of real inputs (the intermediate is buffer index `arity`) -/
+  arity  : Nat
+  /-- element count of the intermediate buffer -/
+  n1     : Nat
+  stage1 : ReduceKernel
+  stage2 : ReduceKernel
+
+def PipelineKernel.render (k : PipelineKernel) : String :=
+  preamble ++ k.stage1.renderBody ++ "\n\n" ++ k.stage2.renderBody ++ "\n\n" ++
+  s!"def {k.name}(out, ins):\n" ++
+  s!"    _tmp = torch.empty({k.n1}, device=ins[0].device, dtype=torch.float32)\n" ++
+  s!"    {k.stage1.name}(_tmp, ins)\n" ++
+  s!"    {k.stage2.name}(out, list(ins) + [_tmp])\n" ++
+  "    return out\n"
+
 
 end VerifiedKernel

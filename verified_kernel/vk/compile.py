@@ -18,7 +18,7 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .frontend import Lowered
 
@@ -47,19 +47,38 @@ class Instance:
         return (self.low.K + self.block - 1) // self.block
 
     @property
+    def stage_blocks(self) -> List[Tuple[int, int, int]]:
+        """(block, nkb, nout) per stage. A single-stage family has one entry."""
+        if self.low.family == "pipeline":
+            out = []
+            for st, nout in zip(self.low.stages, (self.low.n1, self.out_size)):
+                b = choose_block_red(st.K)
+                out.append((b, (st.K + b - 1) // b, nout))
+            return out
+        if self.low.family == "genred":
+            return [(self.block, self.nkb, self.out_size)]
+        return [(self.block, 1, self.out_size)]
+
+    @property
     def serial(self) -> bool:
         """True when this instance would run essentially without parallelism: few
         programs, each looping many times. Such a kernel is still *verified* -- the
         theorem does not care -- but evaluating it on a GPU is not worth the wall
         clock. A two-stage (tree) reduction is the proper fix and is not yet built.
         """
-        return (self.low.family == "genred"
-                and self.low.K > 0 and self.out_size < 1024 and self.nkb > 4096)
+        return any(nout < 1024 and nkb > 4096 for _, nkb, nout in self.stage_blocks)
 
     def check_side_conditions(self) -> None:
         """The decidable facts the family theorem needs. Checked here so a
         generator bug is caught before Lean is even invoked."""
         assert self.block > 0, f"{self.key}: block must be positive"
+        if self.low.family == "pipeline":
+            for i, (st, (b, nkb, _)) in enumerate(zip(self.low.stages,
+                                                      self.stage_blocks)):
+                assert b > 0 and st.K <= nkb * b, (
+                    f"{self.key}: stage {i+1} loop {nkb}x{b} does not cover "
+                    f"the reduced axis of extent {st.K}")
+            return
         if self.low.family == "pointwise":
             assert self.out_size <= self.nblocks * self.block, (
                 f"{self.key}: grid {self.nblocks}x{self.block} does not cover "
@@ -107,6 +126,9 @@ def emit_lean(instances: List[Instance]) -> str:
     ]
     for inst in instances:
         k, low = inst.key, inst.low
+        if low.family == "pipeline":
+            out += _emit_pipeline(inst)
+            continue
         if low.family == "genred":
             from . import ie as I
             out += [
@@ -174,6 +196,106 @@ def emit_lean(instances: List[Instance]) -> str:
         out += [f"  IO.FS.writeFile \"../generated/{k}.py\" {k}_kernel.render"]
     out += [""]
     return "\n".join(out)
+
+
+def _genred_defs(name: str, low, block: int, nkb: int, nout: int) -> List[str]:
+    """The `GenRed` value, its well-formedness, and its correctness certificate."""
+    from . import ie as I
+    return [
+        f"def {name}_g : GenRed :=",
+        f"  {{ nout := {nout}, K := {low.K}",
+        f"  , offs := fun b => ({I.lean_list(low.offs)}).getD b (IE.lit 0)",
+        f"  , inRange := {low.in_range.to_lean()}",
+        f"  , body := {low.body.to_lean()}",
+        f"  , postOffs := fun b => ({I.lean_list(low.post_offs)}).getD b (IE.lit 0)",
+        f"  , post := {low.post.to_lean()}",
+        f"  , outGuard := {low.out_guard.to_lean()}",
+        f"  , nInp := {low.arity} }}",
+        f"def {name}_block : Nat := {block}",
+        f"def {name}_nkb : Nat := {nkb}",
+        "",
+        f"theorem {name}_wf : {name}_g.Wf :=",
+        f"  {{ offs_ok := IE.qkOnly_getD _ (by decide)",
+        f"  , post_ok := IE.qkOnly_getD _ (by decide)",
+        f"  , range_ok := by decide",
+        f"  , guard_ok := by decide }}",
+        "",
+        f"theorem {name}_impl {{α : Type}} [ExactScalar α] :",
+        f"    Implements ({name}_g.prog {name}_block {name}_nkb) ({name}_g.spec (α := α)) :=",
+        f"  GenRed.prog_implements {name}_g {name}_block {name}_nkb {name}_wf"
+        f" (by decide) (by decide)",
+        "",
+    ]
+
+
+def _emit_pipeline(inst: "Instance") -> List[str]:
+    """A two-stage pipeline: both stages certified, plus the locality obligation
+    that licenses composing them.
+
+    The locality proof is the interesting part. `two_stage` is only sound if stage 2
+    reads the intermediate buffer inside the range stage 1 wrote, and that is
+    `bound_row`: for an input viewed as `[outer, K, inner]`, output `q` reads the
+    intermediate at `(q/(K*inner))*inner + q%inner`, which is below `outer*inner`.
+    """
+    k, low = inst.key, inst.low
+    s1, s2 = low.stages
+    t = low.arity                      # the intermediate is the last buffer
+    b1 = choose_block_red(s1.K)
+    nkb1 = (s1.K + b1 - 1) // b1
+    b2 = choose_block_red(s2.K)
+    nkb2 = (s2.K + b2 - 1) // b2
+    out: List[str] = [
+        f"-- {k}: two-stage pipeline, {low.arity} input(s), "
+        f"{low.n1}-element intermediate at buffer {t}",
+        f"--   {'; '.join(low.notes)}",
+    ]
+    out += _genred_defs(f"{k}_s1", s1, b1, nkb1, low.n1)
+    out += _genred_defs(f"{k}_s2", s2, b2, nkb2, inst.out_size)
+    out += [
+        f"/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/",
+        f"theorem {k}_loc {{α : Type}} [ExactScalar α] :",
+        f"    ∀ (bufs : Nat → Buf α) (u v : Buf α),",
+        f"      (∀ i, i < ({k}_s1_g.spec (α := α)).outSize → u i = v i) →",
+        f"      ∀ q, q < ({k}_s2_g.spec (α := α)).outSize →",
+        f"        ({k}_s2_g.spec (α := α)).out (subst bufs {t} u) q",
+        f"          = ({k}_s2_g.spec (α := α)).out (subst bufs {t} v) q :=",
+        f"  GenRed.spec_locality {k}_s2_g {t} {low.n1}",
+        # `hq : q < g.nout` is definitionally `q < <numeral>`, and the bound the
+        # lemma wants is the same numeral written as a product, so `hq` is accepted
+        # directly. `omega` cannot do this: it sees an opaque projection.
+        f"    (fun q _ hq _ => bound_row (outer := {low.outer}) (K := {s1.K})",
+        f"      (inner := {low.inner}) (by decide) hq)",
+        # A type ascription lets `decide` see a closed proposition; the lambda's
+        # body is then checked against the expected type by defeq, which reduces
+        # the index map away.
+        f"    (fun _ _ => (by decide : (0 : Nat) < {low.n1}))",
+        "",
+        f"/-- Correctness certificate for {k}: the composed pipeline. -/",
+        f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
+        f"    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),",
+        f"      q < ({k}_s2_g.spec (α := α)).outSize →",
+        f"      runTwo ({k}_s1_g.prog {k}_s1_block {k}_s1_nkb)",
+        f"             ({k}_s2_g.prog {k}_s2_block {k}_s2_nkb) {t} bufs m1 m2 q",
+        f"        = ({k}_s2_g.spec (α := α)).out",
+        f"            (subst bufs {t} (fun i => ({k}_s1_g.spec (α := α)).out bufs i)) q :=",
+        f"  two_stage {k}_s1_impl {k}_s2_impl {k}_loc",
+        "",
+        f"def {k}_s1_kernel : ReduceKernel :=",
+        f"  {{ name := \"{k}_s1\", arity := {s1.arity}, block := {k}_s1_block,"
+        f" nkb := {k}_s1_nkb, nout := {low.n1},"
+        f" step := {k}_s1_g.step {k}_s1_block,"
+        f" stored := {k}_s1_g.stored {k}_s1_block }}",
+        f"def {k}_s2_kernel : ReduceKernel :=",
+        f"  {{ name := \"{k}_s2\", arity := {s2.arity}, block := {k}_s2_block,"
+        f" nkb := {k}_s2_nkb, nout := {inst.out_size},"
+        f" step := {k}_s2_g.step {k}_s2_block,"
+        f" stored := {k}_s2_g.stored {k}_s2_block }}",
+        f"def {k}_kernel : PipelineKernel :=",
+        f"  {{ name := \"{k}\", arity := {low.arity}, n1 := {low.n1},"
+        f" stage1 := {k}_s1_kernel, stage2 := {k}_s2_kernel }}",
+        "",
+    ]
+    return out
 
 
 def _env() -> Dict[str, str]:

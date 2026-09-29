@@ -41,6 +41,11 @@ class Lowered:
     # the forward arguments. Convolution needs this: its weights are state, not
     # arguments, but to the kernel they are just more memory to read.
     param_paths: List[str] = field(default_factory=list)
+    # `pipeline` family only: the two stages, and the intermediate buffer's size
+    stages: List["Lowered"] = field(default_factory=list)
+    n1: int = 0
+    outer: int = 1
+    inner: int = 1
     # `genred` family: out[q] = guard(q) * post(sum_{k<K} range(q,k) * body(ins at offs(q,k)))
     K: int = 0
     offs: List[I.IE] = field(default_factory=list)
@@ -787,6 +792,259 @@ def lower_conv(model: nn.Module, example_args: List[Any]) -> Lowered:
                + (" +bias" if conv.bias is not None else "")])
 
 
+# ---------------------------------------------------------------------------
+# Row-normalising operators: reduce along an axis, then use the reduced value at
+# every element of that row. Two stages, one intermediate buffer.
+# ---------------------------------------------------------------------------
+
+@dataclass
+class RowRed:
+    """A recognised keepdim reduction inside a row-normalising graph.
+
+    `wrap` turns the raw sum the kernel accumulates into the value the rest of the
+    graph sees -- `sqrt` for an L2 norm, a scale for a mean. Keeping it out of
+    stage 1 means stage 1 is always a plain sum and the wrap costs nothing extra in
+    stage 2, where it is evaluated once per output element anyway.
+    """
+    body: S.SE                       # the summand, over the inputs
+    dim: Optional[int]               # None = over every element
+    wrap: Any                        # SE -> SE
+
+
+def _rownorm_reducers() -> Dict[Any, Callable]:
+    T: Dict[Any, Callable] = {}
+
+    def keepdim_ok(n: fx.Node) -> bool:
+        return bool(_kw(n, "keepdim", 2, False))
+
+    def _sum(a, n):
+        d = _kw(n, "dim", 1, None)
+        if d is not None and not keepdim_ok(n):
+            raise Unsupported("reduction without keepdim is not a row normalisation")
+        return RowRed(S.lift(a[0]), d, lambda r: r)
+    T[torch.sum] = _sum
+
+    def _mean(a, n):
+        d = _kw(n, "dim", 1, None)
+        if d is not None and not keepdim_ok(n):
+            raise Unsupported("reduction without keepdim is not a row normalisation")
+        return RowRed(S.lift(a[0]), d, "mean")
+    T[torch.mean] = _mean
+
+    def _norm(a, n):
+        pv = _kw(n, "p", 1, "fro")
+        d = _kw(n, "dim", 2, None)
+        if pv not in (2, 2.0, "fro", None):
+            raise Unsupported(f"norm p={pv!r}")
+        if d is not None and not _kw(n, "keepdim", 3, False):
+            raise Unsupported("norm without keepdim")
+        x = S.lift(a[0])
+        return RowRed(x * x, d, S.sqrt)
+    T[torch.norm] = _norm
+    T[torch.linalg.norm] = _norm
+
+    return T
+
+
+ROWNORM_REDUCERS = _rownorm_reducers()
+
+# Fused operators that are themselves row normalisations.
+SOFTMAXES = {
+    torch.softmax: "softmax", F.softmax: "softmax", torch.nn.Softmax: "softmax",
+    torch.log_softmax: "log_softmax", F.log_softmax: "log_softmax",
+}
+
+
+def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower `reduce along one axis, then combine with the original` as two stages.
+
+    Softmax, log-softmax, RMS norm, Frobenius norm, L1 and L2 normalisation are all
+    this shape. Stage 1 accumulates the row sums into an intermediate buffer of
+    `outer*inner` elements; stage 2 reads the original inputs at `q` and the
+    intermediate at `q`'s row, and is a `K = 1` instance of the same reducing
+    family. The composition is justified by `two_stage`, whose locality obligation
+    becomes `bound_row`.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    with torch.no_grad():
+        out_val = model(*example_args)
+    if not isinstance(out_val, torch.Tensor):
+        raise Unsupported("output is not a Tensor")
+
+    in_shape: Optional[Tuple[int, ...]] = None
+    tensor_idx: List[int] = []
+    env: Dict[fx.Node, Any] = {}
+    stage: Dict[fx.Node, str] = {}
+    red: Optional[RowRed] = None
+    softmax_kind: Optional[str] = None
+    ph = 0
+    ARITY_SLOT = None            # filled once arity is known
+
+    nodes = list(gm.graph.nodes)
+    n_tensors = sum(1 for v in example_args if isinstance(v, torch.Tensor))
+    red_slot = S.Inp(n_tensors)  # the intermediate is the last input buffer
+
+    for node in nodes:
+        if node.op == "placeholder":
+            v = example_args[ph]
+            if isinstance(v, torch.Tensor):
+                sv = tuple(v.shape)
+                if in_shape is None:
+                    in_shape = sv
+                elif sv != in_shape:
+                    raise Unsupported(f"inputs differ in shape: {in_shape} vs {sv}")
+                env[node] = S.Inp(len(tensor_idx))
+                stage[node] = "pre"
+                tensor_idx.append(ph)
+            elif isinstance(v, (int, float)):
+                env[node] = S.lit(v)
+                stage[node] = "pre"
+            else:
+                raise Unsupported(f"placeholder {ph} is {type(v).__name__}")
+            ph += 1
+
+        elif node.op in ("call_function", "call_method", "call_module"):
+            if node.op == "call_module":
+                sub = gm.get_submodule(node.target)
+                key: Any = type(sub)
+                if key in POINTWISE_MODULES:
+                    a = [env[x] if isinstance(x, fx.Node) else x for x in node.args]
+                    env[node] = POINTWISE_MODULES[key](sub, a)
+                    stage[node] = "pre"
+                    continue
+                if key in SOFTMAXES:
+                    node_dim = getattr(sub, "dim", None)
+                    if red is not None:
+                        raise Unsupported("more than one reduction")
+                    softmax_kind = SOFTMAXES[key]
+                    x = env[node.args[0]]
+                    red = RowRed(S.exp(x), node_dim, lambda r: r)
+                    env[node] = (S.exp(x) * S.Recip(red_slot) if softmax_kind == "softmax"
+                                 else x - S.log(red_slot))
+                    stage[node] = "post"
+                    continue
+                raise Unsupported(f"module {key.__name__} in a row normalisation")
+
+            tgt = node.target
+            a = [env[x] if isinstance(x, fx.Node) else x for x in node.args]
+            stages = [stage[x] for x in node.args if isinstance(x, fx.Node)]
+            if tgt in SOFTMAXES:
+                if red is not None:
+                    raise Unsupported("more than one reduction")
+                softmax_kind = SOFTMAXES[tgt]
+                d = _kw(node, "dim", 1, None)
+                if d is None:
+                    raise Unsupported("softmax needs an explicit dim")
+                x = a[0]
+                red = RowRed(S.exp(x), d, lambda r: r)
+                env[node] = (S.exp(x) * S.Recip(red_slot) if softmax_kind == "softmax"
+                             else x - S.log(red_slot))
+                stage[node] = "post"
+            elif tgt in ROWNORM_REDUCERS:
+                if red is not None:
+                    raise Unsupported("more than one reduction")
+                if any(st == "post" for st in stages):
+                    raise Unsupported("reduction of an already-reduced value")
+                red = ROWNORM_REDUCERS[tgt](a, node)
+                env[node] = red_slot     # patched below once K is known
+                stage[node] = "post"
+            elif tgt in POINTWISE_FUNCS:
+                env[node] = POINTWISE_FUNCS[tgt](a, node)
+                stage[node] = "post" if any(st == "post" for st in stages) else "pre"
+            else:
+                raise Unsupported(f"{tgt!r} in a row normalisation")
+
+        elif node.op == "get_attr":
+            raise Unsupported("module has parameters")
+
+        elif node.op == "output":
+            res = node.args[0]
+            if not isinstance(res, fx.Node):
+                raise Unsupported("output is not a single value")
+            if red is None:
+                raise Unsupported("no reduction in the graph")
+            if stage[res] != "post":
+                raise Unsupported("output does not use the reduced value")
+            if in_shape is None:
+                raise Unsupported("no tensor inputs")
+            if tuple(out_val.shape) != in_shape:
+                raise Unsupported(
+                    f"output {tuple(out_val.shape)} differs from input {in_shape}")
+
+            d = red.dim
+            if d is None:
+                outer, inner = 1, 1
+                K = _prod(in_shape)
+            else:
+                if d < 0:
+                    d += len(in_shape)
+                outer = _prod(in_shape[:d])
+                K = in_shape[d]
+                inner = _prod(in_shape[d + 1:])
+            n1 = outer * inner
+            arity = len(tensor_idx)
+
+            # stage 1: the row sums
+            s1_idx = ((I.Pid() // I.Lit(inner)) * I.Lit(K) + I.Rk()) * I.Lit(inner) \
+                     + I.Pid() % I.Lit(inner)
+            stage1 = Lowered(
+                family="genred", body=red.body, arity=arity,
+                out_size=n1, out_shape=(n1,), tensor_arg_index=tensor_idx,
+                K=K, offs=[s1_idx] * arity, post_offs=[I.Lit(0)] * arity,
+                post=S.Inp(0),
+                notes=[f"stage 1: row sums, outer={outer} K={K} inner={inner}"])
+
+            # stage 2: originals at q, the reduced value at q's row
+            row = (I.Pid() // (I.Lit(K) * I.Lit(inner))) * I.Lit(inner) \
+                  + I.Pid() % I.Lit(inner)
+            body2 = env[res]
+            if red.wrap == "mean":
+                body2 = _subst_slot(body2, arity, lambda r: r * S.lit(Fraction(1, K)))
+            elif callable(red.wrap) and softmax_kind is None:
+                body2 = _subst_slot(body2, arity, red.wrap)
+            stage2 = Lowered(
+                family="genred", body=body2, arity=arity + 1,
+                out_size=out_val.numel(), out_shape=tuple(out_val.shape),
+                tensor_arg_index=tensor_idx,
+                K=1, offs=[I.Pid()] * arity + [row],
+                post_offs=[I.Lit(0)] * (arity + 1), post=S.Inp(0),
+                notes=[f"stage 2: normalise, row index into a {n1}-element buffer"])
+
+            return Lowered(
+                family="pipeline", body=body2, arity=arity,
+                out_size=out_val.numel(), out_shape=tuple(out_val.shape),
+                tensor_arg_index=tensor_idx, stages=[stage1, stage2], n1=n1,
+                K=K, offs=[], post_offs=[],
+                outer=outer, inner=inner,
+                notes=[f"row normalisation over dim {red.dim} of {in_shape}: "
+                       f"outer={outer} K={K} inner={inner}, intermediate {n1}"])
+        else:
+            raise Unsupported(f"unhandled fx op {node.op}")
+    raise Unsupported("graph has no output node")
+
+
+def _subst_slot(e: S.SE, slot: int, f: Callable[[S.SE], S.SE]) -> S.SE:
+    """Replace every `Inp(slot)` by `f(Inp(slot))`.
+
+    Used to push a reduction's `wrap` (a `sqrt`, or a mean's scale) into stage 2, so
+    stage 1 stays a plain sum.
+    """
+    if isinstance(e, S.Inp):
+        return f(e) if e.b == slot else e
+    if isinstance(e, S.Lit):
+        return e
+    if isinstance(e, S.Bin):
+        return S.Bin(e.op, _subst_slot(e.a, slot, f), _subst_slot(e.b, slot, f))
+    if isinstance(e, S.Un):
+        return S.Un(e.f, _subst_slot(e.a, slot, f))
+    if isinstance(e, S.Recip):
+        return S.Recip(_subst_slot(e.a, slot, f))
+    if isinstance(e, S.SelLe):
+        return S.SelLe(*(_subst_slot(x, slot, f) for x in (e.a, e.b, e.t, e.e)))
+    raise Unsupported(f"cannot substitute in {type(e).__name__}")
+
+
 AVGPOOL = (nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d)
 
 
@@ -876,18 +1134,22 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
     tensor_idx: List[int] = []
     in_shapes: List[Tuple[int, ...]] = []
     env: Dict[fx.Node, Any] = {}
+    # Which buffer a value came from, and the *logical* shape it has at the point
+    # it enters the expression. A reshape changes the latter without moving any
+    # data, and it is the logical shape that decides how the input aligns under
+    # broadcasting -- ignoring an `unsqueeze` silently transposes the result.
+    node_buf: Dict[fx.Node, int] = {}
+    logical: Dict[fx.Node, Tuple[int, ...]] = {}
     ph = 0
     for node in gm.graph.nodes:
         if node.op == "placeholder":
             v = example_args[ph]
             if isinstance(v, torch.Tensor):
                 sv = tuple(v.shape)
-                if len(sv) > len(so):
-                    raise Unsupported(f"input rank {len(sv)} exceeds output rank {len(so)}")
-                for a, b in zip(reversed(sv), reversed(so)):
-                    if a not in (1, b):
-                        raise Unsupported(f"{sv} does not broadcast to {so}")
-                env[node] = S.Inp(len(tensor_idx))
+                b = len(tensor_idx)
+                env[node] = S.Inp(b)
+                node_buf[node] = b
+                logical[node] = sv
                 tensor_idx.append(ph)
                 in_shapes.append(sv)
             elif isinstance(v, (int, float)):
@@ -899,9 +1161,51 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
             if node.target in POINTWISE_FUNCS:
                 a = [env[x] if isinstance(x, fx.Node) else x for x in node.args]
                 env[node] = POINTWISE_FUNCS[node.target](a, node)
-            elif node.target in ("unsqueeze", "reshape", "view", "expand", "squeeze"):
-                # pure reshapes: the index map absorbs them
-                env[node] = env[node.args[0]]
+            elif node.target in ("unsqueeze", "reshape", "view", "squeeze",
+                                 torch.unsqueeze, torch.reshape, torch.squeeze):
+                # A reshape of a contiguous tensor preserves row-major order, so the
+                # physical offset is still the flat index -- but over the *new*
+                # shape. Record that; the index map is built from it.
+                base = node.args[0]
+                if base not in logical:
+                    raise Unsupported("reshape of a non-input value")
+                base_shape = logical[base]
+                tgt = node.target
+                nm = tgt if isinstance(tgt, str) else tgt.__name__
+                if nm == "unsqueeze":
+                    d = node.args[1] if len(node.args) > 1 else node.kwargs.get("dim")
+                    if not isinstance(d, int):
+                        raise Unsupported("unsqueeze without a literal dim")
+                    if d < 0:
+                        d += len(base_shape) + 1
+                    new = base_shape[:d] + (1,) + base_shape[d:]
+                elif nm == "squeeze":
+                    if len(node.args) > 1 or "dim" in node.kwargs:
+                        d = node.args[1] if len(node.args) > 1 else node.kwargs["dim"]
+                        if d < 0:
+                            d += len(base_shape)
+                        if base_shape[d] != 1:
+                            raise Unsupported(f"squeeze of axis {d} with extent "
+                                              f"{base_shape[d]}")
+                        new = base_shape[:d] + base_shape[d + 1:]
+                    else:
+                        new = tuple(x for x in base_shape if x != 1)
+                else:                                   # reshape / view
+                    dims = node.args[1:]
+                    if len(dims) == 1 and isinstance(dims[0], (list, tuple)):
+                        dims = tuple(dims[0])
+                    if not all(isinstance(x, int) and x >= 0 for x in dims):
+                        raise Unsupported(f"{nm} with non-literal shape {dims}")
+                    new = tuple(dims)
+                    if _prod(new) != _prod(base_shape):
+                        raise Unsupported(f"{nm} changes element count")
+                env[node] = env[base]
+                node_buf[node] = node_buf[base]
+                logical[node] = new
+                bi = node_buf[base]
+                if in_shapes[bi] not in (base_shape, new) and in_shapes[bi] != new:
+                    raise Unsupported(f"buffer {bi} is used at two logical shapes")
+                in_shapes[bi] = new
             else:
                 raise Unsupported(f"{node.target!r} is not pointwise")
         elif node.op == "call_module":
@@ -916,6 +1220,12 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
             res = node.args[0]
             if not isinstance(res, fx.Node):
                 raise Unsupported("output is not a single value")
+            for sv in in_shapes:
+                if len(sv) > len(so):
+                    raise Unsupported(f"input rank {len(sv)} exceeds output rank {len(so)}")
+                for a, b2 in zip(reversed(sv), reversed(so)):
+                    if a not in (1, b2):
+                        raise Unsupported(f"{sv} does not broadcast to {so}")
             coords = unpack(I.Pid(), list(so))
             offs: List[I.IE] = []
             for sv in in_shapes:
@@ -934,7 +1244,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
-    lower_broadcast_pointwise]
+    lower_rownorm, lower_broadcast_pointwise]
 
 
 def lower(model: nn.Module, example_args: List[Any]) -> Tuple[Optional[Lowered], List[str]]:

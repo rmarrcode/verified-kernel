@@ -61,13 +61,23 @@ def build(plans: List[Plan], verbose: bool = True) -> Tuple[set, Dict[str, C.Ins
     return set(report["emitted"]), {i.key: i for i in instances}
 
 
-def dump_plans(plans: List[Plan], path: str) -> None:
-    out = {p.key: {"num": p.task.num, "scale": p.scale, "mode": p.mode,
-                   "out_shape": list(p.out_shape),
-                   "tensor_arg_index": list(p.low.tensor_arg_index),
-                   "param_paths": list(p.low.param_paths)}
-           for p in plans}
-    json.dump(out, open(path, "w"))
+def dump_plans(plans: List[Plan], path: str, acc: Dict[str, dict]) -> None:
+    """Record each plan so the evaluation subprocess measures the kernel whose
+    certificate was checked.
+
+    Accumulates across retry rounds and writes through a context manager: a later
+    round must not be able to drop an earlier round's entry, and the file must be
+    flushed before any subprocess reads it.
+    """
+    for p in plans:
+        acc[p.key] = {"num": p.task.num, "scale": p.scale, "mode": p.mode,
+                      "out_shape": list(p.out_shape),
+                      "tensor_arg_index": list(p.low.tensor_arg_index),
+                      "param_paths": list(p.low.param_paths)}
+    with open(path, "w") as f:
+        json.dump(acc, f)
+        f.flush()
+        os.fsync(f.fileno())
 
 
 def main() -> None:
@@ -94,6 +104,7 @@ def main() -> None:
     certified: set = set()
     pending = list(tasks)
     plan_path = os.path.join(HERE, "_plans.json")
+    plan_acc: Dict[str, dict] = {}
 
     for rnd in range(max(1, args.rounds)):
         if not pending:
@@ -124,7 +135,7 @@ def main() -> None:
         certified |= emitted
         if rnd == 0:
             print(f"[proof] {len(certified)} certificates checked by Lean\n", flush=True)
-        dump_plans(plans, plan_path)
+        dump_plans(plans, plan_path, plan_acc)
 
         retry = []
         for p in plans:
