@@ -49,6 +49,13 @@ class Instance:
     @property
     def stage_blocks(self) -> List[Tuple[int, int, int]]:
         """(block, nkb, nout) per stage. A single-stage family has one entry."""
+        if self.low.family == "pipeline3":
+            out = []
+            for st, nout in zip(self.low.stages,
+                                (self.low.n1, self.low.n2, self.out_size)):
+                b = choose_block_red(st.K)
+                out.append((b, (st.K + b - 1) // b, nout))
+            return out
         if self.low.family == "pipeline":
             out = []
             for st, nout in zip(self.low.stages, (self.low.n1, self.out_size)):
@@ -72,7 +79,7 @@ class Instance:
         """The decidable facts the family theorem needs. Checked here so a
         generator bug is caught before Lean is even invoked."""
         assert self.block > 0, f"{self.key}: block must be positive"
-        if self.low.family == "pipeline":
+        if self.low.family in ("pipeline", "pipeline3"):
             for i, (st, (b, nkb, _)) in enumerate(zip(self.low.stages,
                                                       self.stage_blocks)):
                 assert b > 0 and st.K <= nkb * b, (
@@ -137,6 +144,9 @@ def emit_lean(instances: List[Instance]) -> str:
             continue
         if low.family == "maxred":
             out += _emit_maxred(inst)
+            continue
+        if low.family == "pipeline3":
+            out += _emit_pipeline3(inst)
             continue
         if low.family == "genred":
             from . import ie as I
@@ -346,6 +356,107 @@ def _emit_pipeline(inst: "Instance") -> List[str]:
         f"def {k}_kernel : PipelineKernel :=",
         f"  {{ name := \"{k}\", arity := {low.arity}, n1 := {low.n1},"
         f" stage1 := {k}_s1_kernel, stage2 := {k}_s2_kernel }}",
+        "",
+    ]
+    return out
+
+
+def _stat_bound_proof(sb: Tuple, n1: int) -> str:
+    """The proof term bounding a final stage's statistic index.
+
+    Which lemma applies is a fact about the *shape*, so the generator records it
+    during lowering rather than trying to rediscover it here.
+
+    Every implicit argument is supplied explicitly. Left to inference they become
+    metavariables that Lean must solve against a *numeral* -- `67108864 =?= ?a * ?d`
+    has no unique solution, so inference either fails outright or drives the kernel
+    into a deep unfolding. `hq : q < nout` is then accepted directly, since `nout`
+    is definitionally that numeral.
+    """
+    kind = sb[0]
+    if kind == "div":
+        _, n, span = sb
+        return f"(fun q _ hq _ => bound_div (a := {n}) (d := {span}) hq)"
+    if kind == "mod":
+        c = sb[1]
+        return (f"(fun q _ _ _ => bound_mod (c := {c}) "
+                f"(by decide : (0 : Nat) < {c}))")
+    if kind == "pack":
+        _, N, G, C, SP, CG = sb
+        return (f"(fun q _ hq _ => bound_pack (A := {N}) (B := {G})"
+                f" (bound_div (a := {N}) (d := {C * SP}) hq)"
+                f" (bound_group (C := {C}) (CG := {CG}) (G := {G}) (x := q / {SP})"
+                f" (by decide) (by decide) (by decide)))")
+    raise AssertionError(f"unknown statistic bound {sb!r}")
+
+
+def _emit_pipeline3(inst: "Instance") -> List[str]:
+    """A three-stage normalisation: sums, then squared deviations, then the affine
+    correction.
+
+    Beyond the three stage certificates, `three_stage` needs three locality facts:
+    stage 2 must not depend on the first intermediate past its end, and stage 3 on
+    neither intermediate past its end. Those are what `GenRed.loc` discharges, from
+    the shape bounds recorded during lowering.
+    """
+    k, low = inst.key, inst.low
+    s1, s2, s3 = low.stages
+    t1 = low.arity
+    t2 = low.arity + 1
+    out: List[str] = [
+        f"-- {k}: three-stage normalisation, {low.arity} input buffer(s),"
+        f" intermediates {low.n1} and {low.n2} at buffers {t1} and {t2}",
+        f"--   {'; '.join(low.notes)}",
+    ]
+    for nm, st, nout in ((f"{k}_s1", s1, low.n1), (f"{k}_s2", s2, low.n2),
+                         (f"{k}_s3", s3, inst.out_size)):
+        b = choose_block_red(st.K)
+        out += _genred_defs(nm, st, b, (st.K + b - 1) // b, nout)
+    bnd = _stat_bound_proof(low.stat_bound, low.n1)
+    zero_n1 = f"(fun _ _ => (by decide : (0 : Nat) < {low.n1}))"
+    out += [
+        f"/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/",
+        f"theorem {k}_l2 {{α : Type}} [ExactScalar α] :",
+        f"    Loc ({k}_s2_g.spec (α := α)) {t1} {low.n1} :=",
+        f"  GenRed.loc {k}_s2_g {t1} {low.n1} (fun q _ hq _ => hq) {zero_n1}",
+        "",
+        f"/-- Stage 3 reads each intermediate only where its stage wrote it. -/",
+        f"theorem {k}_l3a {{α : Type}} [ExactScalar α] :",
+        f"    Loc ({k}_s3_g.spec (α := α)) {t1} {low.n1} :=",
+        f"  GenRed.loc {k}_s3_g {t1} {low.n1} {bnd} {zero_n1}",
+        "",
+        f"theorem {k}_l3b {{α : Type}} [ExactScalar α] :",
+        f"    Loc ({k}_s3_g.spec (α := α)) {t2} {low.n2} :=",
+        f"  GenRed.loc {k}_s3_g {t2} {low.n2} {bnd} {zero_n1}",
+        "",
+        f"/-- Correctness certificate for {k}: the composed three-stage pipeline. -/",
+        f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
+        f"    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),",
+        f"      q < ({k}_s3_g.spec (α := α)).outSize →",
+        f"      runThree ({k}_s1_g.prog {k}_s1_block {k}_s1_nkb)",
+        f"               ({k}_s2_g.prog {k}_s2_block {k}_s2_nkb)",
+        f"               ({k}_s3_g.prog {k}_s3_block {k}_s3_nkb) {t1} {t2}"
+        f" bufs m1 m2 m3 q",
+        f"        = compose3 ({k}_s1_g.spec (α := α)) ({k}_s2_g.spec (α := α))",
+        f"            ({k}_s3_g.spec (α := α)) {t1} {t2} bufs q :=",
+        f"  three_stage (by decide) {k}_s1_impl {k}_s2_impl {k}_s3_impl"
+        f" {k}_l2 {k}_l3a {k}_l3b",
+        "",
+    ]
+    for nm, st, nout in ((f"{k}_s1", s1, low.n1), (f"{k}_s2", s2, low.n2),
+                         (f"{k}_s3", s3, inst.out_size)):
+        out += [
+            f"def {nm}_kernel : ReduceKernel :=",
+            f"  {{ name := \"{nm}\", arity := {st.arity}, block := {nm}_block,"
+            f" nkb := {nm}_nkb, nout := {nout}, init := FE.zeroC,"
+            f" step := {nm}_g.step {nm}_block,"
+            f" stored := {nm}_g.stored {nm}_block }}",
+        ]
+    out += [
+        f"def {k}_kernel : PipelineKernel3 :=",
+        f"  {{ name := \"{k}\", arity := {low.arity}, n1 := {low.n1}, n2 := {low.n2},"
+        f" stage1 := {k}_s1_kernel, stage2 := {k}_s2_kernel,"
+        f" stage3 := {k}_s3_kernel }}",
         "",
     ]
     return out

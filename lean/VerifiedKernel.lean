@@ -10,4 +10,6 @@ import VerifiedKernel.Kernels.Reduce
 import VerifiedKernel.Kernels.GenRed
 import VerifiedKernel.Kernels.MaxRed
 import VerifiedKernel.Pipeline
+import VerifiedKernel.Pipeline3
 import VerifiedKernel.Render
+import VerifiedKernel.Render3

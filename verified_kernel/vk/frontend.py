@@ -44,8 +44,12 @@ class Lowered:
     # `pipeline` family only: the two stages, and the intermediate buffer's size
     stages: List["Lowered"] = field(default_factory=list)
     n1: int = 0
+    n2: int = 0
     outer: int = 1
     inner: int = 1
+    # How the final stage's statistic index is bounded, so the generated certificate
+    # can cite the right lemma: ("div", n1, span) | ("mod", c) | ("pack", ...)
+    stat_bound: Tuple = ()
     # `genred` family: out[q] = guard(q) * post(sum_{k<K} range(q,k) * body(ins at offs(q,k)))
     K: int = 0
     offs: List[I.IE] = field(default_factory=list)
@@ -1215,6 +1219,180 @@ def lower_maxpool(model: nn.Module, example_args: List[Any]) -> Lowered:
                f"pad={pad} dil={dil}; coordinates clamped rather than masked"])
 
 
+# ---------------------------------------------------------------------------
+# Normalisation with a mean *and* a variance: three stages
+# ---------------------------------------------------------------------------
+
+BATCHNORMS = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
+INSTNORMS = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
+NORM_MODULES = BATCHNORMS + INSTNORMS + (nn.GroupNorm, nn.LayerNorm)
+
+
+@dataclass
+class NormPlan:
+    """Which axes are reduced, and how the statistics are indexed.
+
+    Every one of these normalisations is `reduce over some axes, then affine-correct
+    each element by the statistics of its group`. They differ only in which axes are
+    reduced and how an output element finds its statistic -- so one lowering handles
+    all of them, given these four pieces.
+    """
+    n1: int                             # number of (mean, var) pairs
+    K: int                              # elements reduced per statistic
+    stat_of_q: I.IE                     # output index -> statistic index
+    red_index: Callable[[I.IE], I.IE]   # (reduction index) -> input index, at pid=stat
+    affine_of_q: Optional[I.IE]         # output index -> weight/bias index
+    stat_bound: Tuple                   # which bound lemma proves stat_of_q < n1
+
+
+def _norm_plan(mod: nn.Module, sx: Tuple[int, ...]) -> NormPlan:
+    q = I.Pid()
+    if isinstance(mod, BATCHNORMS + INSTNORMS):
+        if len(sx) < 3:
+            raise Unsupported(f"{type(mod).__name__} on a {len(sx)}-D input")
+        N, C = sx[0], sx[1]
+        SP = _prod(sx[2:])
+        chan = (q // I.Lit(SP)) % I.Lit(C)
+        if isinstance(mod, BATCHNORMS):
+            if not mod.training:
+                raise Unsupported("BatchNorm in eval mode uses running statistics")
+            # statistics per channel, reduced over batch and space
+            return NormPlan(
+                n1=C, K=N * SP, stat_of_q=chan,
+                red_index=lambda k: ((k // I.Lit(SP)) * I.Lit(C) + I.Pid())
+                                    * I.Lit(SP) + k % I.Lit(SP),
+                affine_of_q=chan if mod.affine else None,
+                stat_bound=("mod", C))
+        # instance norm: statistics per (batch, channel), reduced over space
+        return NormPlan(
+            n1=N * C, K=SP, stat_of_q=q // I.Lit(SP),
+            red_index=lambda k: I.Pid() * I.Lit(SP) + k,
+            affine_of_q=chan if mod.affine else None,
+            stat_bound=("div", N * C, SP))
+
+    if isinstance(mod, nn.GroupNorm):
+        if len(sx) < 2:
+            raise Unsupported("GroupNorm on a 1-D input")
+        N, C = sx[0], sx[1]
+        SP = _prod(sx[2:])
+        G = mod.num_groups
+        if C % G:
+            raise Unsupported(f"{G} groups does not divide {C} channels")
+        CG = C // G
+        chan = (q // I.Lit(SP)) % I.Lit(C)
+        return NormPlan(
+            n1=N * G, K=CG * SP,
+            stat_of_q=(q // I.Lit(C * SP)) * I.Lit(G) + chan // I.Lit(CG),
+            red_index=lambda k: (((I.Pid() // I.Lit(G)) * I.Lit(C)
+                                  + (I.Pid() % I.Lit(G)) * I.Lit(CG) + k // I.Lit(SP))
+                                 * I.Lit(SP) + k % I.Lit(SP)),
+            affine_of_q=chan if mod.affine else None,
+            stat_bound=("pack", N, G, C, SP, CG))
+
+    # LayerNorm: statistics per leading position, reduced over the normalised shape
+    ns = tuple(mod.normalized_shape)
+    m = len(ns)
+    if sx[len(sx) - m:] != ns:
+        raise Unsupported(f"normalized_shape {ns} does not match input {sx}")
+    NS = _prod(ns)
+    outer = _prod(sx[:len(sx) - m])
+    return NormPlan(
+        n1=outer, K=NS, stat_of_q=q // I.Lit(NS),
+        red_index=lambda k: I.Pid() * I.Lit(NS) + k,
+        affine_of_q=(q % I.Lit(NS)) if mod.elementwise_affine else None,
+        stat_bound=("div", outer, NS))
+
+
+def lower_normalize(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower a normalisation needing both a mean and a variance, as three stages.
+
+    `sum x` -> `sum (x - mean)^2` -> affine-correct. Two stages do not suffice:
+    `two_stage` carries one intermediate buffer and the final stage needs both
+    statistics live at once.
+
+    The variance is the *biased* one (divided by `K`), which is what every one of
+    these PyTorch modules uses for normalisation.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    norm = None
+    for node in gm.graph.nodes:
+        if node.op == "call_module":
+            sub = gm.get_submodule(node.target)
+            if isinstance(sub, NORM_MODULES):
+                if norm is not None:
+                    raise Unsupported("more than one normalisation")
+                norm, norm_target = sub, node.target
+            else:
+                raise Unsupported(f"module {type(sub).__name__} alongside a normalisation")
+        elif node.op in ("call_function", "call_method"):
+            raise Unsupported(f"{node.target!r} alongside a normalisation")
+    if norm is None:
+        raise Unsupported("no normalisation module")
+
+    x = example_args[0]
+    if not isinstance(x, torch.Tensor):
+        raise Unsupported("input is not a tensor")
+    with torch.no_grad():
+        y = model(*example_args)
+    sx = tuple(x.shape)
+    plan = _norm_plan(norm, sx)
+    eps = float(getattr(norm, "eps", 1e-5))
+
+    params: List[str] = []
+    if plan.affine_of_q is not None:
+        params = ["weight", "bias"]
+    nparams = len(params)
+    T1, T2 = 1 + nparams, 2 + nparams        # the two intermediate buffers
+    nbuf = T2 + 1
+    invK = S.lit(Fraction(1, plan.K))
+
+    def pad(entries: Dict[int, I.IE]) -> List[I.IE]:
+        return [entries.get(b, I.Lit(0)) for b in range(nbuf)]
+
+    rk = I.Rk()
+    # stage 1: the sums
+    s1 = Lowered(
+        family="genred", body=S.Inp(0), arity=1, out_size=plan.n1,
+        out_shape=(plan.n1,), tensor_arg_index=[0],
+        K=plan.K, offs=pad({0: plan.red_index(rk)}), post_offs=pad({}), post=S.Inp(0),
+        notes=[f"stage 1: sums, {plan.n1} statistics over {plan.K} elements each"])
+    # stage 2: the sums of squared deviations
+    dev = S.Inp(0) - S.Inp(T1) * invK
+    s2 = Lowered(
+        family="genred", body=dev * dev, arity=T1 + 1, out_size=plan.n1,
+        out_shape=(plan.n1,), tensor_arg_index=[0],
+        K=plan.K,
+        offs=pad({0: plan.red_index(rk), T1: I.Pid()}), post_offs=pad({}), post=S.Inp(0),
+        notes=["stage 2: sums of squared deviations"])
+    # stage 3: normalise, then the affine correction
+    mean = S.Inp(T1) * invK
+    var = S.Inp(T2) * invK
+    body3: S.SE = (S.Inp(0) - mean) * S.Recip(S.sqrt(var + S.lit(eps)))
+    if plan.affine_of_q is not None:
+        body3 = body3 * S.Inp(1) + S.Inp(2)
+    s3 = Lowered(
+        family="genred", body=body3, arity=nbuf, out_size=y.numel(),
+        out_shape=tuple(y.shape), tensor_arg_index=[0],
+        K=1,
+        offs=pad({0: I.Pid(), T1: plan.stat_of_q, T2: plan.stat_of_q,
+                  **({1: plan.affine_of_q, 2: plan.affine_of_q}
+                     if plan.affine_of_q is not None else {})}),
+        post_offs=pad({}), post=S.Inp(0),
+        notes=[f"stage 3: (x - mean)/sqrt(var + {eps})"
+               + (" * weight + bias" if plan.affine_of_q is not None else "")])
+
+    return Lowered(
+        family="pipeline3", body=body3, arity=1 + nparams,
+        out_size=y.numel(), out_shape=tuple(y.shape), tensor_arg_index=[0],
+        stages=[s1, s2, s3], n1=plan.n1, n2=plan.n1, K=plan.K,
+        stat_bound=plan.stat_bound,
+        param_paths=[f"{norm_target}.{pp}" for pp in params],
+        notes=[f"{type(norm).__name__} on {sx}: {plan.n1} statistics over "
+               f"{plan.K} elements, eps={eps}"
+               + (", affine" if plan.affine_of_q is not None else "")])
+
+
 AVGPOOL = (nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d)
 
 
@@ -1414,7 +1592,8 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
-    lower_maxpool, lower_maxmin, lower_rownorm, lower_broadcast_pointwise]
+    lower_maxpool, lower_maxmin, lower_rownorm, lower_normalize,
+    lower_broadcast_pointwise]
 
 
 def lower(model: nn.Module, example_args: List[Any]) -> Tuple[Optional[Lowered], List[str]]:

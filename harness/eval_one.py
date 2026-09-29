@@ -41,7 +41,11 @@ def main() -> int:
 
     try:
         init = task.module.get_init_inputs()
-        ref = task.module.Model(*init).cuda().eval()
+        # KernelBench does not put the reference in eval mode, and for BatchNorm the
+        # two modes compute different things (running statistics vs batch
+        # statistics). Matching it keeps the measurement comparable -- and keeps the
+        # reference consistent with what the frontend lowered.
+        ref = task.module.Model(*init).cuda()
         named = dict(ref.named_parameters())
         named.update(dict(ref.named_buffers()))
         params = [named[nm] for nm in p["param_paths"]]
