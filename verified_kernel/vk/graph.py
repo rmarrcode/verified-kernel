@@ -503,6 +503,78 @@ def _is_pointwise(node: fx.Node, gm: fx.GraphModule) -> bool:
     return False
 
 
+def _cat_args(n: fx.Node, shapes) -> Optional[Tuple[List[fx.Node], int]]:
+    """The tensors a `cat` joins and the axis, or `None` if this is not one."""
+    if op_name(n.target) != "cat":
+        return None
+    xs = n.args[0] if n.args else n.kwargs.get("tensors")
+    if not isinstance(xs, (list, tuple)) or not all(isinstance(a, fx.Node) for a in xs):
+        return None
+    dim = n.args[1] if len(n.args) > 1 else n.kwargs.get("dim", 0)
+    if not isinstance(dim, int) or n not in shapes:
+        return None
+    return list(xs), dim % len(shapes[n])
+
+
+def _emit_cat(ch: Chain, n: fx.Node, env, shapes, xs: List[fx.Node], dim: int) -> Val:
+    """Concatenation, as one reducing stage over the inputs being joined.
+
+    This is the one operator that looked like it needed the IR extended, and does
+    not. The family's mask is shared across input slots, so a body that selected
+    between them per lane is not expressible -- but it does not have to be. Take the
+    reduced axis to run over the *inputs*: `inRange` then says which input owns this
+    lane, so exactly one value of `k` contributes, and `idxSlot` -- already there, to
+    give an argmax its index -- hands the body `k` as a scalar so it can read that
+    input's slot. Every other slot is loaded and discarded, which is what the shared
+    mask makes unavoidable and is harmless: those reads are clamped into their own
+    buffer, and nothing downstream sees them.
+
+    Nothing new is proved. It is `GenRed` at the same theorem as a convolution.
+    """
+    so = list(shapes[n])
+    vs = [env[a] for a in xs]
+    sizes = [v.shape[dim] for v in vs]
+    starts, acc = [], 0
+    for sz in sizes:
+        starts.append(acc)
+        acc += sz
+    if acc != so[dim]:
+        raise Unsupported(f"cat: parts sum to {acc}, output has {so[dim]}")
+    coords = unpack(I.Pid(), so)
+    c = coords[dim]
+    k = I.Rk()
+    offs: Dict[int, I.IE] = {}
+    for v, st, sz in zip(vs, starts, sizes):
+        # The slot that owns this lane is read at `c - start`, which is in range.
+        # The others are read too -- the mask is shared -- and their coordinate is
+        # not, so clamp it here rather than leaving it to `record_bounds`, which
+        # only guards reads of *intermediate* buffers. A concatenation whose parts
+        # include a graph input would otherwise read off the end of it.
+        t = I.mk_sub(c, I.Lit(st))
+        sel = list(coords)
+        sel[dim] = I.mk_sub(t, I.mk_sub(t, I.Lit(sz - 1)))     # min(t, sz - 1)
+        offs[v.buf] = pack(sel, list(v.shape))
+    # which input owns this lane: exactly one `k`, so exactly one summand survives
+    live = I.any_of([
+        I.all_of([I.eq(k, I.Lit(i)), I.le(I.Lit(st), c), I.lt(c, I.Lit(st + sz))])
+        for i, (st, sz) in enumerate(zip(starts, sizes))])
+    # `k` as a scalar, so the body can pick the slot that owns the lane. A slot
+    # above every buffer, so it shadows none of them.
+    islot = ch.nbuf + 1
+    body = S.Inp(vs[-1].buf)
+    for i in range(len(vs) - 2, -1, -1):
+        body = S.SelLe(S.Inp(islot), S.lit(i + 0.5), S.Inp(vs[i].buf), body)
+    st = Lowered(
+        family="genred", body=body, arity=ch.nbuf + 1,
+        out_size=_prod(so), out_shape=tuple(so),
+        tensor_arg_index=list(ch.arg_index), K=len(vs),
+        offs=ch.pad(offs), post_offs=ch.pad({}), post=S.Inp(0),
+        in_range=live, idx_slot=islot,
+        notes=[f"cat of {len(vs)} tensors along dim {dim}: "
+               f"sizes {sizes} at offsets {starts}"])
+    return ch.emit(st, tuple(so))
+
+
 def _perm_of(n: fx.Node, rank: Optional[int]) -> Optional[List[int]]:
     """The axis permutation this node applies, or `None` if it is not one.
 
@@ -632,6 +704,8 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
         src0 = n.all_input_nodes[0] if n.all_input_nodes else None
         if _perm_of(n, len(shapes[src0]) if src0 in shapes else None) is not None:
             continue                      # an axis permutation is emitted directly
+        if _cat_args(n, shapes) is not None:
+            continue                      # a concatenation is emitted directly
         sub = gm.get_submodule(n.target) if n.op == "call_module" else n.target
         ins = [shapes[a] for a in n.all_input_nodes if a in shapes]
         low = _lower_one(sub, ins, mode, n)
@@ -733,6 +807,12 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                 post_offs=ch.pad({}), post=S.Inp(0),
                 notes=[f"permute {tuple(sv)} -> {tuple(so)} by {tuple(perm)}"])
             env[n] = ch.emit(st, tuple(so))
+            produced_by[n] = len(ch.stages) - 1
+            continue
+
+        ca = _cat_args(n, shapes)
+        if ca is not None and all(a in env for a in ca[0]):
+            env[n] = _emit_cat(ch, n, env, shapes, ca[0], ca[1])
             produced_by[n] = len(ch.stages) - 1
             continue
 

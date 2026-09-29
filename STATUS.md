@@ -55,62 +55,85 @@ family runs one program per output element with no data reuse, so a large
 contraction is orders of magnitude off cuBLAS. KernelBench also scores speedup; that
 is not attempted here.
 
-## Level 3, and why it is not simply more of the same
+## The reference's precision
 
-Two blockers, one structural.
+Worth stating before the numbers, because it moves several of them. PyTorch defaults
+to TF32 for convolutions and matrix products on this card -- 10 mantissa bits, not
+24. These kernels compute in float32. So on a deep network the reference is the less
+accurate of the two things being compared, and most of the measured difference is
+its own:
 
-**The locality obligation is quadratic in the chain length.** `stages_correct` asks
-each stage to prove it reads no intermediate buffer past what was written there --
-one fact per (stage, buffer) pair. At Level 2 the chains are 1 to 9 stages and that
-is nothing. The surveyed Level 3 chains run to **452 stages** (ResNet101, median 21),
-which is on the order of 200,000 obligations. Each is trivial; the generated Lean is
-not.
-
-The fix is a different formulation, not more plumbing, and it is worth writing down
-because the obvious version does not work. Keying the lemma on how far a stage's
-index-map *list* extends still leaves one arm per buffer below that point, so a
-linear chain is still quadratic overall.
-
-What does work is making `offs` **sparse**: an if-chain over the buffers a stage
-actually reads, rather than a dense list indexed by buffer number.
-
-```lean
-def offs : Nat → IE := fun b => if b = r1 then e1 else if b = r2 then e2 else .lit 0
-```
-
-Then "every buffer this stage does not read is indexed at 0" is one `simp`, and the
-locality proof case-splits only on `r1` and `r2`. The remaining obligation -- that
-every recorded size is positive -- is one lemma **per chain**, not per stage. A
-452-stage chain becomes roughly 900 small obligations plus one 452-arm lemma, which
-is linear and generated without trouble.
-
-**Operator coverage.** Surveyed across all 50 tasks, counting how many each op
-blocks (tasks are blocked by more than one):
-
-| Missing | Tasks | Where the work is |
+| | max error vs the reference | vs the reference at full float32 |
 |---|---|---|
-| `torch.cat` | 16 | the IR -- a per-slot guard in `GenRed` |
-| `transpose` / `permute` | 10 | frontend only |
-| adaptive pooling | 8 | frontend only |
-| `nn.LSTM` / `nn.GRU` / `nn.RNN` | 8 | out of reach -- cuDNN-fused, `fx` does not trace into them |
-| `ReLU6` | 4 | frontend only |
-| `einsum` + `einops` | 2 | frontend, plus a dependency |
+| ResNet101 | 1.3e-1 (6576 elements fail) | 3.0e-4 (none fail) |
+| MobileNetV2 | 2.1e-2 (384 fail) | 2.2e-5 (none fail) |
 
-Only the first row needs the proof touched. Concatenation picks each output element
-from one of several inputs by coordinate, and the family's summand has a single shared
-mask rather than one per input slot; a per-slot guard would express it, at the cost of
-reopening `GenRed.prog_implements`.
+KernelBench does not disable TF32, so neither does the harness by default; both
+numbers are reported, and `VK_FP32_REF=1` gives the second column.
 
-`transpose` does **not** need an IR extension, which is worth saying because it looks
-like it does -- the IR deliberately cannot express a reshape. A permutation is a
-relabelling of the consumer's index map, so it is absorbed by the *consumer* and never
-materialised, exactly the way `unsqueeze` already is. Adaptive pooling at output size
-1 is a plain reduction, and `ReLU6` is `hardtanh(0, 6)`, which `sel`/`selLe` already
-cover.
+## Level 3, and what it cost
 
-That puts the reachable ceiling at roughly 40 of 50, with the eight recurrent tasks
-the hard floor -- and none of it lands before the locality fix above, since the deep
-networks cannot certify at any op coverage.
+**The locality obligation was quadratic in the chain length.** `stages_correct` asks
+each stage to prove it reads no intermediate buffer past what was written there. The
+*theorem* is one fact per stage, but the generated *proof* enumerated every buffer in
+the chain, discharging each by unfolding the size map. At Level 2, chains are 1 to 9
+stages and that is nothing. Level 3 reaches **454 stages**, and the cost was
+measurable: 61.6 MB of Lean for twelve tasks, with even ResNet18's 91 stages
+exhausting the elaborator.
+
+Three things fixed it, none of them assuming anything new:
+
+  * An index map is a table of the buffers it actually indexes (`IE.sparse`), split
+    at the chain's arity (`IE.split`). A locality obligation only ever fires at or
+    above that line, so the half a stage reasons about holds its one or two real
+    reads. The obvious version -- keying on how far a dense list extends -- does not
+    help, because a linear chain still leaves one arm per buffer below that point.
+  * Sizes are a list (`Sizes.ofList`), which makes "every recorded size is positive"
+    one fact for the whole chain instead of a case inside every stage.
+  * The three `∀ st ∈ chain, …` obligations were unfolding the stage list and
+    `rcases`-ing an n-deep `Or`. Nesting `List.forall_mem_cons` is a linear term.
+
+ResNet18 went from timing out to 4.4 seconds. ResNet101 -- 454 stages -- certifies,
+and `#print axioms t010_correct` gives exactly `propext`, `Classical.choice` and
+`Quot.sound`. `maxRecDepth` and `maxHeartbeats` are raised in the generated file:
+both are budgets, not criteria, and the kernel still checks every term.
+
+**Operator coverage.** Surveyed across all 50 tasks by asking, per task, which
+*node* cannot be lowered -- rather than which family declined last, which is what the
+error text says and is much less useful:
+
+| Missing | Tasks it blocks | Status |
+|---|---|---|
+| `torch.cat` | 7 as the sole blocker | **done**, and without touching the IR |
+| `transpose` / `permute` / `.T` | 3 | **done**, frontend only |
+| `ReLU6` | 4 | **done**, one table entry |
+| `nn.LSTM` / `nn.GRU` / `nn.RNN` | 8 | out of reach -- cuDNN-fused, `fx` does not trace in |
+| dynamic slicing on traced shapes | 3 | open |
+| data-dependent control flow | 2 | out of reach -- `fx` cannot trace it |
+| `unfold`, `expand`, `TransformerEncoder` | 1 (task 28) | open |
+| `einsum` | 2 | open |
+
+Three of these looked like they needed the IR extended and did not, which is the
+pattern worth recording:
+
+**`ReLU6`** is a `Hardtanh` by inheritance; the table was keyed on the exact type.
+
+**A permutation** is a relabelling of the index map of the stage that *reads* the
+result, so it is absorbed there and never materialised -- exactly the way `unsqueeze`
+already was. The IR deliberately cannot express a reshape, and does not need to.
+
+**Concatenation** is the interesting one, because it really looks like it needs a
+per-slot guard: each output element comes from one of several inputs, and the
+family's mask is shared across input slots, so a body that selected between them per
+lane is not expressible. The way through is to take the reduced axis to run over the
+*inputs*. Then `inRange` says which input owns the lane -- so exactly one `k`
+contributes -- and `idxSlot`, which is already there to give an argmax its index,
+hands the body `k` as a scalar so it can select that input's slot. Every other slot
+is loaded and thrown away, which the shared mask makes unavoidable and which is
+harmless: those reads are clamped into their own buffer. It is `GenRed` at the same
+theorem as a convolution, and `GenRed.prog_implements` was not reopened.
+
+The eight recurrent tasks are the hard floor.
 
 ## Level 4
 

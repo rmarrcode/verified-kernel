@@ -143,8 +143,27 @@ class And(BE):
         return f"(BE.and {self.a.to_lean()} {self.b.to_lean()})"
 
 
+@dataclass(frozen=True)
+class Or(BE):
+    a: BE
+    b: BE
+    def to_lean(self) -> str:
+        return f"(BE.or {self.a.to_lean()} {self.b.to_lean()})"
+
+
 def lt(a, b) -> BE: return Cmp("lt", _i(a), _i(b))
 def le(a, b) -> BE: return Cmp("le", _i(a), _i(b))
+def eq(a, b) -> BE: return Cmp("eq", _i(a), _i(b))
+
+
+def any_of(ms: List[BE]) -> BE:
+    """Disjoin. A concatenation needs it: each lane belongs to exactly one of the
+    inputs, and which one is a disjunction over them."""
+    assert ms
+    out = ms[0]
+    for m in ms[1:]:
+        out = Or(out, m)
+    return out
 
 
 def all_of(ms: List[BE]) -> BE:
