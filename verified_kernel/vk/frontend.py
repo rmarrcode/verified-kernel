@@ -1894,6 +1894,106 @@ def lower_sepconv(model: nn.Module, example_args: List[Any]) -> Lowered:
                f"{N}x{Cin}x{Hm}x{Wm} -> {tuple(y.shape)}"])
 
 
+def lower_attention(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """Lower `scaled_dot_product_attention(Q, K, V)` as three stages.
+
+        stage 1   S = QK^T / sqrt(E)          a contraction over the embedding
+        stage 2   Z[i] = sum_j exp(S[i,j])    a row reduction
+        stage 3   out = (sum_j exp(S[i,j]) V[j]) / Z[i]
+
+    The scores must be materialised: `S[i,j]` is itself a reduction over the
+    embedding, and this family has one reduction level, so it cannot be nested
+    inside stage 3's sum over `j`.
+
+    No max-shift. PyTorch subtracts the row maximum for stability, and softmax is
+    shift-invariant, so the spec is the same function; with these inputs the
+    unshifted exponentials stay far inside float32's range. `1/sqrt(E)` is the
+    opaque square root of an exact rational, not a float constant.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    sdpa = None
+    for node in gm.graph.nodes:
+        if node.op in ("call_function", "call_method"):
+            if node.target is F.scaled_dot_product_attention:
+                if sdpa is not None:
+                    raise Unsupported("more than one attention")
+                sdpa = node
+            else:
+                raise Unsupported(f"{node.target!r} alongside attention")
+        elif node.op == "call_module":
+            raise Unsupported("module call alongside attention")
+    if sdpa is None:
+        raise Unsupported("no scaled_dot_product_attention")
+    if _kw(sdpa, "attn_mask", 3, None) is not None:
+        raise Unsupported("attention with a mask")
+    if _kw(sdpa, "is_causal", 5, False):
+        raise Unsupported("causal attention")
+    if float(_kw(sdpa, "dropout_p", 4, 0.0)) != 0.0:
+        raise Unsupported("attention with dropout")
+
+    Q, Kt, V = example_args[0], example_args[1], example_args[2]
+    sq = tuple(Q.shape)
+    if len(sq) != 4 or tuple(Kt.shape) != sq or tuple(V.shape) != sq:
+        raise Unsupported(f"expected three equal 4-D inputs, got {sq}")
+    B, H, N, E = sq
+    BH = B * H
+    T1, T2 = 3, 4
+    nbuf = 5
+
+    def pad(entries: Dict[int, I.IE]) -> List[I.IE]:
+        return [entries.get(b, I.Lit(0)) for b in range(nbuf)]
+
+    # stage 1: the scores, one program per (b,h,i,j)
+    q1 = I.Pid()
+    bh1 = q1 // I.Lit(N * N)
+    i1 = (q1 // I.Lit(N)) % I.Lit(N)
+    j1 = q1 % I.Lit(N)
+    s1 = Lowered(
+        family="genred", body=S.Inp(0) * S.Inp(1), arity=2,
+        out_size=BH * N * N, out_shape=(BH * N * N,), tensor_arg_index=[0, 1, 2],
+        K=E,
+        offs=pad({0: (bh1 * I.Lit(N) + i1) * I.Lit(E) + I.Rk(),
+                  1: (bh1 * I.Lit(N) + j1) * I.Lit(E) + I.Rk()}),
+        post_offs=pad({}),
+        post=S.Bin("mul", S.Inp(0), S.Recip(S.sqrt(S.lit(E)))),
+        notes=[f"stage 1: scores, {BH}x{N}x{N} over an embedding of {E}"])
+
+    # stage 2: the softmax denominators, one program per (b,h,i)
+    s2 = Lowered(
+        family="genred", body=S.exp(S.Inp(T1)), arity=T1 + 1,
+        out_size=BH * N, out_shape=(BH * N,), tensor_arg_index=[0, 1, 2], K=N,
+        offs=pad({T1: I.Pid() * I.Lit(N) + I.Rk()}), post_offs=pad({}),
+        post=S.Inp(0),
+        notes=["stage 2: row sums of the exponentials"])
+
+    # stage 3: the weighted values, one program per (b,h,i,d)
+    q3 = I.Pid()
+    row3 = q3 // I.Lit(E)                     # flat (b,h,i)
+    bh3 = q3 // I.Lit(N * E)
+    d3 = q3 % I.Lit(E)
+    s3 = Lowered(
+        family="genred", body=S.exp(S.Inp(T1)) * S.Inp(2), arity=nbuf,
+        out_size=BH * N * E, out_shape=sq, tensor_arg_index=[0, 1, 2], K=N,
+        offs=pad({T1: row3 * I.Lit(N) + I.Rk(),
+                  2: (bh3 * I.Lit(N) + I.Rk()) * I.Lit(E) + d3}),
+        post_offs=pad({T2: row3}),
+        post=S.Bin("mul", S.Inp(0), S.Recip(S.Inp(T2 + 1))),
+        notes=["stage 3: exponential-weighted values, normalised"])
+
+    return Lowered(
+        family="pipeline3", body=s3.body, arity=3, out_size=BH * N * E,
+        out_shape=sq, tensor_arg_index=[0, 1, 2], stages=[s1, s2, s3],
+        n1=BH * N * N, n2=BH * N, K=E,
+        bounds={
+            "l2": ("packs", [("hq",), ("hk",)], [BH * N, N]),
+            "l3a": ("packs", [("div", BH * N, E), ("hk",)], [BH * N, N]),
+            "l3b": ("zero", BH * N),
+            "l3bpost": ("div", BH * N, E),
+        },
+        notes=[f"attention: batch {B}, {H} heads, {N} positions, embedding {E}"])
+
+
 def lower_cross_entropy(model: nn.Module, example_args: List[Any]) -> Lowered:
     """Lower `F.cross_entropy(logits, labels)` as three stages.
 
@@ -2250,7 +2350,7 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
-    lower_maxpool, lower_maxmin, lower_argmaxmin, lower_rownorm, lower_normalize, lower_triplet, lower_cross_entropy,
+    lower_maxpool, lower_maxmin, lower_argmaxmin, lower_rownorm, lower_normalize, lower_triplet, lower_cross_entropy, lower_attention,
     lower_sepconv, lower_scan,
     lower_broadcast_pointwise]
 
