@@ -4,6 +4,31 @@ Measured numbers come from `python harness/run_all.py`; the run summary it print
 is the source of truth. This file records what is built, what is not, and the
 design problems standing between here and 100% on Level 1.
 
+## Measured (RTX 4070, 12GB; torch 2.14, triton 3.8, Lean 4.34.1)
+
+```
+  KernelBench Level 1                     100
+  lowered to a specification              80
+  correctness certificate checked by Lean 80
+  matched PyTorch on this GPU             75   (39 at declared size, 36 reduced)
+  certified, not run (serial)              5
+  mismatched or errored                    0
+```
+
+Every kernel that ran matched: 75 of 75. The gap to 100 is **coverage**, not
+correctness — 20 tasks the frontend declines to lower (it refuses rather than
+guesses), plus 5 that are certified but whose present shape is a single program
+looping a million times and so are not worth running until the tree reduction
+exists (tasks 37, 94, 96, 98, 100).
+
+Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
+no `sorryAx`. Check it with:
+
+```bash
+cd lean && echo 'import Generated.Emit
+#print axioms t001_correct' > /tmp/ax.lean && lake env lean /tmp/ax.lean
+```
+
 ## Built
 
 **Verified core** (`lean/`, ~1800 lines, no `sorry` and no `native_decide`):
