@@ -1,0 +1,9 @@
+name = "verified-kernel"
+defaultTargets = ["VerifiedKernel"]
+
+[[lean_lib]]
+name = "VerifiedKernel"
+
+[[lean_exe]]
+name = "vkemit"
+root = "Generated.Emit"

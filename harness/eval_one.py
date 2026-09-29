@@ -1,0 +1,70 @@
+"""Evaluate one already-compiled kernel, in its own process.
+
+Run out-of-process so that neither a memory leak nor a pathologically slow kernel
+can affect the rest of the run: the orchestrator imposes a wall-clock timeout and
+the OS reclaims the device on exit. Reads the plan the orchestrator recorded, so
+the kernel being measured is the one whose certificate was checked.
+
+    python harness/eval_one.py <plans.json> <key>
+
+Prints one line: `RESULT <key> <pass|fail|oom|slow> <detail>`.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+
+import torch
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "verified_kernel"))
+
+import evaluate as E
+from tasks import load, task_files
+from vk.runtime import GeneratedModel
+
+
+def main() -> int:
+    plans = json.load(open(sys.argv[1]))
+    key = sys.argv[2]
+    p = plans[key]
+
+    num = p["num"]
+    ent = [t for t in task_files() if t[0] == num]
+    if not ent:
+        print(f"RESULT {key} fail task {num} not found")
+        return 0
+    task = load(*ent[0])
+
+    try:
+        init = task.module.get_init_inputs()
+        ref = task.module.Model(*init).cuda().eval()
+        named = dict(ref.named_parameters())
+        named.update(dict(ref.named_buffers()))
+        params = [named[nm] for nm in p["param_paths"]]
+        new = GeneratedModel(key, tuple(p["out_shape"]), p["tensor_arg_index"], params)
+
+        def make_inputs():
+            raw = task.module.get_inputs()
+            red = E.shrink(raw, p["scale"])
+            return [x.cuda().contiguous() if isinstance(x, torch.Tensor) else x
+                    for x in red]
+
+        r = E.check(ref, new, make_inputs)
+        if r.ok:
+            print(f"RESULT {key} pass max|diff|={r.max_diff:.3e}"
+                  if r.max_diff is not None else f"RESULT {key} pass")
+        else:
+            print(f"RESULT {key} fail {r.detail}")
+    except torch.OutOfMemoryError:
+        print(f"RESULT {key} oom at 1/{p['scale']} size")
+    except Exception as e:
+        print(f"RESULT {key} fail {type(e).__name__}: {e}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

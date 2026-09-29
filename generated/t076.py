@@ -1,0 +1,18 @@
+import torch
+import triton
+import triton.language as tl
+
+
+@triton.jit
+def t076_kernel(out_ptr, in0_ptr, in1_ptr):
+    _acc0 = tl.zeros([128], dtype=tl.float32)
+    for _lv0 in range(0, 2):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 128) + tl.arange(0, 128)) < 192) & ((0 <= (((tl.program_id(0) % 174758) * 3) + ((((_lv0 * 128) + tl.arange(0, 128)) % 3) * 4))) & ((((tl.program_id(0) % 174758) * 3) + ((((_lv0 * 128) + tl.arange(0, 128)) % 3) * 4)) < 524280))), (tl.load(in0_ptr + ((((((tl.program_id(0) // 22369024) * 64) + (((((tl.program_id(0) // 174758) % 128) // 128) * 64) + (((_lv0 * 128) + tl.arange(0, 128)) // 3))) * 524280) + tl.maximum((((tl.program_id(0) % 174758) * 3) + ((((_lv0 * 128) + tl.arange(0, 128)) % 3) * 4)) - 0, 0))), mask=((((_lv0 * 128) + tl.arange(0, 128)) < 192) & ((0 <= (((tl.program_id(0) % 174758) * 3) + ((((_lv0 * 128) + tl.arange(0, 128)) % 3) * 4))) & ((((tl.program_id(0) % 174758) * 3) + ((((_lv0 * 128) + tl.arange(0, 128)) % 3) * 4)) < 524280))), other=0.0) * tl.load(in1_ptr + (((((((tl.program_id(0) // 174758) % 128) * 64) + (((_lv0 * 128) + tl.arange(0, 128)) // 3)) * 3) + (((_lv0 * 128) + tl.arange(0, 128)) % 3))), mask=((((_lv0 * 128) + tl.arange(0, 128)) < 192) & ((0 <= (((tl.program_id(0) % 174758) * 3) + ((((_lv0 * 128) + tl.arange(0, 128)) % 3) * 4))) & ((((tl.program_id(0) % 174758) * 3) + ((((_lv0 * 128) + tl.arange(0, 128)) % 3) * 4)) < 524280))), other=0.0)), 0.0))
+    _v = tl.where(True, tl.sum(_acc0, axis=0), 0.0)
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t076(out, ins):
+    grid = (357904384,)
+    t076_kernel[grid](out, ins[0], ins[1])
+    return out
