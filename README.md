@@ -46,8 +46,10 @@ correctly — swap `arangeRows` for `arangeCols` and the proof stops going throu
 | Family | Theorem | Covers |
 |---|---|---|
 | element-wise | `SE.flat_correct` | activations, scalar products, pointwise stages |
-| general reduction | `GenRed.prog_implements` | axis reductions, losses, **contractions**, **convolution**, pooling, broadcasting |
-| two-stage pipeline | `two_stage` | softmax, log-softmax, RMS / Frobenius / L1 / L2 norms |
+| general reduction | `GenRed.prog_implements` | axis reductions, losses, **contractions**, **convolution**, average pooling, broadcasting |
+| max/min reduction | `MaxRed.prog_implements` | max pooling, max/min over a dimension |
+| two-stage pipeline | `two_stage` | softmax, log-softmax, norms, tree reductions, separable conv |
+| three-stage pipeline | `three_stage` | batch/instance/group/layer norm, triplet loss |
 
 The second is the load-bearing one. Reductions, matrix products, convolutions and
 pooling are the same kernel shape — one output per program, reduce over a window —
@@ -58,8 +60,16 @@ what licenses tiling an arbitrary map: it holds for any map built from `pid`,
 `rk`, and arithmetic, so convolution's div/mod index unpacking is justified by the
 same lemma as a plain sum over a dimension.
 
-The third handles operators that reduce a row and then use the reduced value at
-every element of it, which one kernel of this shape cannot do — the reduction's
+The max family is separate for a reason worth knowing. A masked sum excludes a lane
+by contributing `zero`; a max has no identity to contribute, and *adding* a bottom
+element to the field is unsound and silent — `le bot a` for every `a` plus the field
+axioms gives `bot ≤ bot − 1 < bot`, so the axioms become inconsistent and every
+theorem in the framework turns vacuous. `MaxRed` instead **clamps** its index maps,
+so every lane reads a genuine element and lanes past the end read a duplicate, which
+a max does not notice.
+
+The pipelines handle operators that reduce and then use the reduced value at
+every element of a row, which one kernel of this shape cannot do — the reduction's
 consumers outnumber its producers. `two_stage` says two certified stages compose,
 *provided* stage 2 reads the intermediate buffer only where stage 1 wrote it. That
 proviso is the real content: stage 1 leaves the rest of the buffer as it found it,
