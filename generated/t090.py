@@ -18,7 +18,7 @@ def t090_s0_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr):
 
 
 def t090_s0(out, ins):
-    grid = (440860672,)
+    grid = (220430336,)
     t090_s0_kernel[grid](out, ins[0], ins[1], ins[2], ins[3])
     return out
 
@@ -33,13 +33,13 @@ def t090_s1_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr):
 
 
 def t090_s1(out, ins):
-    grid = (440860672,)
+    grid = (220430336,)
     t090_s1_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4])
     return out
 
 
 def t090(out, ins):
-    _t0 = torch.empty(440860672, device=ins[0].device, dtype=torch.float32)
+    _t0 = torch.empty(220430336, device=ins[0].device, dtype=torch.float32)
     t090_s0(_t0, list(ins))
     t090_s1(out, list(ins) + [_t0])
     return out

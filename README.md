@@ -148,11 +148,11 @@ was derived), **certified** (Lean accepted the correctness certificate), and
 |---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** |
 | 2 — fused chains | 100 | 100 | **100** | **99–100** |
-| 3 — whole architectures | 50 | 25 | **25** | **21** |
+| 3 — whole architectures | 50 | 29 | **29** | **25** |
 | 4 — HuggingFace models | 20 | — | — | — |
-| **total** | **270** | **225** | **225** | **220** |
+| **total** | **270** | **229** | **229** | **224-225** |
 
-Every task that lowers carries a Lean-checked certificate -- 225 of them, none
+Every task that lowers carries a Lean-checked certificate -- 229 of them, none
 depending on `sorryAx`. The largest is ResNet101: 454 stages in one chain.
 
 Two qualifications, both in `STATUS.md` with the measurements behind them. One Level

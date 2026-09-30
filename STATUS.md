@@ -10,9 +10,9 @@ design problems standing between here and 100% on Level 1.
 |---|---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** | 100 |
 | 2 — fused chains | 100 | 100 | **100** | **99-100** † | 100 |
-| 3 — whole architectures | 50 | 25 | **25** | **21** | **23** |
+| 3 — whole architectures | 50 | 29 | **29** | **25** | pending |
 | 4 — HuggingFace models | 20 | — | — | — | — |
-| **total** | **270** | **225** | **225** | **220** | **223** |
+| **total** | **270** | **229** | **229** | **224-225** | pending |
 
 The last column runs the reference at full float32 rather than PyTorch's default
 TF32; see *The reference's precision* below for why the two differ and why both are
