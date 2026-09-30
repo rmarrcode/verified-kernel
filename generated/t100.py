@@ -18,7 +18,7 @@ def t100_s0_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr):
 
 
 def t100_s0(out, ins):
-    grid = (217177600,)
+    grid = (434355200,)
     t100_s0_kernel[grid](out, ins[0], ins[1], ins[2])
     return out
 

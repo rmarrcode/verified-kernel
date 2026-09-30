@@ -6,12 +6,16 @@ design problems standing between here and 100% on Level 1.
 
 ## Measured (RTX 4070, 12GB; torch 2.14, triton 3.8, Lean 4.34.1)
 
-| Level | Tasks | Lowered | Certified by Lean | Matched PyTorch |
-|---|---|---|---|---|
-| 1 — single operators | 100 | 100 | **100** | **100** |
-| 2 — fused chains | 100 | 100 | **100** | **99** |
-| 3 — whole architectures | 50 | 13 | — | — |
-| 4 — HuggingFace models | 20 | — | — | — |
+| Level | Tasks | Lowered | Certified by Lean | Matched | Matched, fp32 reference |
+|---|---|---|---|---|---|
+| 1 — single operators | 100 | 100 | **100** | **100** | 100 |
+| 2 — fused chains | 100 | 100 | **100** | **99** | see below |
+| 3 — whole architectures | 50 | 25 | **25** | **21** | **23** |
+| 4 — HuggingFace models | 20 | — | — | — | — |
+
+The last column runs the reference at full float32 rather than PyTorch's default
+TF32; see *The reference's precision* below for why the two differ and why both are
+reported.
 
 Level 1 is complete: every task lowers to a formal specification, carries a
 Lean-checked correctness certificate, and matches PyTorch under KernelBench's own

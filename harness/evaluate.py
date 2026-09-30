@@ -78,9 +78,14 @@ def shrink(inputs: List[Any], scale: int) -> List[Any]:
     Which tensors may shrink is not a free choice: shrinking *every* input breaks
     an operator with a shape constraint between its inputs -- a contraction whose
     operands are `(M, K)` and `(K, N)` stops type-checking if both leading
-    dimensions move. So when the inputs do not all share one shape, only the first
-    is shrunk (the batch or row axis), which is shape-legal for every family here:
-    a contraction's `M`, a convolution's `N`.
+    dimensions move. So only the first is shrunk (the batch or row axis), which is
+    shape-legal for every family here: a contraction's `M`, a convolution's `N`.
+
+    The exception is when every tensor has the *same* leading dimension, which is
+    what a batch axis looks like: then they all shrink together. Matching on the
+    leading dimension rather than on the whole shape matters -- a task taking an
+    activation and a residual to add to it has one batch and two different channel
+    counts, and shrinking only the first leaves the two unbroadcastable.
 
     The reduced task is then *re-lowered* from scratch, because a reducing
     family's index maps are derived from the shapes. Reusing the full-size spec at
@@ -89,7 +94,7 @@ def shrink(inputs: List[Any], scale: int) -> List[Any]:
     if scale == 1:
         return list(inputs)
     tensors = [t for t in inputs if isinstance(t, torch.Tensor)]
-    same = len({tuple(t.shape) for t in tensors}) <= 1
+    same = len({t.shape[0] for t in tensors if t.dim() >= 1}) <= 1
     out, first = [], True
     for t in inputs:
         if isinstance(t, torch.Tensor) and t.dim() >= 1 and (same or first):
