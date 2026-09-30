@@ -9,37 +9,15 @@ def _mul_combine(a, b):
 
 
 @triton.jit
-def t064_s0_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr):
-    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 8):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 8192) & True), (tl.load(in0_ptr + ((((tl.program_id(0) // 8192) * 8192) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 8192) & True), other=0.0) * tl.load(in1_ptr + ((((tl.program_id(0) % 8192) * 8192) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 8192) & True), other=0.0)), 0.0))
-    _v = (tl.sum(_acc0, axis=0) + tl.load(in2_ptr + ((tl.program_id(0) % 8192))))
+def t064_kernel(out_ptr, in0_ptr, in1_ptr):
+    _acc0 = tl.zeros([256], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 2):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 256) + tl.arange(0, 256)) < 384) & ((((((_lv0 * 256) + tl.arange(0, 256)) % 3) <= (tl.program_id(0) % 65538)) & (0 == 0)) & (tl.maximum((tl.program_id(0) % 65538) - (((_lv0 * 256) + tl.arange(0, 256)) % 3), 0) < 65536))), (tl.load(in0_ptr + ((((((tl.program_id(0) // 8388864) * 128) + (((((tl.program_id(0) // 65538) % 128) // 128) * 128) + (((_lv0 * 256) + tl.arange(0, 256)) // 3))) * 65536) + tl.maximum((tl.program_id(0) % 65538) - (((_lv0 * 256) + tl.arange(0, 256)) % 3), 0)) + 0 * tl.arange(0, 256)), mask=((((_lv0 * 256) + tl.arange(0, 256)) < 384) & ((((((_lv0 * 256) + tl.arange(0, 256)) % 3) <= (tl.program_id(0) % 65538)) & (0 == 0)) & (tl.maximum((tl.program_id(0) % 65538) - (((_lv0 * 256) + tl.arange(0, 256)) % 3), 0) < 65536))), other=0.0) * tl.load(in1_ptr + ((((((((((tl.program_id(0) // 65538) % 128) // 128) * 128) + (((_lv0 * 256) + tl.arange(0, 256)) // 3)) * 128) + (((tl.program_id(0) // 65538) % 128) % 128)) * 3) + (((_lv0 * 256) + tl.arange(0, 256)) % 3)) + 0 * tl.arange(0, 256)), mask=((((_lv0 * 256) + tl.arange(0, 256)) < 384) & ((((((_lv0 * 256) + tl.arange(0, 256)) % 3) <= (tl.program_id(0) % 65538)) & (0 == 0)) & (tl.maximum((tl.program_id(0) % 65538) - (((_lv0 * 256) + tl.arange(0, 256)) % 3), 0) < 65536))), other=0.0)), 0.0))
+    _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
-
-
-def t064_s0(out, ins):
-    grid = (8388608,)
-    t064_s0_kernel[grid](out, ins[0], ins[1], ins[2])
-    return out
-
-
-@triton.jit
-def t064_s1_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr):
-    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 8):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 8192) & True), tl.exp(tl.load(in3_ptr + (((tl.program_id(0) * 8192) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 8192) & True), other=0.0)), 0.0))
-    _v = (((1.0 * (1.0 / 2.0)) * (((1.0 * (1.0 / 2.0)) * tl.where(tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0))) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0)))), tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0))))) * ((1.0 * (1.0 / 1.0)) + tl.erf((tl.where(tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0))) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0)))), tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0)))) * (1.0 / tl.sqrt((2.0 * (1.0 / 1.0))))))))) * ((1.0 * (1.0 / 1.0)) + tl.erf(((((1.0 * (1.0 / 2.0)) * tl.where(tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0))) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0)))), tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0))))) * ((1.0 * (1.0 / 1.0)) + tl.erf((tl.where(tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0))) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0)))), tl.where(tl.log(tl.sum(_acc0, axis=0)) <= (0.0 * (1.0 / 1.0)), ((1.0 * (1.0 / 100.0)) * tl.log(tl.sum(_acc0, axis=0))), tl.log(tl.sum(_acc0, axis=0)))) * (1.0 / tl.sqrt((2.0 * (1.0 / 1.0)))))))) * (1.0 / tl.sqrt((2.0 * (1.0 / 1.0))))))))
-    tl.store(out_ptr + tl.program_id(0), _v)
-
-
-def t064_s1(out, ins):
-    grid = (1024,)
-    t064_s1_kernel[grid](out, ins[0], ins[1], ins[2], ins[3])
-    return out
 
 
 def t064(out, ins):
-    _t0 = torch.empty(8388608, device=ins[0].device, dtype=torch.float32)
-    t064_s0(_t0, list(ins))
-    t064_s1(out, list(ins) + [_t0])
+    grid = (268443648,)
+    t064_kernel[grid](out, ins[0], ins[1])
     return out

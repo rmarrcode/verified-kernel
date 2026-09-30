@@ -405,6 +405,7 @@ def _emit_maxred(inst: "Instance") -> List[str]:
     k, low = inst.key, inst.low
     block = choose_block_red(low.K)
     nkb = (low.K + block - 1) // block
+    split_at = None                 # a standalone instance has no chain to split at
     return [
         f"-- {k}: max reduction, {low.arity} input(s), {inst.out_size} outputs,"
         f" extent {low.K}",

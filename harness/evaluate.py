@@ -81,11 +81,16 @@ def shrink(inputs: List[Any], scale: int) -> List[Any]:
     dimensions move. So only the first is shrunk (the batch or row axis), which is
     shape-legal for every family here: a contraction's `M`, a convolution's `N`.
 
-    The exception is when every tensor has the *same* leading dimension, which is
-    what a batch axis looks like: then they all shrink together. Matching on the
-    leading dimension rather than on the whole shape matters -- a task taking an
-    activation and a residual to add to it has one batch and two different channel
-    counts, and shrinking only the first leaves the two unbroadcastable.
+    The exception is when every tensor has the same rank *and* the same leading
+    dimension, which is what a shared batch axis looks like: then they all shrink
+    together. A task taking an activation and a residual to add to it has one batch
+    and two different channel counts, so matching on the whole shape is too strict --
+    shrinking only the first leaves the two unbroadcastable.
+
+    Matching on the leading dimension alone is too loose, though, and the rank is
+    what rules the bad case out: a hinge loss takes predictions `(N, D)` and targets
+    `(N,)` with `D == N`, where the targets broadcast against the *last* axis of the
+    predictions, not the first. Shrinking both then breaks the multiply.
 
     The reduced task is then *re-lowered* from scratch, because a reducing
     family's index maps are derived from the shapes. Reusing the full-size spec at
@@ -94,7 +99,8 @@ def shrink(inputs: List[Any], scale: int) -> List[Any]:
     if scale == 1:
         return list(inputs)
     tensors = [t for t in inputs if isinstance(t, torch.Tensor)]
-    same = len({t.shape[0] for t in tensors if t.dim() >= 1}) <= 1
+    ranked = [t for t in tensors if t.dim() >= 1]
+    same = (len({(t.dim(), t.shape[0]) for t in ranked}) <= 1)
     out, first = [], True
     for t in inputs:
         if isinstance(t, torch.Tensor) and t.dim() >= 1 and (same or first):

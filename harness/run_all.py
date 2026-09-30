@@ -121,6 +121,18 @@ def main() -> None:
             if p is None:
                 if rnd == 0:
                     declined.append((t, reasons))
+                else:
+                    # A task that lowered at full size but not at the reduced one is
+                    # not a task that declined -- it is one this card could not run.
+                    # Saying so beats dropping it, which is what used to happen and
+                    # which quietly cost a task off the total.
+                    verdict[f"t{t.num:03d}"] = (
+                        "fail", f"no lowering at 1/{min_scale[t.num]}: "
+                                f"{(sorted(set(reasons))[:1] or [''])[0][:90]}")
+                    labels.setdefault(f"t{t.num:03d}", t.label)
+                    scales.setdefault(f"t{t.num:03d}", min_scale[t.num])
+                    print(f"  ERR   {t.label[:52]:52s} no lowering at "
+                          f"1/{min_scale[t.num]}", flush=True)
             else:
                 plans.append(p)
                 labels[p.key] = t.label
