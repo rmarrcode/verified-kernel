@@ -1467,6 +1467,41 @@ def lower_argmaxmin(model: nn.Module, example_args: List[Any]) -> Lowered:
         notes=[f"{kind} over dim {d} of {sx}: outer={outer} K={K} inner={inner}"])
 
 
+@dataclass
+class _PoolSpec:
+    """Pooling parameters, however they were written.
+
+    `nn.MaxPool2d` carries them as attributes and `F.max_pool2d` as call arguments;
+    the lowering only wants the numbers, so both arrive here.
+    """
+    kernel_size: Any
+    stride: Any = None
+    padding: Any = 0
+    dilation: Any = 1
+    ceil_mode: bool = False
+    return_indices: bool = False
+
+
+#: `F.max_pool*d` reaches `fx` as a `boolean_dispatch` wrapper whose `__name__` is
+#: the pooling function; its parameters follow the tensor in this order.
+_POOL_CALL_ARGS = ("kernel_size", "stride", "padding", "dilation", "ceil_mode",
+                   "return_indices")
+MAXPOOL_FNS = {"max_pool1d", "max_pool2d", "max_pool3d"}
+
+
+def _pool_from_call(node) -> "_PoolSpec":
+    """Pooling parameters off a functional call node."""
+    vals: Dict[str, Any] = {}
+    for name, v in zip(_POOL_CALL_ARGS, list(node.args)[1:]):
+        vals[name] = v
+    for name in _POOL_CALL_ARGS:
+        if name in node.kwargs:
+            vals[name] = node.kwargs[name]
+    if "kernel_size" not in vals:
+        raise Unsupported("pooling call without a kernel size")
+    return _PoolSpec(**vals)
+
+
 def lower_maxpool(model: nn.Module, example_args: List[Any]) -> Lowered:
     """Lower max pooling.
 
@@ -1495,13 +1530,23 @@ def lower_maxpool(model: nn.Module, example_args: List[Any]) -> Lowered:
             else:
                 raise Unsupported(f"module {type(sub).__name__} alongside pooling")
         elif node.op in ("call_function", "call_method"):
-            raise Unsupported(f"{node.target!r} alongside pooling")
+            if op_name(node.target) in MAXPOOL_FNS:
+                if pool is not None:
+                    raise Unsupported("more than one pooling layer")
+                pool = _pool_from_call(node)
+            else:
+                raise Unsupported(f"{node.target!r} alongside pooling")
     if pool is None:
         raise Unsupported("no max-pooling module")
-    if getattr(pool, "ceil_mode", False):
-        raise Unsupported("ceil_mode pooling")
     if getattr(pool, "return_indices", False):
         raise Unsupported("return_indices pooling")
+    # `ceil_mode` needs nothing here, which is worth saying because the averaging
+    # pool below still rejects it. The output extent comes from running the module,
+    # so a taller output is already accounted for; and this family clamps each tap
+    # into the window's *valid* taps rather than masking, so a window overhanging
+    # the input reads a duplicate of one that does not. A max does not notice a
+    # duplicate. An average would -- its divisor depends on how many taps are real
+    # -- which is why the same line cannot simply be deleted there.
 
     x = example_args[0]
     with torch.no_grad():
