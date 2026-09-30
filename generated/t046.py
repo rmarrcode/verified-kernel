@@ -100,10 +100,10 @@ def t046_s5(out, ins):
 
 @triton.jit
 def t046_s6_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr):
-    _acc0 = tl.zeros([32], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([32], dtype=tl.float32) + (tl.load(in10_ptr + (((tl.program_id(0) * 48) + 0))))
     for _lv0 in range(0, 2):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 32) + tl.arange(0, 32)) < 48) & True), tl.exp(tl.load(in10_ptr + (((tl.program_id(0) * 48) + ((_lv0 * 32) + tl.arange(0, 32))) + 0 * tl.arange(0, 32)), mask=((((_lv0 * 32) + tl.arange(0, 32)) < 48) & True), other=0.0)), 0.0))
-    _v = tl.sum(_acc0, axis=0)
+        _acc0 = tl.maximum(_acc0, tl.load(in10_ptr + (((tl.program_id(0) * 48) + tl.maximum(((_lv0 * 32) + tl.arange(0, 32)) - tl.maximum(((_lv0 * 32) + tl.arange(0, 32)) - 47, 0), 0)))))
+    _v = tl.max(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
@@ -115,15 +115,15 @@ def t046_s6(out, ins):
 
 @triton.jit
 def t046_s7_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr):
-    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.exp(tl.load(in10_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)) * (1.0 / tl.load(in11_ptr + (tl.maximum((tl.program_id(0) // 48) - tl.maximum((tl.program_id(0) // 48) - 204799, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0))), 0.0))
+    _acc0 = tl.zeros([32], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 2):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 32) + tl.arange(0, 32)) < 48) & True), tl.exp((tl.load(in10_ptr + (((tl.program_id(0) * 48) + ((_lv0 * 32) + tl.arange(0, 32))) + 0 * tl.arange(0, 32)), mask=((((_lv0 * 32) + tl.arange(0, 32)) < 48) & True), other=0.0) - tl.load(in11_ptr + (tl.program_id(0) + 0 * tl.arange(0, 32)), mask=((((_lv0 * 32) + tl.arange(0, 32)) < 48) & True), other=0.0))), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s7(out, ins):
-    grid = (9830400,)
+    grid = (204800,)
     t046_s7_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11])
     return out
 
@@ -132,43 +132,43 @@ def t046_s7(out, ins):
 def t046_s8_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr):
     _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), tl.load(in12_ptr + (tl.maximum((((tl.program_id(0) // 32) * 48) + (tl.program_id(0) % 32)) - tl.maximum((((tl.program_id(0) // 32) * 48) + (tl.program_id(0) % 32)) - 9830399, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0), 0.0))
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.exp((tl.load(in10_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) - tl.load(in11_ptr + (tl.maximum((tl.program_id(0) // 48) - tl.maximum((tl.program_id(0) // 48) - 204799, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0))) * (1.0 / tl.load(in12_ptr + (tl.maximum((tl.program_id(0) // 48) - tl.maximum((tl.program_id(0) // 48) - 204799, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0))), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s8(out, ins):
-    grid = (6553600,)
+    grid = (9830400,)
     t046_s8_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12])
     return out
 
 
 @triton.jit
 def t046_s9_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr):
-    _acc0 = tl.zeros([64], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 2):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), tl.load(in13_ptr + ((((((tl.program_id(0) // 32) * 100) + ((_lv0 * 64) + tl.arange(0, 64))) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), other=0.0), 0.0))
+    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 1):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), tl.load(in13_ptr + (tl.maximum((((tl.program_id(0) // 32) * 48) + (tl.program_id(0) % 32)) - tl.maximum((((tl.program_id(0) // 32) * 48) + (tl.program_id(0) % 32)) - 9830399, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s9(out, ins):
-    grid = (65536,)
+    grid = (6553600,)
     t046_s9_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13])
     return out
 
 
 @triton.jit
 def t046_s10_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr):
-    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in14_ptr + ((((tl.program_id(0) // 16384) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * tl.load(in4_ptr + (((((tl.program_id(0) // 32) % 512) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), 0.0))
+    _acc0 = tl.zeros([64], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 2):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), tl.load(in14_ptr + ((((((tl.program_id(0) // 32) * 100) + ((_lv0 * 64) + tl.arange(0, 64))) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), other=0.0), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s10(out, ins):
-    grid = (33554432,)
+    grid = (65536,)
     t046_s10_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14])
     return out
 
@@ -177,37 +177,37 @@ def t046_s10(out, ins):
 def t046_s11_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr):
     _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), tl.load(in13_ptr + (tl.maximum((((((tl.program_id(0) // 3200) * 100) + (tl.program_id(0) % 100)) * 32) + ((tl.program_id(0) // 100) % 32)) - tl.maximum((((((tl.program_id(0) // 3200) * 100) + (tl.program_id(0) % 100)) * 32) + ((tl.program_id(0) // 100) % 32)) - 6553599, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0), 0.0))
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in15_ptr + ((((tl.program_id(0) // 16384) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * tl.load(in4_ptr + (((((tl.program_id(0) // 32) % 512) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s11(out, ins):
-    grid = (6553600,)
+    grid = (33554432,)
     t046_s11_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14], ins[15])
     return out
 
 
 @triton.jit
 def t046_s12_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr):
-    _acc0 = tl.zeros([64], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 2):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), (tl.load(in16_ptr + ((((((tl.program_id(0) // 16384) * 32) + ((tl.program_id(0) // 512) % 32)) * 100) + ((_lv0 * 64) + tl.arange(0, 64))) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), other=0.0) * tl.load(in0_ptr + ((((((tl.program_id(0) // 16384) * 100) + ((_lv0 * 64) + tl.arange(0, 64))) * 512) + (tl.program_id(0) % 512)) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), other=0.0)), 0.0))
+    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 1):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), tl.load(in14_ptr + (tl.maximum((((((tl.program_id(0) // 3200) * 100) + (tl.program_id(0) % 100)) * 32) + ((tl.program_id(0) // 100) % 32)) - tl.maximum((((((tl.program_id(0) // 3200) * 100) + (tl.program_id(0) % 100)) * 32) + ((tl.program_id(0) // 100) % 32)) - 6553599, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s12(out, ins):
-    grid = (33554432,)
+    grid = (6553600,)
     t046_s12_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14], ins[15], ins[16])
     return out
 
 
 @triton.jit
 def t046_s13_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr, in17_ptr):
-    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), tl.load(in17_ptr + ((((((tl.program_id(0) // 16384) * 32) + (tl.program_id(0) % 32)) * 512) + ((tl.program_id(0) // 32) % 512)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0), 0.0))
+    _acc0 = tl.zeros([64], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 2):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), (tl.load(in17_ptr + ((((((tl.program_id(0) // 16384) * 32) + ((tl.program_id(0) // 512) % 32)) * 100) + ((_lv0 * 64) + tl.arange(0, 64))) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), other=0.0) * tl.load(in0_ptr + ((((((tl.program_id(0) // 16384) * 100) + ((_lv0 * 64) + tl.arange(0, 64))) * 512) + (tl.program_id(0) % 512)) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 100) & True), other=0.0)), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
@@ -222,7 +222,7 @@ def t046_s13(out, ins):
 def t046_s14_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr, in17_ptr, in18_ptr):
     _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in18_ptr + ((((((tl.program_id(0) // 16384) * 512) + ((tl.program_id(0) // 32) % 512)) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) - tl.load(in15_ptr + ((((((tl.program_id(0) // 16384) * 512) + ((tl.program_id(0) // 32) % 512)) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), 0.0))
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), tl.load(in18_ptr + ((((((tl.program_id(0) // 16384) * 32) + (tl.program_id(0) % 32)) * 512) + ((tl.program_id(0) // 32) % 512)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
@@ -235,61 +235,76 @@ def t046_s14(out, ins):
 
 @triton.jit
 def t046_s15_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr, in17_ptr, in18_ptr, in19_ptr):
-    _acc0 = tl.zeros([512], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 512) + tl.arange(0, 512)) < 512) & True), (tl.load(in19_ptr + ((((((tl.program_id(0) // 32) * 512) + ((_lv0 * 512) + tl.arange(0, 512))) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 512)), mask=((((_lv0 * 512) + tl.arange(0, 512)) < 512) & True), other=0.0) * tl.load(in19_ptr + ((((((tl.program_id(0) // 32) * 512) + ((_lv0 * 512) + tl.arange(0, 512))) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 512)), mask=((((_lv0 * 512) + tl.arange(0, 512)) < 512) & True), other=0.0)), 0.0))
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in19_ptr + ((((((tl.program_id(0) // 16384) * 512) + ((tl.program_id(0) // 32) % 512)) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) - tl.load(in16_ptr + ((((((tl.program_id(0) // 16384) * 512) + ((tl.program_id(0) // 32) % 512)) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s15(out, ins):
-    grid = (65536,)
+    grid = (33554432,)
     t046_s15_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14], ins[15], ins[16], ins[17], ins[18], ins[19])
     return out
 
 
 @triton.jit
 def t046_s16_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr, in17_ptr, in18_ptr, in19_ptr, in20_ptr):
-    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
+    _acc0 = tl.zeros([512], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in19_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * (1.0 / tl.maximum(tl.sqrt(tl.load(in20_ptr + (tl.maximum((((tl.program_id(0) // (512 * 32)) * 32) + (tl.program_id(0) % 32)) - tl.maximum((((tl.program_id(0) // (512 * 32)) * 32) + (tl.program_id(0) % 32)) - 65535, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), (1.0 * (1.0 / 1000000000000.0))))), 0.0))
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 512) + tl.arange(0, 512)) < 512) & True), (tl.load(in20_ptr + ((((((tl.program_id(0) // 32) * 512) + ((_lv0 * 512) + tl.arange(0, 512))) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 512)), mask=((((_lv0 * 512) + tl.arange(0, 512)) < 512) & True), other=0.0) * tl.load(in20_ptr + ((((((tl.program_id(0) // 32) * 512) + ((_lv0 * 512) + tl.arange(0, 512))) * 32) + (tl.program_id(0) % 32)) + 0 * tl.arange(0, 512)), mask=((((_lv0 * 512) + tl.arange(0, 512)) < 512) & True), other=0.0)), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s16(out, ins):
-    grid = (33554432,)
+    grid = (65536,)
     t046_s16_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14], ins[15], ins[16], ins[17], ins[18], ins[19], ins[20])
     return out
 
 
 @triton.jit
 def t046_s17_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr, in17_ptr, in18_ptr, in19_ptr, in20_ptr, in21_ptr):
-    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 16):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 16384) & True), (tl.load(in21_ptr + (((tl.program_id(0) * 16384) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 16384) & True), other=0.0) * tl.load(in21_ptr + (((tl.program_id(0) * 16384) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 16384) & True), other=0.0)), 0.0))
+    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 1):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in20_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * (1.0 / tl.maximum(tl.sqrt(tl.load(in21_ptr + (tl.maximum((((tl.program_id(0) // (512 * 32)) * 32) + (tl.program_id(0) % 32)) - tl.maximum((((tl.program_id(0) // (512 * 32)) * 32) + (tl.program_id(0) % 32)) - 65535, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), (1.0 * (1.0 / 1000000000000.0))))), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s17(out, ins):
-    grid = (2048,)
+    grid = (33554432,)
     t046_s17_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14], ins[15], ins[16], ins[17], ins[18], ins[19], ins[20], ins[21])
     return out
 
 
 @triton.jit
 def t046_s18_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr, in17_ptr, in18_ptr, in19_ptr, in20_ptr, in21_ptr, in22_ptr):
-    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
-    for _lv0 in range(0, 1):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in21_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * (1.0 / tl.maximum(tl.sqrt(tl.load(in22_ptr + (tl.maximum((tl.program_id(0) // 16384) - tl.maximum((tl.program_id(0) // 16384) - 2047, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), (1.0 * (1.0 / 1000000000000.0))))), 0.0))
+    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 16):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 16384) & True), (tl.load(in22_ptr + (((tl.program_id(0) * 16384) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 16384) & True), other=0.0) * tl.load(in22_ptr + (((tl.program_id(0) * 16384) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 16384) & True), other=0.0)), 0.0))
     _v = tl.sum(_acc0, axis=0)
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
 def t046_s18(out, ins):
-    grid = (33554432,)
+    grid = (2048,)
     t046_s18_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14], ins[15], ins[16], ins[17], ins[18], ins[19], ins[20], ins[21], ins[22])
+    return out
+
+
+@triton.jit
+def t046_s19_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr, in4_ptr, in5_ptr, in6_ptr, in7_ptr, in8_ptr, in9_ptr, in10_ptr, in11_ptr, in12_ptr, in13_ptr, in14_ptr, in15_ptr, in16_ptr, in17_ptr, in18_ptr, in19_ptr, in20_ptr, in21_ptr, in22_ptr, in23_ptr):
+    _acc0 = tl.zeros([1], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 1):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), (tl.load(in22_ptr + (tl.program_id(0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0) * (1.0 / tl.maximum(tl.sqrt(tl.load(in23_ptr + (tl.maximum((tl.program_id(0) // 16384) - tl.maximum((tl.program_id(0) // 16384) - 2047, 0), 0) + 0 * tl.arange(0, 1)), mask=((((_lv0 * 1) + tl.arange(0, 1)) < 1) & True), other=0.0)), (1.0 * (1.0 / 1000000000000.0))))), 0.0))
+    _v = tl.sum(_acc0, axis=0)
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t046_s19(out, ins):
+    grid = (33554432,)
+    t046_s19_kernel[grid](out, ins[0], ins[1], ins[2], ins[3], ins[4], ins[5], ins[6], ins[7], ins[8], ins[9], ins[10], ins[11], ins[12], ins[13], ins[14], ins[15], ins[16], ins[17], ins[18], ins[19], ins[20], ins[21], ins[22], ins[23])
     return out
 
 
@@ -301,17 +316,18 @@ def t046(out, ins):
     _t4 = torch.empty(48, device=ins[0].device, dtype=torch.float32)
     _t5 = torch.empty(9830400, device=ins[0].device, dtype=torch.float32)
     _t6 = torch.empty(204800, device=ins[0].device, dtype=torch.float32)
-    _t7 = torch.empty(9830400, device=ins[0].device, dtype=torch.float32)
-    _t8 = torch.empty(6553600, device=ins[0].device, dtype=torch.float32)
-    _t9 = torch.empty(65536, device=ins[0].device, dtype=torch.float32)
-    _t10 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
-    _t11 = torch.empty(6553600, device=ins[0].device, dtype=torch.float32)
-    _t12 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
+    _t7 = torch.empty(204800, device=ins[0].device, dtype=torch.float32)
+    _t8 = torch.empty(9830400, device=ins[0].device, dtype=torch.float32)
+    _t9 = torch.empty(6553600, device=ins[0].device, dtype=torch.float32)
+    _t10 = torch.empty(65536, device=ins[0].device, dtype=torch.float32)
+    _t11 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
+    _t12 = torch.empty(6553600, device=ins[0].device, dtype=torch.float32)
     _t13 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
     _t14 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
-    _t15 = torch.empty(65536, device=ins[0].device, dtype=torch.float32)
-    _t16 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
-    _t17 = torch.empty(2048, device=ins[0].device, dtype=torch.float32)
+    _t15 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
+    _t16 = torch.empty(65536, device=ins[0].device, dtype=torch.float32)
+    _t17 = torch.empty(33554432, device=ins[0].device, dtype=torch.float32)
+    _t18 = torch.empty(2048, device=ins[0].device, dtype=torch.float32)
     t046_s0(_t0, list(ins))
     t046_s1(_t1, list(ins) + [_t0])
     t046_s2(_t2, list(ins) + [_t0, _t1])
@@ -330,5 +346,6 @@ def t046(out, ins):
     t046_s15(_t15, list(ins) + [_t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t10, _t11, _t12, _t13, _t14])
     t046_s16(_t16, list(ins) + [_t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t10, _t11, _t12, _t13, _t14, _t15])
     t046_s17(_t17, list(ins) + [_t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t10, _t11, _t12, _t13, _t14, _t15, _t16])
-    t046_s18(out, list(ins) + [_t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t10, _t11, _t12, _t13, _t14, _t15, _t16, _t17])
+    t046_s18(_t18, list(ins) + [_t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t10, _t11, _t12, _t13, _t14, _t15, _t16, _t17])
+    t046_s19(out, list(ins) + [_t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8, _t9, _t10, _t11, _t12, _t13, _t14, _t15, _t16, _t17, _t18])
     return out

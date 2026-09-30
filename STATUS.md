@@ -91,25 +91,28 @@ its own:
 KernelBench does not disable TF32, so neither does the harness by default; both
 numbers are reported, and `VK_FP32_REF=1` gives the second column.
 
-## Softmax is not computed stably
+## Softmax, and a gap the certificate cannot see
 
-Found while chasing an intermittent `nan` from UNet, and worth stating because it is
-a real defect rather than a tolerance question.
+Worth recording as the clearest example of what a correctness certificate here does
+and does not cover. Found by chasing an intermittent `nan` out of UNet.
 
 PyTorch computes `softmax` as `exp(x - rowmax) / sum exp(x - rowmax)`. The lowering
-here computes `exp(x) / sum exp(x)`. Over an exact ordered field those are the same
-function, which is why the certificate is valid and says nothing about the
-difference. Over float32 they are not: `exp` overflows above about 88, and then the
-kernel divides `inf` by `inf` and returns `nan` where PyTorch returns an answer.
+computed `exp(x) / sum exp(x)`. Over an exact ordered field those are *the same
+function* -- the shift cancels -- so the certificate was valid, and had nothing to
+say about the difference. Over float32 they are not the same at all: `exp` overflows
+above about 88, and the unshifted form then divides `inf` by `inf`. UNet's softmax
+input measures max 62, min -80, moving by draw, which is why the `nan` appeared on
+some runs and not others.
 
-UNet's softmax input was measured at max 62, min -80, varying by draw -- close enough
-that some draws overflow and some do not, which is exactly the intermittency seen.
+Now fixed, by shifting each row by its maximum, which costs a third stage and proves
+nothing new: `MaxRed` supplies the row maximum, `three_stage` composes the three, and
+`_emit_pipeline3` already dispatched per stage on its family, so a max first stage
+alongside two sums needed no change to the emitter. Checked against PyTorch at an
+input scale where the unshifted form yields 93 nans out of 512 and this yields none.
 
-The fix is a third stage: a max reduction over the row, then the sum of the shifted
-exponentials, then the division. `MaxRed` and `three_stage` already exist and
-`_emit_pipeline3` dispatches per stage on its family, so this needs no new theorem --
-but it touches a lowering shared with Levels 1 and 2, so it is called out here rather
-than done quietly.
+The lesson is the one the trusted base already states, in its sharpest form: these
+theorems are over an exact ordered field, and *every* float question -- including
+whether a value is representable at all -- lives outside them.
 
 ## Level 3, and what it cost
 
