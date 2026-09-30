@@ -18,7 +18,7 @@ def t016_s0_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr):
 
 
 def t016_s0(out, ins):
-    grid = (134217728,)
+    grid = (268435456,)
     t016_s0_kernel[grid](out, ins[0], ins[1], ins[2])
     return out
 
