@@ -10,9 +10,9 @@ design problems standing between here and 100% on Level 1.
 |---|---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** | 100 |
 | 2 — fused chains | 100 | 100 | **100** | **99-100** † | 100 |
-| 3 — whole architectures | 50 | 29 | **29** | **25** | pending |
+| 3 — whole architectures | 50 | 29 | **29** | **25** | **27** |
 | 4 — HuggingFace models | 20 | — | — | — | — |
-| **total** | **270** | **229** | **229** | **224-225** | pending |
+| **total** | **270** | **229** | **229** | **224-225** | **227** |
 
 The last column runs the reference at full float32 rather than PyTorch's default
 TF32; see *The reference's precision* below for why the two differ and why both are
@@ -90,6 +90,26 @@ its own:
 
 KernelBench does not disable TF32, so neither does the harness by default; both
 numbers are reported, and `VK_FP32_REF=1` gives the second column.
+
+## Softmax is not computed stably
+
+Found while chasing an intermittent `nan` from UNet, and worth stating because it is
+a real defect rather than a tolerance question.
+
+PyTorch computes `softmax` as `exp(x - rowmax) / sum exp(x - rowmax)`. The lowering
+here computes `exp(x) / sum exp(x)`. Over an exact ordered field those are the same
+function, which is why the certificate is valid and says nothing about the
+difference. Over float32 they are not: `exp` overflows above about 88, and then the
+kernel divides `inf` by `inf` and returns `nan` where PyTorch returns an answer.
+
+UNet's softmax input was measured at max 62, min -80, varying by draw -- close enough
+that some draws overflow and some do not, which is exactly the intermittency seen.
+
+The fix is a third stage: a max reduction over the row, then the sum of the shifted
+exponentials, then the division. `MaxRed` and `three_stage` already exist and
+`_emit_pipeline3` dispatches per stage on its family, so this needs no new theorem --
+but it touches a lowering shared with Levels 1 and 2, so it is called out here rather
+than done quietly.
 
 ## Level 3, and what it cost
 

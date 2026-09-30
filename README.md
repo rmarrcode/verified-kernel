@@ -158,7 +158,7 @@ depending on `sorryAx`. The largest is ResNet101: 454 stages in one chain.
 Two qualifications, both in `STATUS.md` with the measurements behind them. One Level
 2 task sits on the `allclose` boundary and fails intermittently, which is why that row
 is a range. And PyTorch defaults to TF32 for convolutions, so on a deep network the
-*reference* is the less precise side: with it at full float32 the total is 223, and
+*reference* is the less precise side: with it at full float32 the total is 227, and
 ResNet101 alone goes from 6576 failing elements to none.
 
 Level 1 is complete. Level 2 lowers and certifies completely; 99 of 100 match, and
