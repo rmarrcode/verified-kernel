@@ -1053,6 +1053,7 @@ def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
     stage: Dict[fx.Node, str] = {}
     red: Optional[RowRed] = None
     softmax_kind: Optional[str] = None
+    softmax_x: Optional[S.SE] = None
     ph = 0
     ARITY_SLOT = None            # filled once arity is known
 
@@ -1137,6 +1138,7 @@ def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
                 if d is None:
                     raise Unsupported("softmax needs an explicit dim")
                 x = a[0]
+                softmax_x = x
                 red = RowRed(S.exp(x), d, lambda r: r)
                 env[node] = (S.exp(x) * S.Recip(red_slot) if softmax_kind == "softmax"
                              else x - S.log(red_slot))
@@ -1210,6 +1212,59 @@ def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
                 K=1, offs=[I.Pid()] * arity + [row],
                 post_offs=[I.Lit(0)] * (arity + 1), post=S.Inp(0),
                 notes=[f"stage 2: normalise, row index into a {n1}-element buffer"])
+
+            if softmax_kind is not None and softmax_x is not None:
+                # A softmax is computed the way PyTorch computes it: shift each row
+                # by its maximum first. Over an exact ordered field the shift
+                # cancels and this is the same function as `exp x / sum exp x`, so
+                # it proves nothing new -- but `exp` overflows float32 above about
+                # 88, and the unshifted form then divides `inf` by `inf`. The shifted
+                # exponent is at most 0, so it cannot overflow.
+                #
+                # The cost is a third stage, and `MaxRed` supplies it: a max over the
+                # row, then the sum of the shifted exponentials, then the division.
+                # `three_stage` composes the three and does not care that the first
+                # is a different family from the others.
+                T1, T2 = arity, arity + 1
+                nb = T2 + 1
+
+                def padm(entries: Dict[int, I.IE]) -> List[I.IE]:
+                    return [entries.get(b, I.Lit(0)) for b in range(nb)]
+
+                shifted = S.exp(softmax_x - S.Inp(T1))
+                m1 = Lowered(
+                    family="maxred", body=S.Inp(0), arity=arity,
+                    out_size=n1, out_shape=(n1,), tensor_arg_index=tensor_idx,
+                    K=K, offs=[s1_idx] * arity, post_offs=[I.Lit(0)] * arity,
+                    post=S.Inp(0), idx_slot=arity,
+                    notes=[f"stage 1: row maxima, outer={outer} K={K} inner={inner}"])
+                m2 = Lowered(
+                    family="genred", body=shifted, arity=T1 + 1,
+                    out_size=n1, out_shape=(n1,), tensor_arg_index=tensor_idx,
+                    K=K,
+                    offs=padm({**{b: s1_idx for b in range(arity)}, T1: I.Pid()}),
+                    post_offs=padm({}), post=S.Inp(0),
+                    notes=["stage 2: row sums of exp(x - rowmax)"])
+                body3 = (shifted * S.Recip(S.Inp(T2)) if softmax_kind == "softmax"
+                         else (softmax_x - S.Inp(T1)) - S.log(S.Inp(T2)))
+                m3 = Lowered(
+                    family="genred", body=body3, arity=nb,
+                    out_size=out_val.numel(), out_shape=tuple(out_val.shape),
+                    tensor_arg_index=tensor_idx, K=1,
+                    offs=padm({**{b: I.Pid() for b in range(arity)},
+                               T1: row, T2: row}),
+                    post_offs=padm({}), post=S.Inp(0),
+                    notes=[f"stage 3: {softmax_kind} from the row max and sum"])
+                rowb = (("div", outer, K) if inner == 1
+                        else ("row", outer, K, inner))
+                return Lowered(
+                    family="pipeline3", body=body3, arity=arity,
+                    out_size=out_val.numel(), out_shape=tuple(out_val.shape),
+                    tensor_arg_index=tensor_idx, stages=[m1, m2, m3],
+                    n1=n1, n2=n1, K=K, outer=outer, inner=inner,
+                    bounds={"l2": ("pid", n1), "l3a": rowb, "l3b": rowb},
+                    notes=[f"{softmax_kind} over dim {d} of {in_shape}: "
+                           f"row max, then sum of exp(x - max), then divide"])
 
             if n1 == 1 and K > TREE_THRESHOLD:
                 # A whole-tensor statistic (a Frobenius norm) makes stage 1 a single
