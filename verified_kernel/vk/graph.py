@@ -997,6 +997,15 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
 
     for n in nodes:
         if n.op == "placeholder":
+            if ph >= len(example_args):
+                # A forward argument with a default that the task does not pass --
+                # `mask=None`, say. It still becomes a placeholder, and it is only
+                # fine to drop because nothing reads it.
+                if n.users:
+                    raise Unsupported(
+                        f"forward argument {n.name!r} has no value but is used")
+                ph += 1
+                continue
             v = example_args[ph]
             if not isinstance(v, torch.Tensor):
                 raise Unsupported(f"placeholder {ph} is {type(v).__name__}")

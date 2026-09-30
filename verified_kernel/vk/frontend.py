@@ -1104,7 +1104,32 @@ def lower_rownorm(model: nn.Module, example_args: List[Any]) -> Lowered:
             tgt = node.target
             a = [env[x] if isinstance(x, fx.Node) else x for x in node.args]
             stages = [stage[x] for x in node.args if isinstance(x, fx.Node)]
-            if tgt in SOFTMAXES:
+            if op_name(tgt) == "normalize" and a:
+                # `F.normalize(x, p, dim, eps)` = `x / max(||x||_p, eps)`, which is
+                # the same two-stage shape as everything else here: stage 1 sums
+                # `|x|^p` along the axis, stage 2 divides each element by the p-th
+                # root of its row's sum. Spelled out rather than routed through the
+                # reducer table, because it arrives as one call rather than as a
+                # reduction the graph then divides by.
+                if red is not None:
+                    raise Unsupported("more than one reduction")
+                pw = _kw(node, "p", 1, 2.0)
+                d = _kw(node, "dim", 2, 1)
+                eps = _kw(node, "eps", 3, 1e-12)
+                if d is None:
+                    raise Unsupported("normalize needs an explicit dim")
+                x = a[0]
+                if float(pw) == 2.0:
+                    red = RowRed(x * x, d, lambda r: r)
+                    denom = S.maxv(S.sqrt(red_slot), S.lit(eps))
+                elif float(pw) == 1.0:
+                    red = RowRed(S.absv(x), d, lambda r: r)
+                    denom = S.maxv(red_slot, S.lit(eps))
+                else:
+                    raise Unsupported(f"normalize with p={pw}")
+                env[node] = x * S.Recip(denom)
+                stage[node] = "post"
+            elif tgt in SOFTMAXES:
                 if red is not None:
                     raise Unsupported("more than one reduction")
                 softmax_kind = SOFTMAXES[tgt]
