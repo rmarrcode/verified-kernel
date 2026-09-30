@@ -503,6 +503,93 @@ def _is_pointwise(node: fx.Node, gm: fx.GraphModule) -> bool:
     return False
 
 
+def _slice_plan(idx, in_shape: List[int]):
+    """Resolve a subscript into, per input axis, `(start, step, extent_or_None)`.
+
+    `None` as the extent means the axis is indexed by a plain integer and so does not
+    appear in the output at all. Returns `None` for anything not handled -- a boolean
+    mask, a tensor index, `None`/newaxis -- rather than guessing.
+    """
+    items = list(idx) if isinstance(idx, tuple) else [idx]
+    if any(it is Ellipsis for it in items):
+        n_given = sum(1 for it in items if it is not Ellipsis)
+        pos = next(i for i, it in enumerate(items) if it is Ellipsis)
+        items[pos:pos + 1] = [slice(None)] * (len(in_shape) - n_given)
+    if len(items) > len(in_shape):
+        return None
+    items += [slice(None)] * (len(in_shape) - len(items))
+    plan = []
+    for it, n in zip(items, in_shape):
+        if isinstance(it, int):
+            i = it + n if it < 0 else it
+            if not (0 <= i < n):
+                return None
+            plan.append((i, 1, None))
+        elif isinstance(it, slice):
+            start, stop, step = it.indices(n)
+            if step <= 0:
+                return None
+            plan.append((start, step, max(0, -(-(stop - start) // step))))
+        else:
+            return None
+    return plan
+
+
+def _emit_slice(ch: Chain, v: Val, plan, note: str) -> Val:
+    """A slice, as a `K = 1` reducing stage whose index map carries the offsets.
+
+    Like a permutation, this is a relabelling of coordinates rather than a
+    computation, so it needs nothing the family does not already have: output
+    coordinate `o` on an axis reads input coordinate `start + o * step`.
+    """
+    so = [ext for (_, _, ext) in plan if ext is not None]
+    shape = tuple(so) if so else (1,)
+    coords = unpack(I.Pid(), list(shape))
+    sel, k = [], 0
+    for (start, step, ext) in plan:
+        if ext is None:
+            sel.append(I.Lit(start))
+        else:
+            c = coords[k]; k += 1
+            e = c if step == 1 else c * I.Lit(step)
+            sel.append(I.mk_add(e, I.Lit(start)))
+    st = Lowered(
+        family="genred", body=S.Inp(v.buf), arity=ch.nbuf + 1,
+        out_size=_prod(shape), out_shape=shape,
+        tensor_arg_index=list(ch.arg_index), K=1,
+        offs=ch.pad({v.buf: pack(sel, list(v.shape))}),
+        post_offs=ch.pad({}), post=S.Inp(0), notes=[note])
+    return ch.emit(st, shape)
+
+
+def _split_parts(n: fx.Node, shape) -> Optional[Tuple[int, List[int]]]:
+    """`(dim, part sizes)` for a `split`/`chunk`, or `None` if it is neither."""
+    name = op_name(n.target)
+    if name not in ("split", "chunk", "tensor_split"):
+        return None
+    if n.all_input_nodes and n.all_input_nodes[0] in shape:
+        total_shape = list(shape[n.all_input_nodes[0]])
+    else:
+        return None
+    arg = n.args[1] if len(n.args) > 1 else n.kwargs.get(
+        "split_size" if name == "split" else "chunks")
+    dim = n.args[2] if len(n.args) > 2 else n.kwargs.get("dim", 0)
+    if not isinstance(dim, int):
+        return None
+    dim %= len(total_shape)
+    total = total_shape[dim]
+    if isinstance(arg, (list, tuple)) and all(isinstance(x, int) for x in arg):
+        return dim, list(arg)
+    if not isinstance(arg, int) or arg <= 0:
+        return None
+    if name == "split":
+        sizes = [min(arg, total - i) for i in range(0, total, arg)]
+    else:
+        each = -(-total // arg)
+        sizes = [min(each, total - i) for i in range(0, total, each)]
+    return dim, sizes
+
+
 def _cat_args(n: fx.Node, shapes) -> Optional[Tuple[List[fx.Node], int]]:
     """The tensors a `cat` joins and the axis, or `None` if this is not one."""
     if op_name(n.target) != "cat":
@@ -661,6 +748,185 @@ def _lower_one(sub, shapes_in: List[Tuple[int, ...]], mode, node=None) -> Lowere
     return low
 
 
+class _ShapeProxy(fx.Proxy):
+    """A proxy that also knows the shape of the value it stands for.
+
+    Plain symbolic tracing makes `x.size()` a symbolic value, so a model that
+    computes with its own shapes -- `B, T, C = x.size()` and then `view(B, T, ...)`
+    -- cannot be traced at all: the ints are proxies, and indexing or reshaping with
+    them raises. The shapes here are not actually unknown, though. KernelBench fixes
+    the input shape, so tracing can be specialised to it.
+
+    That specialisation is a real assumption and worth naming: the resulting graph is
+    correct for *this* input shape, not for every one. That is already true of every
+    lowering in this project -- the index maps are derived from concrete extents --
+    so it narrows nothing that was not narrow before.
+    """
+
+    def __init__(self, node, tracer, meta=None):
+        super().__init__(node, tracer)
+        self._meta = meta
+
+    # -- what a model is allowed to ask about a tensor without forcing its value
+    @property
+    def shape(self):
+        return self._meta.shape
+
+    @property
+    def ndim(self):
+        return self._meta.dim()
+
+    @property
+    def dtype(self):
+        return self._meta.dtype
+
+    @property
+    def device(self):
+        # Tracing follows the path where every tensor is on one device, which is the
+        # only path that does not raise: models that compare devices do so to reject
+        # a mixed placement the real run never has.
+        return torch.device("cpu")
+
+    def size(self, dim=None):
+        return self._meta.size() if dim is None else self._meta.size(dim)
+
+    def dim(self):
+        return self._meta.dim()
+
+    def numel(self):
+        return self._meta.numel()
+
+    def __len__(self):
+        return self._meta.shape[0]
+
+
+#: `fx` replaces both of these for the duration of a trace -- `__call__` so module
+#: calls become nodes, and `__getattr__` so parameter reads do. Captured here, before
+#: any of that, so a shape computation can put them back and run a module for real
+#: instead of tracing it a second time. Missing the second one is subtle: the module
+#: call looks like it ran, but every parameter it read came back a proxy.
+_ORIG_MODULE_CALL = nn.Module.__call__
+_ORIG_MODULE_GETATTR = nn.Module.__getattr__
+
+
+def pytree_leaves(x):
+    from torch.utils import _pytree as pytree
+    return pytree.tree_leaves(x)
+
+
+def _unmeta(a):
+    """Replace every proxy in a structure by the fake tensor it stands for.
+
+    Structurally, not just at the top: `torch.cat` takes a *list* of tensors, and a
+    proxy left inside one would make the operation return another proxy, which then
+    stands in as a shape and fails much later and much less clearly.
+    """
+    from torch.utils import _pytree as pytree
+    return pytree.tree_map_only(_ShapeProxy, lambda p: p._meta, a)
+
+
+class ShapeTracer(fx.Tracer):
+    """`fx.Tracer` that carries a fake tensor alongside every proxy.
+
+    Used only as a fallback: a model that traces normally is traced normally, so
+    this cannot change a graph that already worked.
+    """
+
+    def __init__(self, mode):
+        super().__init__()
+        self.mode = mode
+        self._args: List[Any] = []
+        self._n_ph = 0
+        self._in_meta = False
+
+    def proxy(self, node):
+        return _ShapeProxy(node, self)
+
+
+
+    def create_proxy(self, kind, target, args, kwargs, name=None, type_expr=None,
+                     proxy_factory_fn=None):
+        proxy = super().create_proxy(kind, target, args, kwargs, name, type_expr,
+                                     proxy_factory_fn)
+        if isinstance(proxy, _ShapeProxy):
+            proxy._meta = self._meta_for(kind, target, args, kwargs)
+        return proxy
+
+    def _meta_for(self, kind, target, args, kwargs):
+        """Run this one operation on fake tensors, to learn what it produces.
+
+        Anything that cannot be run this way simply has nothing recorded; the proxy
+        still works for everything except asking about its shape.
+        """
+        if self._in_meta:
+            return None
+        self._in_meta = True
+        try:
+            fa, fk = _unmeta(tuple(args)), _unmeta(dict(kwargs))
+            if any(isinstance(x, fx.Proxy)
+                   for x in pytree_leaves(fa) + pytree_leaves(fk)):
+                return None                 # a shape we could not resolve
+            # Running the operation, not tracing it: with fx's patched `__call__`
+            # still in place, a module call here would be recorded a second time and
+            # its module-path bookkeeping would desynchronise.
+            saved = (nn.Module.__call__, nn.Module.__getattr__)
+            nn.Module.__call__ = _ORIG_MODULE_CALL
+            nn.Module.__getattr__ = _ORIG_MODULE_GETATTR
+            try:
+              with self.mode:
+                if kind == "placeholder":
+                    out = self._args[self._n_ph] if self._n_ph < len(self._args) else None
+                    self._n_ph += 1
+                elif kind == "get_attr":
+                    out = _fetch_attr(self.root, target)
+                elif kind == "call_function":
+                    out = target(*fa, **fk)
+                elif kind == "call_method":
+                    out = getattr(fa[0], target)(*fa[1:], **fk)
+                elif kind == "call_module":
+                    out = self.root.get_submodule(target)(*fa, **fk)
+                else:
+                    out = None
+            finally:
+                nn.Module.__call__, nn.Module.__getattr__ = saved
+            # Kept whatever it is, not narrowed to a tensor: `split` returns a
+            # tuple, and the `getitem` that follows has to be able to index it.
+            return out
+        except Exception:
+            return None
+        finally:
+            self._in_meta = False
+
+
+def _fetch_attr(root, target: str):
+    obj = root
+    for part in target.split("."):
+        obj = getattr(obj, part)
+    return obj
+
+
+def trace_model(model: nn.Module, example_args: List[Any], mode) -> fx.GraphModule:
+    """Trace, falling back to a shape-aware trace for models that compute with
+    their own shapes."""
+    try:
+        gm = fx.symbolic_trace(model)
+        gm.graph.lint()
+        return gm
+    except Exception as first:
+        tracer = ShapeTracer(mode)
+        with mode:
+            tracer._args = [torch.empty(tuple(a.shape), dtype=a.dtype)
+                            if isinstance(a, torch.Tensor) else a
+                            for a in example_args]
+        try:
+            graph = tracer.trace(model)
+        except Exception:
+            raise first
+        gm = fx.GraphModule(tracer.root, graph)
+        gm.graph.lint()
+        return gm
+
+
 def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
     """Compile a whole graph into a chain of stages.
 
@@ -670,8 +936,7 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
     into the producing stage's `post` rather than materialised, which keeps both the
     memory traffic and the number of locality obligations down.
     """
-    gm = fx.symbolic_trace(model)
-    gm.graph.lint()
+    gm = trace_model(model, example_args, mode)
     with mode:
         shapes = _node_shapes(gm, list(example_args))
 
@@ -706,6 +971,16 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
             continue                      # an axis permutation is emitted directly
         if _cat_args(n, shapes) is not None:
             continue                      # a concatenation is emitted directly
+        if _split_parts(n, shapes) is not None:
+            continue                      # a split names sub-ranges, it computes nothing
+        if op_name(n.target) == "getitem" and len(n.args) > 1:
+            # Selecting one part of a `split` is a slice of the split's *input*, not
+            # an index into the part -- the recorded shape here is one part's.
+            if _split_parts(src0, shapes) is not None:
+                continue
+            if src0 in shapes and \
+                    _slice_plan(n.args[1], list(shapes[src0])) is not None:
+                continue                  # a slice is emitted directly
         sub = gm.get_submodule(n.target) if n.op == "call_module" else n.target
         ins = [shapes[a] for a in n.all_input_nodes if a in shapes]
         low = _lower_one(sub, ins, mode, n)
@@ -737,6 +1012,7 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
           params) -> Lowered:
     """Second pass: emit the stages, with buffer numbering now fixed."""
     pnames = list(params)
+    splits: Dict[fx.Node, Tuple[Val, int, List[int]]] = {}
 
     for n in nodes:
         ch.cur_node = n.name
@@ -809,6 +1085,32 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
             env[n] = ch.emit(st, tuple(so))
             produced_by[n] = len(ch.stages) - 1
             continue
+
+        # A `split` computes nothing: it names sub-ranges of its input. Recorded
+        # here, and each `getitem` that selects one becomes a slice.
+        sp = _split_parts(n, shapes)
+        if sp is not None and n.all_input_nodes and n.all_input_nodes[0] in env:
+            splits[n] = (env[n.all_input_nodes[0]], sp[0], sp[1])
+            continue
+        if op_name(n.target) == "getitem" and len(n.args) > 1:
+            src, idx = n.args[0], n.args[1]
+            if src in splits and isinstance(idx, int):
+                v, dim, sizes = splits[src]
+                start = sum(sizes[:idx])
+                plan = [(start, 1, sizes[idx]) if d == dim else (0, 1, sz)
+                        for d, sz in enumerate(v.shape)]
+                env[n] = _emit_slice(ch, v, plan,
+                                     f"split part {idx} of {len(sizes)} along dim {dim}")
+                produced_by[n] = len(ch.stages) - 1
+                continue
+            if src in env and isinstance(idx, (tuple, slice, int)) \
+                    and not isinstance(idx, bool):
+                plan = _slice_plan(idx, list(env[src].shape))
+                if plan is not None and _alias_of(n, shapes) is None:
+                    env[n] = _emit_slice(ch, env[src], plan,
+                                         f"slice {idx!r} of {tuple(env[src].shape)}")
+                    produced_by[n] = len(ch.stages) - 1
+                    continue
 
         ca = _cat_args(n, shapes)
         if ca is not None and all(a in env for a in ca[0]):
