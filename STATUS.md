@@ -9,22 +9,24 @@ design problems standing between here and 100% on Level 1.
 | Level | Tasks | Lowered | Certified by Lean | Matched | Matched, fp32 reference |
 |---|---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** | 100 |
-| 2 — fused chains | 100 | 100 | **100** | **100** † | 100 |
+| 2 — fused chains | 100 | 100 | **100** | **99-100** † | 100 |
 | 3 — whole architectures | 50 | 25 | **25** | **21** | **23** |
 | 4 — HuggingFace models | 20 | — | — | — | — |
+| **total** | **270** | **225** | **225** | **220** | **223** |
 
 The last column runs the reference at full float32 rather than PyTorch's default
 TF32; see *The reference's precision* below for why the two differ and why both are
-reported. † One Level 2 task sits on the tolerance boundary and fails about one
-draw in sixty -- see the note below; it is not a defect in the kernel, but 100 there
-is a good draw rather than a guarantee.
+reported. † One Level 2 task sits on the tolerance boundary and fails
+intermittently -- twice in three full runs. It is not a defect in the kernel (see
+below), but the Level 2 figure is 99 or 100 depending on the draw, and quoting 100
+without that qualification would be picking the good run.
 
 Levels 1 and 2 are complete: every task lowers to a formal specification, carries a
 Lean-checked correctness certificate, and matches PyTorch under KernelBench's own
 criterion (5 trials, `allclose` at 1e-2).
 
 One caveat on Level 2's hundredth, because it is a coin-flip rather than a pass: task
-14 fails about one draw in sixty, and it is not a defect in the kernel. It is a
+14 fails intermittently, and it is not a defect in the kernel. It is a
 1024x8192 by 8192x8192 product, halved, then
 summed along the row -- 67 million products per output, with outputs of magnitude
 ~2600. Measured against a float64 ground truth over the whole output:
@@ -35,8 +37,8 @@ summed along the row -- 67 million products per output, with outputs of magnitud
 | PyTorch, TF32 off | 1.9e-2 |
 | PyTorch, TF32 on (its default on this card) | 3.1 |
 
-The kernel is the more accurate of the two. It fails anyway, in about 1 draw in 60,
-and always the same way: some row's 8192 terms cancel down to a value near zero, and
+The kernel is the more accurate of the two. It fails anyway, intermittently, and
+always the same way: some row's 8192 terms cancel down to a value near zero, and
 `allclose`'s absolute term is then the binding one. On the draw sampled here the true
 value was 0.4291, PyTorch gave 0.4451 (off by 1.6e-2, past the 1e-2 floor) and the
 kernel gave 0.4290 -- off by 1.15e-4, **140 times closer to the truth than the
@@ -49,7 +51,19 @@ up from the unexpected direction: not the kernel drifting from the reference, bu
 reference drifting from the mathematics both of them are approximating.
 
 Certificates depend only on `propext`, `Quot.sound` and `Classical.choice`; there is
-no `sorryAx`. Check it with:
+no `sorryAx`. Spot-checked on the hardest cases -- ResNet101 (454 stages), DenseNet121
+(concatenations throughout), and an Inception module:
+
+```
+'t006_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'t010_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+'t015_correct' depends on axioms: [propext, Classical.choice, Quot.sound]
+```
+
+One caveat on reproducing this: `Generated/Emit.lean` holds only the most recent
+*round* of a run, since a retry at a reduced size rewrites it. The certificates were
+checked when written, but to inspect one afterwards it has to be regenerated. Check
+it with:
 
 ```bash
 cd lean && echo 'import Generated.Emit

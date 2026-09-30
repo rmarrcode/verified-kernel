@@ -9,15 +9,37 @@ def _mul_combine(a, b):
 
 
 @triton.jit
-def t067_kernel(out_ptr, in0_ptr, in1_ptr):
-    _acc0 = tl.zeros([128], dtype=tl.float32) + (0.0)
+def t067_s0_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr):
+    _acc0 = tl.zeros([64], dtype=tl.float32) + (0.0)
     for _lv0 in range(0, 2):
-        _acc0 = (_acc0 + tl.where(((((_lv0 * 128) + tl.arange(0, 128)) < 192) & (((tl.program_id(0) % 131070) + (((_lv0 * 128) + tl.arange(0, 128)) % 3)) < 131072)), (tl.load(in0_ptr + ((((((tl.program_id(0) // 16776960) * 64) + (((_lv0 * 128) + tl.arange(0, 128)) // 3)) * 131072) + ((tl.program_id(0) % 131070) + (((_lv0 * 128) + tl.arange(0, 128)) % 3))) + 0 * tl.arange(0, 128)), mask=((((_lv0 * 128) + tl.arange(0, 128)) < 192) & (((tl.program_id(0) % 131070) + (((_lv0 * 128) + tl.arange(0, 128)) % 3)) < 131072)), other=0.0) * tl.load(in1_ptr + (((((((tl.program_id(0) // 131070) % 128) * 64) + (((_lv0 * 128) + tl.arange(0, 128)) // 3)) * 3) + (((_lv0 * 128) + tl.arange(0, 128)) % 3)) + 0 * tl.arange(0, 128)), mask=((((_lv0 * 128) + tl.arange(0, 128)) < 192) & (((tl.program_id(0) % 131070) + (((_lv0 * 128) + tl.arange(0, 128)) % 3)) < 131072)), other=0.0)), 0.0))
-    _v = tl.sum(_acc0, axis=0)
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 64) + tl.arange(0, 64)) < 72) & (((((tl.program_id(0) // 254) % 254) + ((((_lv0 * 64) + tl.arange(0, 64)) // 3) % 3)) < 256) & (((tl.program_id(0) % 254) + (((_lv0 * 64) + tl.arange(0, 64)) % 3)) < 256))), (tl.load(in0_ptr + ((((((((tl.program_id(0) // 4129024) * 8) + (((_lv0 * 64) + tl.arange(0, 64)) // 9)) * 256) + (((tl.program_id(0) // 254) % 254) + ((((_lv0 * 64) + tl.arange(0, 64)) // 3) % 3))) * 256) + ((tl.program_id(0) % 254) + (((_lv0 * 64) + tl.arange(0, 64)) % 3))) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 72) & (((((tl.program_id(0) // 254) % 254) + ((((_lv0 * 64) + tl.arange(0, 64)) // 3) % 3)) < 256) & (((tl.program_id(0) % 254) + (((_lv0 * 64) + tl.arange(0, 64)) % 3)) < 256))), other=0.0) * tl.load(in1_ptr + (((((((((tl.program_id(0) // 64516) % 64) * 8) + (((_lv0 * 64) + tl.arange(0, 64)) // 9)) * 3) + ((((_lv0 * 64) + tl.arange(0, 64)) // 3) % 3)) * 3) + (((_lv0 * 64) + tl.arange(0, 64)) % 3)) + 0 * tl.arange(0, 64)), mask=((((_lv0 * 64) + tl.arange(0, 64)) < 72) & (((((tl.program_id(0) // 254) % 254) + ((((_lv0 * 64) + tl.arange(0, 64)) // 3) % 3)) < 256) & (((tl.program_id(0) % 254) + (((_lv0 * 64) + tl.arange(0, 64)) % 3)) < 256))), other=0.0)), 0.0))
+    _v = (((1.0 * (1.0 / 2.0)) * (tl.sum(_acc0, axis=0) + tl.load(in2_ptr + (((tl.program_id(0) // 64516) % 64))))) * ((1.0 * (1.0 / 1.0)) + tl.erf(((tl.sum(_acc0, axis=0) + tl.load(in2_ptr + (((tl.program_id(0) // 64516) % 64)))) * (1.0 / tl.sqrt((2.0 * (1.0 / 1.0))))))))
     tl.store(out_ptr + tl.program_id(0), _v)
 
 
+def t067_s0(out, ins):
+    grid = (528515072,)
+    t067_s0_kernel[grid](out, ins[0], ins[1], ins[2])
+    return out
+
+
+@triton.jit
+def t067_s1_kernel(out_ptr, in0_ptr, in1_ptr, in2_ptr, in3_ptr):
+    _acc0 = tl.zeros([1024], dtype=tl.float32) + (0.0)
+    for _lv0 in range(0, 64):
+        _acc0 = (_acc0 + tl.where(((((_lv0 * 1024) + tl.arange(0, 1024)) < 64516) & True), tl.load(in3_ptr + (((tl.program_id(0) * 64516) + ((_lv0 * 1024) + tl.arange(0, 1024))) + 0 * tl.arange(0, 1024)), mask=((((_lv0 * 1024) + tl.arange(0, 1024)) < 64516) & True), other=0.0), 0.0))
+    _v = (tl.sum(_acc0, axis=0) * (1.0 * (1.0 / 64516.0)))
+    tl.store(out_ptr + tl.program_id(0), _v)
+
+
+def t067_s1(out, ins):
+    grid = (8192,)
+    t067_s1_kernel[grid](out, ins[0], ins[1], ins[2], ins[3])
+    return out
+
+
 def t067(out, ins):
-    grid = (268431360,)
-    t067_kernel[grid](out, ins[0], ins[1])
+    _t0 = torch.empty(528515072, device=ins[0].device, dtype=torch.float32)
+    t067_s0(_t0, list(ins))
+    t067_s1(out, list(ins) + [_t0])
     return out

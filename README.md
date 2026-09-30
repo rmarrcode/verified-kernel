@@ -147,9 +147,19 @@ was derived), **certified** (Lean accepted the correctness certificate), and
 | Level | Tasks | Lowered | Certified by Lean | Matched PyTorch |
 |---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** |
-| 2 — fused chains | 100 | 100 | **100** | **99** |
-| 3 — whole architectures | 50 | 13 | — | — |
+| 2 — fused chains | 100 | 100 | **100** | **99–100** |
+| 3 — whole architectures | 50 | 25 | **25** | **21** |
 | 4 — HuggingFace models | 20 | — | — | — |
+| **total** | **270** | **225** | **225** | **220** |
+
+Every task that lowers carries a Lean-checked certificate -- 225 of them, none
+depending on `sorryAx`. The largest is ResNet101: 454 stages in one chain.
+
+Two qualifications, both in `STATUS.md` with the measurements behind them. One Level
+2 task sits on the `allclose` boundary and fails intermittently, which is why that row
+is a range. And PyTorch defaults to TF32 for convolutions, so on a deep network the
+*reference* is the less precise side: with it at full float32 the total is 223, and
+ResNet101 alone goes from 6576 failing elements to none.
 
 Level 1 is complete. Level 2 lowers and certifies completely; 99 of 100 match, and
 the exception is a case where the kernel is ten times *closer* to a float64 ground
