@@ -120,6 +120,11 @@ def lit(x) -> Lit:
     """
     if isinstance(x, Lit):
         return x
+    if type(x).__module__ == "numpy":
+        # a numpy scalar -- `np.float64(...)` -- is the Python number it holds
+        x = x.item()
+    if isinstance(x, bool):
+        x = int(x)
     if isinstance(x, int):
         fr = Fraction(x)
     elif isinstance(x, Fraction):

@@ -25,7 +25,7 @@ sys.path.insert(0, os.path.join(
 
 import evaluate as E
 from tasks import load, task_files
-from vk.runtime import GeneratedModel
+from vk.runtime import GeneratedModel, resolve_param
 
 # `fx` names each literal tensor it lifts out of a forward `_tensor_constant<n>`.
 CONST_PREFIX = "_tensor_constant"
@@ -61,7 +61,12 @@ def main() -> int:
         wanted = [nm for nm in p["param_paths"] if nm not in named
                   and nm.startswith(CONST_PREFIX)]
         const: dict = {}
-        if wanted:
+        if wanted and p.get("consts"):
+            # Recorded when the task was lowered: the values the certified spec
+            # was built against, rather than a second trace that must agree with it.
+            saved = torch.load(p["consts"])
+            const = {nm: saved[nm].cuda() for nm in wanted}
+        elif wanted:
             gm = torch.fx.symbolic_trace(ref)
             have = [n.target for n in gm.graph.nodes
                     if n.op == "get_attr" and str(n.target).startswith(CONST_PREFIX)]
@@ -72,9 +77,10 @@ def main() -> int:
             # model's `.cuda()` and are still on the host.
             const = {nm: getattr(gm, tgt).cuda()
                      for nm, tgt in zip(wanted, have)}
-        params = [named[nm] if nm in named
-                  else const[nm] if nm in const
-                  else getattr(ref, nm)
+        # A tied weight is listed by `named_parameters` once, under its other name;
+        # `resolve_param` finds it in the module tree, and turns a fresh-draw path
+        # into the draw.
+        params = [const[nm] if nm in const else resolve_param(ref, nm, named)
                   for nm in p["param_paths"]]
         new = GeneratedModel(key, tuple(p["out_shape"]), p["tensor_arg_index"],
                              params, p.get("out_dtype"))

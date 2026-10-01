@@ -98,8 +98,45 @@ def train_one_epoch(model, loader, loss_fn, optimizer, device, max_grad_norm=Non
     Do not let autograd graphs leak into your running totals: accumulate with
     `loss.item()` (or `.detach()`), never the loss tensor itself.
     """
+    # --- first attempt, kept for reference (it raised AttributeError on line 2) ---
+    # model.train()
+    # opt = torch.optimizers.adam(model)
+    # for step, (x, y) in enumerate(loader):
+    #     x.device(device)
+    #     y.device(device)
+    #     opt.zero_gradient()
+    #     y_hat = model(x)
+    #     loss = loss_fn(y_hat, y)
+    #     loss.backward()
+    #     opt.step()
+
     # ------------------------- YOUR CODE HERE -------------------------
-    raise NotImplementedError("exercise 1: train_one_epoch")
+    model.train()
+
+    total_loss = 0.0
+    total_correct = 0
+    total_samples = 0
+
+    for inputs, targets in loader:
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+
+        optimizer.zero_grad(set_to_none=True)
+        logits = model(inputs)
+        loss = loss_fn(logits, targets)
+        loss.backward()
+        if max_grad_norm is not None:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+        optimizer.step()
+
+        batch_size = targets.shape[0]
+        total_loss += loss.item() * batch_size
+        total_correct += (logits.detach().argmax(1) == targets).sum().item()
+        total_samples += batch_size
+
+    if total_samples == 0:
+        return 0.0, 0.0
+    return total_loss / total_samples, total_correct / total_samples
     # ------------------------------------------------------------------
 
 
@@ -121,7 +158,28 @@ def evaluate(model, loader, loss_fn, device):
         (avg_loss, accuracy) as plain Python floats.
     """
     # ------------------------- YOUR CODE HERE -------------------------
-    raise NotImplementedError("exercise 2: evaluate")
+    model.eval()
+
+    total_loss = 0.0
+    total_correct = 0
+    total_samples = 0
+
+    with torch.no_grad():
+        for inputs, targets in loader:
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+
+            logits = model(inputs)
+            loss = loss_fn(logits, targets)
+
+            batch_size = targets.shape[0]
+            total_loss += loss.item() * batch_size
+            total_correct += (logits.argmax(1) == targets).sum().item()
+            total_samples += batch_size
+
+    if total_samples == 0:
+        return 0.0, 0.0
+    return total_loss / total_samples, total_correct / total_samples
     # ------------------------------------------------------------------
 
 

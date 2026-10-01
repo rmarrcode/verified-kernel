@@ -180,7 +180,10 @@ def emit_lean(instances: List[Instance]) -> str:
             out += _emit_pipeline3(inst)
             continue
         if low.family == "chain":
-            out += _emit_chain(inst)
+            if any(st.family == "recur" for st in low.stages):
+                out += _emit_gchain(inst)
+            else:
+                out += _emit_chain(inst)
             continue
         if low.family == "genred":
             from . import ie as I
@@ -613,7 +616,12 @@ def _bound_atom(sb: Tuple) -> str:
         term = _bound_atom(tuple(coords[0]))
         A = extents[0]
         for c, B in zip(coords[1:], extents[1:]):
-            term = f"(bound_pack (A := {A}) (B := {B}) {term} {_bound_atom(tuple(c))})"
+            if c[0] == "zfold":
+                term = (f"(bound_packz (A := {A}) (B := {B}) {term}"
+                        f" (by decide : (0 : Nat) < {B}))")
+            else:
+                term = (f"(bound_pack (A := {A}) (B := {B}) {term}"
+                        f" {_bound_atom(tuple(c))})")
             A *= B
         return term
     raise AssertionError(f"unknown bound {sb!r}")
@@ -762,36 +770,8 @@ def _emit_chain(inst: "Instance") -> List[str]:
     # actually reads -- not one per buffer in the chain. Every other buffer is the
     # constant-zero map, where the bound is `0 < n` and holds of any recorded size.
     for j, st in enumerate(low.stages):
-        fam = FAM_LEAN[st.family]
-        out += [
-            f"/-- Stage {j} reads no intermediate past what was written there. -/",
-            f"theorem {k}_s{j}_loc {{α : Type}} [ExactScalar α] :",
-            f"    SpecLocal {k}_sz ({k}_s{j}_g.spec (α := α)) :=",
-            f"  {fam}.specLocal {k}_s{j}_g {k}_sz"
-            + (" (by decide)" if fam == "MaxRed" else ""),
-        ]
-        for tag, field in (("b", "offs"), ("p", "postOffs")):
-            reads = _chain_reads(st, tag, A, n)
-            args = "q kk hq hk" if tag == "b" else "q hq"
-            out.append(f"    (fun b nn hn {args} => by")
-            for i in reads:
-                out += [
-                    f"      by_cases h{i} : b = {i}",
-                    f"      · subst h{i}",
-                    f"        have hs : nn = {low.sizes[i - A]} :=",
-                    f"          Sizes.ofList_some (by decide) (by decide) hn",
-                    f"        subst hs",
-                    f"        exact {_chain_bound(st, tag, i, low)}",
-                ]
-            neg = "".join(f", h{i}" for i in reads)
-            out += [
-                f"      have hb : {A} \u2264 b := Sizes.ofList_le hn",
-                f"      have hz : {k}_s{j}_g.{field} b = IE.lit 0 := by",
-                f"        simp [{k}_s{j}_g, IE.split_ge hb, IE.sparse{neg}]",
-                f"      rw [hz]",
-                f"      exact {k}_sz_pos b nn hn)",
-            ]
-        out.append("")
+        out += _loc_lines(f"{k}_s{j}", st, A, low.sizes, f"{k}_sz", f"{k}_sz_pos",
+                          f"Stage {j}")
 
     stage_list = ", ".join(
         f"⟨{k}_s{j}_g.prog {k}_s{j}_block {k}_s{j}_nkb, {k}_s{j}_g.spec (α := α), {A + j}⟩"
@@ -805,6 +785,7 @@ def _emit_chain(inst: "Instance") -> List[str]:
     out += _forall_mem(n, lambda j: f"{k}_s{j}_impl")
     out += [
         "",
+        _long_chain_budget(n),
         f"theorem {k}_szok {{α : Type}} [ExactScalar α] :",
         f"    ∀ st ∈ {k}_chain α, {k}_sz st.out = some st.spec.outSize :=",
     ]
@@ -841,10 +822,284 @@ def _emit_chain(inst: "Instance") -> List[str]:
     out += [
         f"def {k}_kernel : ChainKernel :=",
         f"  {{ name := \"{k}\", arity := {A}, sizes := {low.sizes},",
+        f"    frees := {chain_lifetimes(low)[0]},",
         f"    stages := [" + ", ".join(f"{k}_s{j}_kernel" for j in range(n)) + "] }",
         "",
     ]
     return out
+
+
+def _stage_term(name: str, out: int) -> str:
+    return (f"⟨{name}_g.prog {name}_block {name}_nkb, {name}_g.spec (α := α), {out}⟩")
+
+
+def _emit_gchain(inst: "Instance") -> List[str]:
+    """A chain some of whose stages are loops (`Recur.lean`), composed by
+    `gstages_correct`.
+
+    Each loop carries its body's certificates -- one per body stage, as in any
+    chain, but against the loop's size map, which extends the outer one with the
+    state, the views and the body's own buffers -- and the decidable side conditions
+    of `Recur.Ok` and `Recur.Local`. The loop is then one more stage of the outer
+    chain, with `Recur.impl` and `Recur.spec_local` for its obligations.
+    """
+    k, low = inst.key, inst.low
+    A = low.arity
+    n = len(low.stages)
+    out: List[str] = [
+        f"-- {k}: a chain of {n} stage(s) with loops, {A} input buffer(s)",
+        f"def {k}_sizes : List Nat := [{', '.join(str(x) for x in low.sizes)}]",
+        f"def {k}_sz : Sizes := Sizes.ofList {A} {k}_sizes",
+        f"theorem {k}_sz_pos : \u2200 b n, {k}_sz b = some n \u2192 0 < n :=",
+        f"  Sizes.ofList_pos (by decide)",
+        "",
+    ]
+    items, imps, locs, terms = [], [], [], []
+    for j, st in enumerate(low.stages):
+        if st.family != "recur":
+            b = choose_block_red(st.K)
+            out += _stage_defs(f"{k}_s{j}", st, b, (st.K + b - 1) // b, st.out_size, A)
+            out += _loc_lines(f"{k}_s{j}", st, A, low.sizes, f"{k}_sz", f"{k}_sz_pos",
+                              f"Stage {j}")
+            out += [
+                f"def {k}_s{j}_kernel : ReduceKernel :=",
+                f"  {{ name := \"{k}_s{j}\", arity := {A + j}, block := {k}_s{j}_block,"
+                f" nkb := {k}_s{j}_nkb, nout := {st.out_size},"
+                f" init := {_init_for(st, f'{k}_s{j}')},"
+                f" step := {k}_s{j}_g.step {k}_s{j}_block,"
+                f" stored := {k}_s{j}_g.stored {k}_s{j}_block }}",
+                "",
+            ]
+            items.append(f"ChainItem.red {k}_s{j}_kernel")
+            imps.append(f"GStage.ofStage_impl {k}_s{j}_impl")
+            locs.append(f"{k}_s{j}_loc")
+            terms.append(f"GStage.ofStage {_stage_term(f'{k}_s{j}', A + j)}")
+            continue
+        R = st.recur
+        r = f"{k}_r{j}"
+        base, T, S_ = R["base"], R["T"], R["S"]
+        views = R["views"]
+        nv = len(views)
+        body = R["body"]
+        m = len(body)
+        allsz = R["all_sizes"]
+        extra = allsz[len(low.sizes):]
+        out += [
+            f"-- {r}: a loop of {T} steps over a state of {S_}, body of {m} stage(s)",
+            f"def {r}_sizes : List Nat := {k}_sizes ++ [{', '.join(str(x) for x in extra)}]",
+            f"def {r}_szF : Sizes := Sizes.ofList {A} {r}_sizes",
+            f"theorem {r}_pos : \u2200 b n, {r}_szF b = some n \u2192 0 < n :=",
+            f"  Sizes.ofList_pos (by decide)",
+            "",
+        ]
+        for i, bst in enumerate(body):
+            bb = choose_block_red(bst.K)
+            out += _stage_defs(f"{r}_b{i}", bst, bb, (bst.K + bb - 1) // bb,
+                               bst.out_size, A)
+            out += _loc_lines(f"{r}_b{i}", bst, A, allsz, f"{r}_szF", f"{r}_pos",
+                              f"Body stage {i} of loop {j}")
+        vlist = ", ".join(f"⟨{base + 1 + v}, {src}, {stride}⟩"
+                          for v, (src, stride) in enumerate(views))
+        bterms = [_stage_term(f"{r}_b{i}", base + 1 + nv + i) for i in range(m)]
+        out += [
+            f"def {r}_views : List View := [{vlist}]",
+            f"theorem {r}_hv : \u2200 v \u2208 {r}_views, {r}_szF v.buf = some v.stride :=",
+            f"  by decide",
+            f"theorem {r}_vin : \u2200 v \u2208 {r}_views,",
+            f"    ({k}_sz v.src).all ({T} * v.stride \u2264 \u00b7) = true := by decide",
+            f"def {r}_rec (α : Type) [ExactScalar α] : Recur α :=",
+            f"  {{ T := {T}, S := {S_}, init := {R['init']}, st := {base},",
+            f"    views := {r}_views,",
+            f"    body := [{', '.join(bterms[:-1])}] ++ [{bterms[-1]}],",
+            f"    nxt := {base + nv + m}, out := {A + j}, H := {(T + 1) * S_} }}",
+            "",
+            f"theorem {r}_ok {{α : Type}} [ExactScalar α] :",
+            f"    ({r}_rec α).Ok {k}_sz {r}_szF :=",
+            f"  {{ pos := (by decide : 0 < {S_})",
+            f"    hH := (by decide : {(T + 1) * S_} = {T} * {S_} + {S_})",
+            f"    sub := Recur.sub_of _ rfl {r}_hv (Sizes.ofList_append_sub {A} {k}_sizes _)",
+            f"    outs :=",
+        ]
+        out += ["  " + ln for ln in _forall_mem(m, lambda i: "rfl")]
+        out += [f"    impl :="]
+        out += ["  " + ln for ln in _forall_mem(m, lambda i: f"{r}_b{i}_impl")]
+        out += [f"    loc :="]
+        out += ["  " + ln for ln in _forall_mem(m, lambda i: f"{r}_b{i}_loc")]
+        out += [
+            f"    nxt_sz := sizesAfter_last {bterms[-1]} [{', '.join(bterms[:-1])}] _ }}",
+            "",
+            f"theorem {r}_local {{α : Type}} [ExactScalar α] :",
+            f"    ({r}_rec α).Local {k}_sz {r}_szF :=",
+            f"  {{ ok := {r}_ok",
+            f"    init_in := (by decide : ({k}_sz {R['init']}).all ({S_} \u2264 \u00b7) = true)",
+            f"    view_in := {r}_vin }}",
+            "",
+        ]
+        for i, bst in enumerate(body):
+            out += [
+                f"def {r}_b{i}_kernel : ReduceKernel :=",
+                f"  {{ name := \"{r}_b{i}\", arity := {base + 1 + nv + i},"
+                f" block := {r}_b{i}_block, nkb := {r}_b{i}_nkb, nout := {bst.out_size},"
+                f" init := {_init_for(bst, f'{r}_b{i}')},"
+                f" step := {r}_b{i}_g.step {r}_b{i}_block,"
+                f" stored := {r}_b{i}_g.stored {r}_b{i}_block }}",
+            ]
+        vk = ", ".join(f"({src}, {stride})" for (src, stride) in views)
+        out += [
+            f"def {r}_kernel : RecurKernel :=",
+            f"  {{ T := {T}, S := {S_}, init := {R['init']}, views := [{vk}],",
+            f"    sizes := [{', '.join(str(x) for x in R['body_sizes'][:-1])}],",
+            f"    body := [{', '.join(f'{r}_b{i}_kernel' for i in range(m))}] }}",
+            "",
+        ]
+        items.append(f"ChainItem.loop {r}_kernel")
+        imps.append(f"Recur.impl _ {r}_ok")
+        locs.append(f"Recur.spec_local _ {r}_local")
+        terms.append(f"({r}_rec α).toG")
+    out += [
+        f"def {k}_chain (α : Type) [ExactScalar α] : List (GStage α) :=",
+        f"  [{', '.join(terms)}]",
+        "",
+        f"theorem {k}_imp {{α : Type}} [ExactScalar α] : \u2200 st \u2208 {k}_chain α, GImpl st :=",
+    ]
+    out += _forall_mem(n, lambda j: imps[j])
+    out += [
+        "",
+        _long_chain_budget(n),
+        f"theorem {k}_szok {{α : Type}} [ExactScalar α] :",
+        f"    \u2200 st \u2208 {k}_chain α, {k}_sz st.out = some st.spec.outSize :=",
+    ]
+    out += _forall_mem(n, lambda j: "rfl")
+    out += [
+        "",
+        f"theorem {k}_loc {{α : Type}} [ExactScalar α] :",
+        f"    \u2200 st \u2208 {k}_chain α, SpecLocal {k}_sz st.spec :=",
+    ]
+    out += _forall_mem(n, lambda j: locs[j])
+    out += [
+        "",
+        f"/-- Correctness certificate for {k}: the whole chain, loops included. -/",
+        f"theorem {k}_correct {{α : Type}} [ExactScalar α] :",
+        f"    \u2200 (f : Nat \u2192 Buf α) (m : Mem α),",
+        f"      Compat (sizesAfterG ({k}_chain α) emptySizes)",
+        f"        (runG ({k}_chain α) f m) (specG ({k}_chain α) f) :=",
+        f"  fun f m => gstages_correct {k}_sz ({k}_chain α) emptySizes f f m",
+        f"    (Compat.refl _ _) (emptySizes_sub {k}_sz)",
+        f"    {k}_szok {k}_imp {k}_loc",
+        "",
+        f"def {k}_kernel : GChainKernel :=",
+        f"  {{ name := \"{k}\", arity := {A}, sizes := {low.sizes},",
+        f"    frees := {chain_lifetimes(low)[0]},",
+        f"    items := [{', '.join(items)}] }}",
+        "",
+    ]
+    return out
+
+
+def _loc_lines(name: str, st, A: int, sizes: List[int], sz: str, pos: str,
+               what: str) -> List[str]:
+    """The locality certificate for one stage against the size map `sz`, which is
+    `Sizes.ofList A sizes`: one case per intermediate the stage actually reads, and
+    one rewrite for every other buffer, which it indexes at the constant zero."""
+    fam = FAM_LEAN[st.family]
+    out = [
+        f"/-- {what} reads no intermediate past what was written there. -/",
+        f"theorem {name}_loc {{α : Type}} [ExactScalar α] :",
+        f"    SpecLocal {sz} ({name}_g.spec (α := α)) :=",
+        f"  {fam}.specLocal {name}_g {sz}" + (" (by decide)" if fam == "MaxRed" else ""),
+    ]
+    for tag, field in (("b", "offs"), ("p", "postOffs")):
+        reads = _chain_reads(st, tag, A, len(sizes))
+        args = "q kk hq hk" if tag == "b" else "q hq"
+        out.append(f"    (fun b nn hn {args} => by")
+        for i in reads:
+            out += [
+                f"      by_cases h{i} : b = {i}",
+                f"      \u00b7 subst h{i}",
+                f"        have hs : nn = {sizes[i - A]} :=",
+                f"          Sizes.ofList_some (by decide) (by decide) hn",
+                f"        subst hs",
+                f"        exact {_bound_atom(tuple(st.bounds[f'{tag}{i}']))}",
+            ]
+        neg = "".join(f", h{i}" for i in reads)
+        out += [
+            f"      have hb : {A} \u2264 b := Sizes.ofList_le hn",
+            f"      have hz : {name}_g.{field} b = IE.lit 0 := by",
+            f"        simp [{name}_g, IE.split_ge hb, IE.sparse{neg}]",
+            f"      rw [hz]",
+            f"      exact {pos} b nn hn)",
+        ]
+    out.append("")
+    return out
+
+
+def _se_slots(e) -> set:
+    """Every input slot a spec expression reads."""
+    from . import se as S
+    if isinstance(e, S.Inp):
+        return {e.b}
+    if isinstance(e, S.Lit):
+        return set()
+    if isinstance(e, S.Bin):
+        return _se_slots(e.a) | _se_slots(e.b)
+    if isinstance(e, (S.Un, S.Recip)):
+        return _se_slots(e.a)
+    if isinstance(e, S.SelLe):
+        return _se_slots(e.a) | _se_slots(e.b) | _se_slots(e.t) | _se_slots(e.e)
+    raise AssertionError(f"unknown SE {type(e).__name__}")
+
+
+def stage_reads(st) -> set:
+    """The buffers a chain stage loads from. A kernel loads a buffer exactly when
+    its body or `post` names it -- an index map alone loads nothing -- so these are
+    the only buffers it dereferences. A loop reads its initial state, its views'
+    sources, and whatever outer buffer its body names."""
+    if st.family == "recur":
+        R = st.recur
+        out = {R["init"]} | {src for (src, _) in R["views"]}
+        base = R.get("base", R.get("L0"))
+        for b in R["body"]:
+            out |= {x for x in stage_reads(b) if x < base}
+        return out
+    reads = {b for b in _se_slots(st.body) if b != st.idx_slot}
+    if st.post is not None:
+        reads |= {b - 1 for b in _se_slots(st.post) if b > 0}
+    return reads
+
+
+def chain_lifetimes(low) -> Tuple[List[List[int]], int]:
+    """For each stage, the intermediates (by index) whose last reader it is -- so the
+    launcher can release them right after it -- and the peak number of elements
+    alive at once, including a loop's own buffers while it runs."""
+    A, n = low.arity, len(low.stages)
+    last = {}
+    for j, st in enumerate(low.stages):
+        for b in stage_reads(st):
+            if A <= b < A + n:
+                last[b - A] = j
+    frees: List[List[int]] = [[] for _ in range(n)]
+    for i, j in last.items():
+        if i != n - 1 and j > i:
+            frees[j].append(i)
+    for i in range(n - 1):          # written and never read: free at once
+        if i not in last:
+            frees[i].append(i)
+    live, peak = 0, 0
+    for j, st in enumerate(low.stages):
+        live += low.sizes[j]
+        extra = sum(st.recur.get("body_sizes", [])) if st.family == "recur" else 0
+        peak = max(peak, live + extra)
+        live -= sum(low.sizes[i] for i in frees[j])
+    return [sorted(f) for f in frees], peak
+
+
+def _long_chain_budget(n: int) -> str:
+    """Each `rfl` in a chain's size obligation reads its stage's size out of the size
+    list, a walk proportional to the stage's position, so the obligation as a whole
+    grows with the square of the chain's length. Past a thousand stages that
+    outgrows the file's default elaboration budget. The budget is not a criterion --
+    the kernel still checks every term -- so a long chain gets a larger one."""
+    return "set_option maxHeartbeats 40000000 in" if n > 1000 else ""
 
 
 def _forall_mem(n: int, proof) -> List[str]:

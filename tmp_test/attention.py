@@ -62,6 +62,10 @@ def scaled_dot_product_attention(
         -inf / a large negative number, not multiplication by 0).
       * Must be differentiable end to end.
     """
+
+    attn = torch.matmul(torch.matmul(Q, K.transpose()) / sqrt(K.shape()[1]), V)
+    
+
     raise NotImplementedError("implement scaled_dot_product_attention")
 
 

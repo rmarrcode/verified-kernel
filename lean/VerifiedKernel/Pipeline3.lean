@@ -115,6 +115,14 @@ theorem bound_pack {A B a b : Nat} (ha : a < A) (hb : b < B) : a * B + b < A * B
     _ = (a + 1) * B := by rw [Nat.succ_mul]
     _ ≤ A * B := Nat.mul_le_mul_right B (Nat.succ_le_of_lt ha)
 
+/-- `a * B < A * B` from `a < A`: `bound_pack` for an index whose trailing
+coordinate is the constant zero. The index-map constructors fold `a * B + 0` to
+`a * B`, so the map a stage actually carries has no `+ 0` for `bound_pack`'s
+statement to match -- and asking Lean to see through that numerically is what makes
+it time out. -/
+theorem bound_packz {A B a : Nat} (ha : a < A) (hB : 0 < B) : a * B < A * B :=
+  Nat.mul_lt_mul_of_pos_right ha hB
+
 /-- A group norm's group index is in range: with `C = G * CG` channels split into `G`
 groups of `CG`, the group of any channel is below `G`. -/
 theorem bound_group {C CG G x : Nat} (hC : C = G * CG) (hG : 0 < G) (hCG : 0 < CG) :

@@ -148,18 +148,19 @@ was derived), **certified** (Lean accepted the correctness certificate), and
 |---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** |
 | 2 — fused chains | 100 | 100 | **100** | **99–100** |
-| 3 — whole architectures | 50 | 29 | **29** | **25** |
-| 4 — HuggingFace models | 20 | — | — | — |
-| **total** | **270** | **229** | **229** | **224-225** |
+| 3 — whole architectures | 50 | 49 | **49** | **42** |
+| 4 — HuggingFace models | 20 | 19 | **19** | **10** |
+| **total** | **270** | **268** | **268** | **251-252** |
 
-Every task that lowers carries a Lean-checked certificate -- 229 of them, none
-depending on `sorryAx`. The largest is ResNet101: 454 stages in one chain.
+Every task that lowers carries a Lean-checked certificate -- 268 of them, none
+depending on `sorryAx`. The longest chain is an unrolled RNN at 1033 stages; the
+LSTMs and GRUs are certified as loops, a body proved once and run 512 times.
 
 Two qualifications, both in `STATUS.md` with the measurements behind them. One Level
 2 task sits on the `allclose` boundary and fails intermittently, which is why that row
 is a range. And PyTorch defaults to TF32 for convolutions, so on a deep network the
-*reference* is the less precise side: with it at full float32 the total is 227, and
-ResNet101 alone goes from 6576 failing elements to none.
+*reference* is the less precise side: with it at full float32 ResNet101 alone goes
+from 6576 failing elements to none.
 
 Level 1 is complete. Level 2 lowers and certifies completely; 99 of 100 match, and
 the exception is a case where the kernel is ten times *closer* to a float64 ground
@@ -170,10 +171,20 @@ traced graph emitting them; each non-pointwise node is lowered by the *same* Lev
 frontend and relocated into the chain's buffer numbering, so a convolution in a
 chain is the same `GenRed`, at the same theorem, as a convolution on its own.
 
-Level 3 is not simply more of the same, and `STATUS.md` says why: its chains reach
-452 stages, and the locality obligation as currently stated is quadratic in chain
-length. What is *not* proved anywhere is stated there too -- the rounding bound, and
-the frontend's claim about what each PyTorch module means.
+Level 3 needed two more things. Chains reach 454 stages, which made the locality
+obligation's quadratic statement untenable, so it was restated linearly. And the
+recurrent networks needed a loop: `Recur.lean` proves that a body chain run `T`
+times, reading each step's slice of its input, implements the recurrence -- so a
+six-layer LSTM over 512 steps is a handful of certified stages rather than
+thousands. Level 4 runs the same compiler through HuggingFace models; what it
+needed was operators (gathers, attention, `addmm`), not machinery.
+
+Most of the matches missing at Levels 3 and 4 are not kernel defects: measured
+against float64, the kernel is the more accurate side, or no float32 computation is
+close (`STATUS.md`, *The mismatches that are not defects*). The rest are hardware:
+weights or activations this 12GB card cannot hold at any size. What is *not*
+proved anywhere is stated there too -- the rounding bound, and the frontend's claim
+about what each PyTorch module means.
 
 ## Goal, and where it stands
 

@@ -13,5 +13,6 @@ import VerifiedKernel.Kernels.ProdRed
 import VerifiedKernel.Pipeline
 import VerifiedKernel.Pipeline3
 import VerifiedKernel.Stages
+import VerifiedKernel.Recur
 import VerifiedKernel.Render
 import VerifiedKernel.Render3

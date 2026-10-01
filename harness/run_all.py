@@ -40,6 +40,9 @@ from vk import compile as C
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GB = 1024 ** 3
+#: A task too slow to check is retried at 1/SLOW_STEP of the size, down to this.
+SLOW_STEP = 8
+SLOW_MAX_SCALE = 512
 
 
 def build(plans: List[Plan], verbose: bool = True) -> Tuple[set, Dict[str, C.Instance]]:
@@ -50,15 +53,45 @@ def build(plans: List[Plan], verbose: bool = True) -> Tuple[set, Dict[str, C.Ins
                    else C.choose_block(p.out_size)),
             out_size=p.out_size)
         for p in plans]
-    report = C.compile_all(instances, verbose=verbose)
-    if not report["ok"]:
-        print("\n[FAIL] certificates did not typecheck:")
-        for e in report["proof_errors"][:20]:
-            print("   ", e)
-        if "emit_error" in report:
-            print("   emit:", report["emit_error"][:1500])
-        sys.exit(1)
-    return set(report["emitted"]), {i.key: i for i in instances}
+    emitted: set = set()
+    for batch in _batches(instances):
+        report = C.compile_all(batch, verbose=verbose)
+        if not report["ok"]:
+            print("\n[FAIL] certificates did not typecheck:")
+            for e in report["proof_errors"][:20]:
+                print("   ", e)
+            if "emit_error" in report:
+                print("   emit:", report["emit_error"][:1500])
+            sys.exit(1)
+        emitted |= set(report["emitted"])
+    return emitted, {i.key: i for i in instances}
+
+
+#: Stages per Lean file. Checking a whole level's certificates in one file holds
+#: every one of them in memory at once, which a level with a 1000-stage chain and
+#: several recurrences does not fit in. Each batch is still checked in full before
+#: any of its kernels is emitted; batching changes nothing but peak memory.
+BATCH_STAGES = 1500
+
+
+def _stage_count(inst) -> int:
+    low = inst.low
+    if low.family != "chain":
+        return 1
+    return sum(1 + len(st.recur.get("body", [])) for st in low.stages)
+
+
+def _batches(instances):
+    batch, n = [], 0
+    for inst in instances:
+        c = _stage_count(inst)
+        if batch and n + c > BATCH_STAGES:
+            yield batch
+            batch, n = [], 0
+        batch.append(inst)
+        n += c
+    if batch:
+        yield batch
 
 
 def dump_plans(plans: List[Plan], path: str, acc: Dict[str, dict]) -> None:
@@ -70,7 +103,12 @@ def dump_plans(plans: List[Plan], path: str, acc: Dict[str, dict]) -> None:
     flushed before any subprocess reads it.
     """
     for p in plans:
+        cpath = None
+        if p.low.consts:
+            cpath = os.path.join(HERE, f"_consts_{p.key}.pt")
+            torch.save(p.low.consts, cpath)
         acc[p.key] = {"num": p.task.num, "scale": p.scale, "mode": p.mode,
+                      "consts": cpath,
                       "out_shape": list(p.out_shape),
                       "tensor_arg_index": list(p.low.tensor_arg_index),
                       "param_paths": list(p.low.param_paths),
@@ -157,6 +195,11 @@ def main() -> None:
             if p.key not in emitted:
                 continue
             inst = insts[p.key]
+            if p.mode == "nofit":
+                verdict[p.key] = ("nofit", "does not fit this GPU at any size")
+                print(f"  SKIP  {labels[p.key][:52]:52s} verified; does not fit this "
+                      f"GPU at any size", flush=True)
+                continue
             if inst.serial:
                 verdict[p.key] = ("serial", f"{inst.nkb} iterations over "
                                             f"{p.out_size} program(s)")
@@ -172,6 +215,16 @@ def main() -> None:
                     if ln.startswith("RESULT "):
                         line = ln
             except subprocess.TimeoutExpired:
+                # Too slow to check at this size is the same kind of limit as too
+                # big: it bounds the measurement, not the proof. Retry smaller --
+                # re-lowered and re-certified at the size it runs, like an OOM --
+                # and report the reduction.
+                if p.scale < SLOW_MAX_SCALE and p.low.out_size > 1:
+                    min_scale[p.task.num] = p.scale * SLOW_STEP
+                    retry.append(p.task)
+                    print(f"  SLOW  {labels[p.key][:52]:52s} at 1/{p.scale}; "
+                          f"retrying smaller", flush=True)
+                    continue
                 verdict[p.key] = ("slow", f"exceeded {args.timeout}s")
                 print(f"  SLOW  {labels[p.key][:52]:52s} verified; exceeded "
                       f"{args.timeout}s", flush=True)
@@ -202,6 +255,7 @@ def main() -> None:
     nfail = [(k, d) for k, (st, d) in verdict.items() if st == "fail"]
     nserial = [k for k, (st, _) in verdict.items() if st == "serial"]
     nslow = [k for k, (st, _) in verdict.items() if st == "slow"]
+    nnofit = [k for k, (st, _) in verdict.items() if st == "nofit"]
     unrun = [t.num for t in pending]
 
     print("\n" + "=" * 70)
@@ -216,6 +270,8 @@ def main() -> None:
         print(f"  certified, not run (serial)             {len(nserial)}")
     if nslow:
         print(f"  certified, not run (too slow)           {len(nslow)}")
+    if nnofit:
+        print(f"  certified, does not fit this GPU        {len(nnofit)}")
     if unrun:
         print(f"  certified, out of memory                {len(unrun)}")
     print("=" * 70)

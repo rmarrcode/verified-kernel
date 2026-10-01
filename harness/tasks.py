@@ -87,10 +87,22 @@ def fake_instance(task: Task):
     """Instantiate the model and its inputs as fake tensors (shapes only)."""
     from torch._subclasses.fake_tensor import FakeTensorMode
     mode = FakeTensorMode(allow_non_fake_inputs=True)
-    with mode:
+    try:
+        with mode:
+            init = task.module.get_init_inputs()
+            model = task.module.Model(*init)
+            inputs = task.module.get_inputs()
+    except Exception:
+        # A constructor that reads a value back (`x.item()` over a `linspace`, as
+        # Swin's does) cannot run on fake tensors. Build the module for real, on
+        # the CPU -- its weights are then ordinary tensors, which the fake mode
+        # accepts -- and keep only the inputs fake, since those are what can be
+        # large.
+        mode = FakeTensorMode(allow_non_fake_inputs=True)
         init = task.module.get_init_inputs()
         model = task.module.Model(*init)
-        inputs = task.module.get_inputs()
+        with mode:
+            inputs = task.module.get_inputs()
     return mode, model, inputs
 
 

@@ -28,6 +28,28 @@ def load_kernel(key: str):
     return getattr(mod, key)
 
 
+class FreshNormal:
+    """An input the kernel reads that is drawn afresh, from PyTorch's generator, on
+    every call -- a `torch.randn` in the reference's forward. The draw is outside
+    the verified core, as it is outside the reference's arithmetic."""
+
+    def __init__(self, shape: Tuple[int, ...]):
+        self.shape = tuple(shape)
+
+
+def resolve_param(module: nn.Module, name: str, named=None):
+    """The tensor a lowering's parameter path names: a parameter or buffer, a tied
+    weight under its other name, or a fresh draw."""
+    if name.startswith("__randn__/"):
+        return FreshNormal(tuple(int(d) for d in name.rsplit(":", 1)[1].split(",") if d))
+    if named is not None and name in named:
+        return named[name]
+    obj = module
+    for part in name.split("."):
+        obj = getattr(obj, part)
+    return obj
+
+
 class GeneratedModel(nn.Module):
     """Wraps a generated kernel with the interface KernelBench expects."""
 
@@ -52,9 +74,12 @@ class GeneratedModel(nn.Module):
         ins: List[torch.Tensor] = []
         for i in self.tensor_arg_index:
             ins.append(_check(args[i], f"input {i}"))
-        for j, p in enumerate(self.extra):
-            ins.append(_check(p, f"parameter {j}"))
         dev = ins[0].device if ins else torch.device("cuda")
+        for j, p in enumerate(self.extra):
+            if isinstance(p, FreshNormal):
+                ins.append(torch.randn(p.shape, device=dev, dtype=torch.float32))
+            else:
+                ins.append(_check(p, f"parameter {j}"))
         out = torch.empty(self.out_shape, device=dev, dtype=torch.float32)
         self.launch(out, ins)
         return out.to(self.out_dtype) if self.out_dtype is not None else out
@@ -82,6 +107,10 @@ def _check(t: torch.Tensor, what: str) -> torch.Tensor:
             raise RuntimeError(
                 f"{what} has integer values that float32 cannot represent exactly")
         return f.contiguous()
+    if t.dtype in (torch.float16, torch.bfloat16):
+        # Every half- or bfloat16 value is exactly a float32 value, so widening is
+        # the identity on what the tensor denotes. (Narrowing would not be.)
+        return t.to(torch.float32).contiguous()
     if t.dtype is not torch.float32:
-        raise RuntimeError(f"{what} is {t.dtype}, expected float32 (or bool/int)")
+        raise RuntimeError(f"{what} is {t.dtype}, expected float32 (or bool/int/half)")
     return t.contiguous()

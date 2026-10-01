@@ -17,6 +17,8 @@ This module owns the *shape* of the compilation. The per-operator index maps liv
 
 from __future__ import annotations
 
+import math
+import operator
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,6 +26,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import torch
 import torch.fx as fx
 import torch.nn as nn
+import torch.nn.functional as F
 
 from . import ie as I
 from . import se as S
@@ -179,28 +182,52 @@ class Chain:
         fires, which is the same shape-correctness claim it already makes everywhere.
         """
         for j, st in enumerate(self.stages):
-            bounds: Dict[str, Tuple] = {}
-            for b in range(self.arity, self.arity + len(self.stages)):
-                size = self.sizes[b - self.arity]
-                shp = self.shapes[b - self.arity]
-                for tag, lst in (("b", st.offs), ("p", st.post_offs)):
-                    e = lst[b] if b < len(lst) else I.Lit(0)
-                    bd = buffer_bound(e, size, st.out_size, shp)
-                    if bd is None:
-                        e = I.Sub(e, I.Sub(e, I.Lit(size - 1)))   # min(e, size-1)
-                        while b >= len(lst):
-                            lst.append(I.Lit(0))
-                        lst[b] = e
-                        bd = ("clamp", size)
-                        st.notes.append(f"read of buffer {b} clamped into range")
-                    bounds[f"{tag}{b}"] = bd
-            st.bounds = bounds
+            if st.family == "recur":
+                # A loop's own reads are its initial state and its views, whose
+                # ranges are side conditions of `Recur.Local`; its body's reads are
+                # bounded when the body is placed (`finish_recurrences`).
+                st.bounds = {}
+                continue
+            bound_stage(st, self.arity, self.sizes, self.shapes)
+
+    def finish_recurrences(self) -> None:
+        """Number each loop body's buffers above every outer buffer, and bound its
+        reads against the sizes the loop proof uses: the outer intermediates, then
+        the state, the views and the body's own."""
+        from .rnn import finish_recur
+        base = self.arity + len(self.stages)
+        for st in self.stages:
+            if st.family == "recur":
+                finish_recur(st, base, self.arity, self.sizes, self.shapes)
 
     def pad(self, entries: Dict[int, I.IE], extra: int = 1) -> List[I.IE]:
         """Index maps for every buffer a stage may see: all inputs, every earlier
         intermediate, and the one it is about to write."""
         n = self.nbuf + extra
         return [entries.get(b, I.Lit(0)) for b in range(n)]
+
+
+def bound_stage(st: Lowered, arity: int, sizes: List[int],
+                shapes: List[Tuple[int, ...]]) -> None:
+    """Record how `st` stays inside each intermediate buffer `arity + i`, of
+    `sizes[i]` elements, clamping any read whose range is not evident from its
+    shape. See `Chain.record_bounds`."""
+    bounds: Dict[str, Tuple] = {}
+    for b in range(arity, arity + len(sizes)):
+        size = sizes[b - arity]
+        shp = shapes[b - arity]
+        for tag, lst in (("b", st.offs), ("p", st.post_offs)):
+            e = lst[b] if b < len(lst) else I.Lit(0)
+            bd = buffer_bound(e, size, st.out_size, shp)
+            if bd is None:
+                e = I.Sub(e, I.Sub(e, I.Lit(size - 1)))   # min(e, size-1)
+                while b >= len(lst):
+                    lst.append(I.Lit(0))
+                lst[b] = e
+                bd = ("clamp", size)
+                st.notes.append(f"read of buffer {b} clamped into range")
+            bounds[f"{tag}{b}"] = bd
+    st.bounds = bounds
 
 
 def identity_stage(ch: Chain, v: Val, body: S.SE, shape: Tuple[int, ...],
@@ -281,12 +308,22 @@ def split_pack(e: I.IE, dims: List[int]) -> Optional[List[I.IE]]:
             coords.append(cur.b)
             cur = cur.a.a
         elif isinstance(cur, I.Mul) and _lit(cur.b) == d:
-            coords.append(I.Lit(0))         # trailing coordinate folded away
+            coords.append(FOLDED_ZERO)      # trailing coordinate folded away
             cur = cur.a
         else:
             return None
     coords.append(cur)
     return list(reversed(coords))
+
+
+class _FoldedZero(I.IE):
+    """A zero coordinate that `pack` folded out of the index map entirely: the map
+    reads `a * d`, not `a * d + 0`, and its bound must say so (`bound_packz`)."""
+    def to_lean(self) -> str:
+        return "(IE.lit 0)"
+
+
+FOLDED_ZERO = _FoldedZero()
 
 
 def _is_clamp(c: I.IE, d: int) -> bool:
@@ -297,6 +334,8 @@ def _is_clamp(c: I.IE, d: int) -> bool:
 
 def coord_bound(c: I.IE, d: int, nout: int) -> Optional[Tuple]:
     """How to prove one coordinate is below its axis extent."""
+    if c is FOLDED_ZERO:
+        return ("zfold", d)
     if _is_clamp(c, d):
         return ("clamp", d)
     if _lit(c) == 0:
@@ -378,14 +417,28 @@ def relocate(st: Lowered, bmap: Dict[int, int], nbuf: int, idx_slot: int) -> Low
 
     offs = [I.Lit(0)] * nbuf
     post_offs = [I.Lit(0)] * nbuf
+    # Two slots of the standalone lowering may land on one chain buffer (the same
+    # tensor passed twice). A stage reads a buffer at one index map, so that is
+    # only sound when the two maps agree; otherwise one would silently replace the
+    # other, which is exactly how `cat([h, h])` once went wrong.
+    placed: Dict[Tuple[str, int], I.IE] = {}
+
+    def place(tag, lst, b, e):
+        t = bmap[b]
+        if (tag, t) in placed and placed[(tag, t)] != e and not (
+                isinstance(e, I.Lit) and e.n == 0):
+            raise Unsupported(f"two operands read buffer {t} at different index maps")
+        if not (isinstance(e, I.Lit) and e.n == 0):
+            placed[(tag, t)] = e
+            lst[t] = e
     for b, e in enumerate(st.offs):
         if b == st.idx_slot:
             continue
         if b in bmap:
-            offs[bmap[b]] = e
+            place("b", offs, b, e)
     for b, e in enumerate(st.post_offs):
         if b in bmap:
-            post_offs[bmap[b]] = e
+            place("p", post_offs, b, e)
 
     return Lowered(
         family=st.family, body=_remap_se(st.body, m), arity=nbuf,
@@ -417,21 +470,36 @@ class _Wrap3(nn.Module):
     def forward(self, x, y, z): return self.fn(x, y, z)
 
 
+_WRAPS: Dict[int, type] = {1: _Wrap1, 2: _Wrap2, 3: _Wrap3}
+
+
 def _wrap(fn, n: int) -> nn.Module:
-    return {1: _Wrap1, 2: _Wrap2, 3: _Wrap3}[n](fn)
+    """A module whose forward takes exactly `n` named tensors. Beyond three the
+    class is generated, since `fx` needs the arity spelled out in the signature."""
+    if n not in _WRAPS:
+        names = ", ".join(f"a{i}" for i in range(n))
+        ns: Dict[str, Any] = {}
+        exec(f"def forward(self, {names}): return self.fn({names})", ns)
+        _WRAPS[n] = type(f"_Wrap{n}", (_Wrap1,), {"forward": ns["forward"]})
+    return _WRAPS[n](fn)
 
 
 # ---------------------------------------------------------------------------
 # The walker
 # ---------------------------------------------------------------------------
 
-def _node_shapes(gm: fx.GraphModule, args: List[Any]) -> Dict[fx.Node, Tuple[int, ...]]:
-    """Every node's output shape, by interpreting the graph on fake tensors."""
+def _node_shapes(gm: fx.GraphModule, args: List[Any],
+                 dtypes: Optional[Dict[fx.Node, Any]] = None
+                 ) -> Dict[fx.Node, Tuple[int, ...]]:
+    """Every node's output shape, by interpreting the graph on fake tensors; and,
+    given a dict to fill, every tensor node's dtype."""
     shapes: Dict[fx.Node, Tuple[int, ...]] = {}
 
     class Rec(fx.Interpreter):
         def run_node(self, n):
             out = super().run_node(n)
+            if isinstance(out, torch.Tensor) and dtypes is not None:
+                dtypes[n] = out.dtype
             if isinstance(out, torch.Tensor):
                 shapes[n] = tuple(out.shape)
             elif (isinstance(out, tuple) and out
@@ -448,7 +516,10 @@ def _node_shapes(gm: fx.GraphModule, args: List[Any]) -> Dict[fx.Node, Tuple[int
 # Operators that only relabel a tensor: the data is untouched and row-major order is
 # preserved, so the buffer is reused as it stands and no stage is emitted.
 ALIAS_FNS = {"view", "reshape", "clone", "detach", "contiguous", "flatten",
-             "squeeze", "unsqueeze", "to", "float", "type_as", "expand_as"}
+             "squeeze", "unsqueeze", "to", "float", "type_as", "expand_as",
+             # an expand that adds no elements; one that broadcasts is a stage
+             # (`_relabel_of`), which is checked first
+             "expand", "broadcast_to"}
 
 
 def _alias_of(node: fx.Node, shapes) -> Optional[fx.Node]:
@@ -467,7 +538,10 @@ def _alias_of(node: fx.Node, shapes) -> Optional[fx.Node]:
         return src
     if nm == "getitem":
         idx = node.args[1] if len(node.args) > 1 else None
-        if idx == 0:
+        # Field 0 of a `(values, indices)` pair, whose recorded shape is the
+        # values' -- not `x[0]` on a tensor, which drops an axis and is a slice.
+        if idx == 0 and not isinstance(idx, bool) and node in shapes \
+                and src in shapes and shapes[node] == shapes[src]:
             return src
         return None
     if nm == "getattr" and len(node.args) > 1 and node.args[1] == "values":
@@ -476,12 +550,29 @@ def _alias_of(node: fx.Node, shapes) -> Optional[fx.Node]:
     return None
 
 
-def _const_of(node: fx.Node):
-    """The literal a constant-tensor node denotes."""
+def _const_of(node: fx.Node, gm: Optional[fx.GraphModule] = None):
+    """The value a constant node denotes, as a spec expression.
+
+    A literal `torch.tensor(c)`, or a pointwise operator applied to constants --
+    `torch.log(torch.tensor(100.))` -- which is kept symbolic rather than evaluated,
+    so the spec says `log 100` and not a float near it.
+    """
     if op_name(node.target) == "tensor" and node.args and isinstance(
             node.args[0], (int, float)):
         return S.lit(node.args[0])
+    if gm is not None and node.op in ("call_function", "call_method") \
+            and _is_pointwise(node, gm) and node.all_input_nodes:
+        args = [_const_of(a, gm) if isinstance(a, fx.Node) else a for a in node.args]
+        return _pointwise_se(node, gm, args)
     raise Unsupported(f"{node.target} is not a constant")
+
+
+def _is_const(node: fx.Node, gm: fx.GraphModule) -> bool:
+    try:
+        _const_of(node, gm)
+        return True
+    except Unsupported:
+        return False
 
 
 def _is_pointwise(node: fx.Node, gm: fx.GraphModule) -> bool:
@@ -504,23 +595,30 @@ def _is_pointwise(node: fx.Node, gm: fx.GraphModule) -> bool:
 
 
 def _slice_plan(idx, in_shape: List[int]):
-    """Resolve a subscript into, per input axis, `(start, step, extent_or_None)`.
+    """Resolve a subscript into, per output-or-input axis, `(start, step, extent)`.
 
-    `None` as the extent means the axis is indexed by a plain integer and so does not
-    appear in the output at all. Returns `None` for anything not handled -- a boolean
-    mask, a tensor index, `None`/newaxis -- rather than guessing.
+    An entry with `extent` `None` is an input axis indexed by a plain integer, so
+    absent from the output; an entry `(None, None, 1)` is a new axis of extent one
+    (`None` in the subscript), absent from the input. Returns `None` for anything
+    not handled -- a boolean mask, a tensor index -- rather than guessing.
     """
     items = list(idx) if isinstance(idx, tuple) else [idx]
+    n_real = sum(1 for it in items if it is not Ellipsis and it is not None)
     if any(it is Ellipsis for it in items):
-        n_given = sum(1 for it in items if it is not Ellipsis)
         pos = next(i for i, it in enumerate(items) if it is Ellipsis)
-        items[pos:pos + 1] = [slice(None)] * (len(in_shape) - n_given)
-    if len(items) > len(in_shape):
+        items[pos:pos + 1] = [slice(None)] * (len(in_shape) - n_real)
+        n_real = len(in_shape)
+    if n_real > len(in_shape):
         return None
-    items += [slice(None)] * (len(in_shape) - len(items))
+    items += [slice(None)] * (len(in_shape) - n_real)
     plan = []
-    for it, n in zip(items, in_shape):
-        if isinstance(it, int):
+    axes = iter(in_shape)
+    for it in items:
+        if it is None:
+            plan.append((None, None, 1))
+            continue
+        n = next(axes)
+        if isinstance(it, int) and not isinstance(it, bool):
             i = it + n if it < 0 else it
             if not (0 <= i < n):
                 return None
@@ -547,7 +645,9 @@ def _emit_slice(ch: Chain, v: Val, plan, note: str) -> Val:
     coords = unpack(I.Pid(), list(shape))
     sel, k = [], 0
     for (start, step, ext) in plan:
-        if ext is None:
+        if start is None:
+            k += 1                        # a new axis: an output coordinate only
+        elif ext is None:
             sel.append(I.Lit(start))
         else:
             c = coords[k]; k += 1
@@ -592,7 +692,7 @@ def _split_parts(n: fx.Node, shape) -> Optional[Tuple[int, List[int]]]:
 
 def _cat_args(n: fx.Node, shapes) -> Optional[Tuple[List[fx.Node], int]]:
     """The tensors a `cat` joins and the axis, or `None` if this is not one."""
-    if op_name(n.target) != "cat":
+    if op_name(n.target) not in ("cat", "concat", "concatenate", "stack"):
         return None
     xs = n.args[0] if n.args else n.kwargs.get("tensors")
     if not isinstance(xs, (list, tuple)) or not all(isinstance(a, fx.Node) for a in xs):
@@ -620,6 +720,53 @@ def _emit_cat(ch: Chain, n: fx.Node, env, shapes, xs: List[fx.Node], dim: int) -
     """
     so = list(shapes[n])
     vs = [env[a] for a in xs]
+    if op_name(n.target) == "stack":
+        # `stack` is `cat` of inputs that each gain a unit axis at `dim`; that axis
+        # is a relabelling of the same buffer, not a copy.
+        vs = [Val(v.buf, tuple(v.shape[:dim]) + (1,) + tuple(v.shape[dim:]))
+              for v in vs]
+    return _emit_cat_vals(ch, vs, dim, so)
+
+
+#: The widest concatenation emitted as one stage. Its body selects between the
+#: parts with one nested `selLe` per part, and Python's parser refuses nesting past
+#: about 200; wider ones are joined as a tree of narrower ones.
+CAT_FANOUT = 32
+
+
+def _emit_cat_vals(ch: Chain, vs: List[Val], dim: int, so: List[int]) -> Val:
+    # An empty part contributes nothing -- a key/value cache that starts empty is
+    # concatenated onto every step's keys -- and has no element to read.
+    vs = [v for v in vs if v.numel != 0]
+    if not vs:
+        raise Unsupported("concatenation of empty tensors")
+    if len(vs) == 1 and list(vs[0].shape) == list(so):
+        return vs[0]
+    # One buffer is read at one index map per stage, and each part needs its own --
+    # so a tensor joined to itself (`cat([h, h])`, Reformer's reversible residual)
+    # must not share a slot with its other occurrence. Before this, the second
+    # part's map silently replaced the first's. A repeat gets a copy of its own.
+    seen, fresh = set(), []
+    for v in vs:
+        if v.buf in seen:
+            st = Lowered(
+                family="genred", body=S.Inp(v.buf), arity=ch.nbuf + 1,
+                out_size=v.numel, out_shape=tuple(v.shape),
+                tensor_arg_index=list(ch.arg_index), K=1,
+                offs=ch.pad({v.buf: I.Pid()}), post_offs=ch.pad({}), post=S.Inp(0),
+                notes=[f"copy of buffer {v.buf}, joined to itself"])
+            v = ch.emit(st, tuple(v.shape))
+        seen.add(v.buf)
+        fresh.append(v)
+    vs = fresh
+    if len(vs) > CAT_FANOUT:
+        groups = [vs[i:i + CAT_FANOUT] for i in range(0, len(vs), CAT_FANOUT)]
+        parts = []
+        for grp in groups:
+            gso = list(so)
+            gso[dim] = sum(v.shape[dim] for v in grp)
+            parts.append(_emit_cat_vals(ch, grp, dim, gso))
+        return _emit_cat_vals(ch, parts, dim, so)
     sizes = [v.shape[dim] for v in vs]
     starts, acc = [], 0
     for sz in sizes:
@@ -662,6 +809,280 @@ def _emit_cat(ch: Chain, n: fx.Node, env, shapes, xs: List[fx.Node], dim: int) -
     return ch.emit(st, tuple(so))
 
 
+def _relabel_of(n: fx.Node, shapes) -> Optional[Tuple[str, Any]]:
+    """An `expand` that really broadcasts, or a `Tensor.unfold`: operators that move
+    no arithmetic, only coordinates, and that `_emit_relabel` expresses as an index
+    map. `None` for anything else."""
+    name = op_name(n.target)
+    if n.op not in ("call_method", "call_function") or n not in shapes:
+        return None
+    src = n.all_input_nodes[0] if n.all_input_nodes else None
+    if src is None or src not in shapes:
+        return None
+    if name in ("expand", "expand_as", "broadcast_to"):
+        if _prod(shapes[n]) == _prod(shapes[src]):
+            return None                   # a relabelling, handled as an alias
+        return ("expand", None)
+    if name == "unfold" and n.op == "call_method" and len(n.args) == 4 \
+            and all(isinstance(a, int) for a in n.args[1:]):
+        return ("unfold", tuple(n.args[1:]))
+    if name == "pad" and n.op == "call_function":
+        pads = n.args[1] if len(n.args) > 1 else n.kwargs.get("pad")
+        pmode = n.args[2] if len(n.args) > 2 else n.kwargs.get("mode", "constant")
+        value = n.args[3] if len(n.args) > 3 else n.kwargs.get("value", None)
+        if pmode != "constant" or value not in (None, 0, 0.0):
+            raise Unsupported(f"pad mode {pmode!r} value {value!r}")
+        if not all(isinstance(p, int) and p >= 0 for p in pads):
+            raise Unsupported(f"pad amounts {pads!r}")
+        return ("pad", tuple(pads))
+    if name == "roll":
+        sh = n.args[1] if len(n.args) > 1 else n.kwargs.get("shifts")
+        dims = n.args[2] if len(n.args) > 2 else n.kwargs.get("dims")
+        sh = (sh,) if isinstance(sh, int) else tuple(sh)
+        dims = (dims,) if isinstance(dims, int) else tuple(dims or ())
+        if len(sh) != len(dims) or not dims:
+            raise Unsupported("roll without matching shifts and dims")
+        return ("roll", (sh, dims))
+    if name in ("zeros_like", "ones_like"):
+        return ("const", 0 if name == "zeros_like" else 1)
+    if name in ("tril", "triu"):
+        dg = n.kwargs.get("diagonal", n.args[1] if len(n.args) > 1 else 0)
+        if not isinstance(dg, int):
+            raise Unsupported(f"{name} with diagonal {dg!r}")
+        return (name, dg)
+    return None
+
+
+def _emit_relabel(ch: Chain, n: fx.Node, v: Val, so: Tuple[int, ...], kind: str,
+                  arg) -> Val:
+    """Emit an `expand` or `unfold` as a `K = 1` stage whose index map carries it.
+
+    `expand` pins every broadcast axis of the source to 0, exactly as a broadcasting
+    pointwise operator reads its narrower input. `unfold(d, size, step)` appends a
+    window axis `j` and reads source coordinate `i_d * step + j` on axis `d`.
+    """
+    sv = list(v.shape)
+    coords = unpack(I.Pid(), list(so))
+    if kind == "expand":
+        if len(sv) > len(so):
+            raise Unsupported(f"expand from {tuple(sv)} to {so}")
+        tail = coords[len(so) - len(sv):]
+        for a_, b_ in zip(sv, so[len(so) - len(sv):]):
+            if a_ not in (1, b_):
+                raise Unsupported(f"expand from {tuple(sv)} to {so}")
+        sel = [I.Lit(0) if d == 1 else c for c, d in zip(tail, sv)]
+        note = f"expand {tuple(sv)} -> {so}"
+    elif kind == "unfold":
+        d, size, step = arg
+        d %= len(sv)
+        if list(so) != sv[:d] + [(sv[d] - size) // step + 1] + sv[d + 1:] + [size]:
+            raise Unsupported(f"unfold{arg} of {tuple(sv)} gives {so}")
+        sel = list(coords[:-1])
+        sel[d] = I.mk_add(sel[d] * I.Lit(step) if step != 1 else sel[d], coords[-1])
+        note = f"unfold{arg} of {tuple(sv)}"
+    elif kind == "pad":
+        # Pairs from the last axis backwards. A padded lane is excluded by the
+        # range guard, so its sum is empty and it holds zero; the read itself is
+        # clamped into the source so that it stays in bounds regardless.
+        pads = list(arg)
+        guards = []
+        sel = list(coords)
+        for i in range(len(pads) // 2):
+            d = len(sv) - 1 - i
+            lo, hi = pads[2 * i], pads[2 * i + 1]
+            if so[d] != sv[d] + lo + hi:
+                raise Unsupported(f"pad {pads} of {tuple(sv)} gives {so}")
+            if lo == 0 and hi == 0:
+                continue
+            c = coords[d]
+            t = I.mk_sub(c, I.Lit(lo))
+            sel[d] = I.mk_sub(t, I.mk_sub(t, I.Lit(sv[d] - 1)))    # min(t, n - 1)
+            guards += [I.le(I.Lit(lo), c), I.lt(c, I.Lit(lo + sv[d]))]
+        note = f"pad {pads} of {tuple(sv)}"
+        st = Lowered(
+            family="genred", body=S.Inp(v.buf), arity=ch.nbuf + 1,
+            out_size=_prod(so), out_shape=tuple(so),
+            tensor_arg_index=list(ch.arg_index), K=1,
+            offs=ch.pad({v.buf: pack(sel, sv)}), in_range=I.all_of(guards),
+            post_offs=ch.pad({}), post=S.Inp(0), notes=[note])
+        return ch.emit(st, tuple(so))
+    elif kind == "roll":
+        # out[.., o, ..] = x[.., (o - s) mod n, ..], with the shift made
+        # non-negative first so the index map stays in the naturals.
+        shifts, dims = arg
+        if list(so) != sv:
+            raise Unsupported(f"roll changes the shape {tuple(sv)} -> {so}")
+        sel = list(coords)
+        for sft, d in zip(shifts, dims):
+            d %= len(sv)
+            r = (-sft) % sv[d]
+            if r:
+                sel[d] = I.mk_mod(I.mk_add(sel[d], I.Lit(r)), I.Lit(sv[d]))
+        note = f"roll by {shifts} along {dims} of {tuple(sv)}"
+    elif kind in ("tril", "triu"):
+        # Keep the lanes on the right side of the diagonal; the others fall outside
+        # the range guard, so their sum is empty and they hold zero.
+        if len(so) < 2 or list(so) != sv:
+            raise Unsupported(f"{kind} of {tuple(sv)}")
+        row, col = coords[-2], coords[-1]
+        dg = arg
+        if kind == "tril":        # col - row <= dg
+            keep = (I.le(col, I.mk_add(row, I.Lit(dg))) if dg >= 0
+                    else I.le(I.mk_add(col, I.Lit(-dg)), row))
+        else:                     # col - row >= dg
+            keep = (I.le(I.mk_add(row, I.Lit(dg)), col) if dg >= 0
+                    else I.le(row, I.mk_add(col, I.Lit(-dg))))
+        st = Lowered(
+            family="genred", body=S.Inp(v.buf), arity=ch.nbuf + 1,
+            out_size=_prod(so), out_shape=tuple(so),
+            tensor_arg_index=list(ch.arg_index), K=1,
+            offs=ch.pad({v.buf: I.Pid()}), in_range=keep,
+            post_offs=ch.pad({}), post=S.Inp(0),
+            notes=[f"{kind}(diagonal={dg}) of {tuple(sv)}"])
+        return ch.emit(st, tuple(so))
+    else:                                                   # const
+        st = Lowered(
+            family="genred", body=S.lit(arg), arity=ch.nbuf + 1,
+            out_size=_prod(so), out_shape=tuple(so),
+            tensor_arg_index=list(ch.arg_index), K=1,
+            offs=ch.pad({}), post_offs=ch.pad({}), post=S.Inp(0),
+            notes=[f"constant {arg} of shape {tuple(so)}"])
+        return ch.emit(st, tuple(so))
+    st = Lowered(
+        family="genred", body=S.Inp(v.buf), arity=ch.nbuf + 1,
+        out_size=_prod(so), out_shape=tuple(so),
+        tensor_arg_index=list(ch.arg_index), K=1,
+        offs=ch.pad({v.buf: pack(sel, sv) if sv else I.Lit(0)}),
+        post_offs=ch.pad({}), post=S.Inp(0), notes=[note])
+    return ch.emit(st, tuple(so))
+
+
+def _emit_gather(ch: Chain, x: Val, dim: int, index: Val, so: Tuple[int, ...]) -> Val:
+    """`torch.gather(x, dim, index)`: `out[.., i, ..] = x[.., index[.., i, ..], ..]`,
+    the index replacing coordinate `dim`. A masked sum over that axis, like
+    `_emit_take`: `sum_k x[.., k, ..] * [index[q] = k]`."""
+    sx, si = list(x.shape), list(index.shape)
+    dim %= len(sx)
+    if list(so) != si or len(si) != len(sx) or any(
+            a > b for d, (a, b) in enumerate(zip(si, sx)) if d != dim):
+        raise Unsupported(f"gather of {tuple(sx)} by {tuple(si)} along {dim}")
+    coords = unpack(I.Pid(), list(so))
+    sel = list(coords)
+    sel[dim] = I.Rk()
+    islot = ch.nbuf + 1
+    k, v = S.Inp(islot), S.Inp(index.buf)
+    hit = S.SelLe(v, k, S.SelLe(k, v, S.lit(1), S.lit(0)), S.lit(0))
+    st = Lowered(
+        family="genred", body=S.Inp(x.buf) * hit, arity=ch.nbuf + 1,
+        out_size=_prod(so), out_shape=tuple(so),
+        tensor_arg_index=list(ch.arg_index), K=sx[dim],
+        offs=ch.pad({x.buf: pack(sel, sx), index.buf: I.Pid()}),
+        post_offs=ch.pad({}), post=S.Inp(0), idx_slot=islot,
+        notes=[f"gather along {dim} of {tuple(sx)} at an index of {tuple(si)}"])
+    return ch.emit(st, tuple(so))
+
+
+def _emit_index_select(ch: Chain, x: Val, dim: int, index: Val,
+                       so: Tuple[int, ...]) -> Val:
+    """`torch.index_select(x, dim, index)`: coordinate `i` on axis `dim` reads
+    `x` at `index[i]`. The masked sum of `_emit_take`, along any axis."""
+    sx, si = list(x.shape), list(index.shape)
+    dim %= len(sx)
+    if len(si) != 1 or list(so) != sx[:dim] + si + sx[dim + 1:]:
+        raise Unsupported(f"index_select of {tuple(sx)} by {tuple(si)} along {dim}")
+    coords = unpack(I.Pid(), list(so))
+    sel = list(coords)
+    sel[dim] = I.Rk()
+    islot = ch.nbuf + 1
+    k, v = S.Inp(islot), S.Inp(index.buf)
+    hit = S.SelLe(v, k, S.SelLe(k, v, S.lit(1), S.lit(0)), S.lit(0))
+    st = Lowered(
+        family="genred", body=S.Inp(x.buf) * hit, arity=ch.nbuf + 1,
+        out_size=_prod(so), out_shape=tuple(so),
+        tensor_arg_index=list(ch.arg_index), K=sx[dim],
+        offs=ch.pad({x.buf: pack(sel, sx), index.buf: coords[dim]}),
+        post_offs=ch.pad({}), post=S.Inp(0), idx_slot=islot,
+        notes=[f"index_select along {dim} of {tuple(sx)}, {si[0]} indices"])
+    return ch.emit(st, tuple(so))
+
+
+def _emit_softmax_matmul(ch: Chain, sv: Val, vv: Val, so: Tuple[int, ...]) -> Val:
+    """`softmax(s, -1) @ v` in three stages, never storing the probabilities:
+
+        m[r]    = max_j s[r, j]
+        Z[r]    = sum_j exp(s[r, j] - m[r])
+        out[r,d] = (sum_j exp(s[r, j] - m[r]) v[j, d]) / Z[r]
+
+    `r` runs over the batch axes and the query axis together. The shift by `m` is
+    PyTorch's own, and cancels in exact arithmetic."""
+    ss, vs = list(sv.shape), list(vv.shape)
+    if len(ss) < 2 or len(vs) != len(ss) or ss[:-2] != vs[:-2] or ss[-1] != vs[-2]:
+        raise Unsupported(f"softmax(s) @ v with s {tuple(ss)}, v {tuple(vs)}")
+    S_, D = ss[-1], vs[-1]
+    R = _prod(ss[:-1])                       # rows: batch axes and queries
+    Lq = ss[-2]
+    q = I.Pid()
+    n = ch.nbuf + 1
+    m1 = Lowered(family="maxred", body=S.Inp(sv.buf), arity=n, out_size=R,
+                 out_shape=(R,), tensor_arg_index=list(ch.arg_index), K=S_,
+                 offs=ch.pad({sv.buf: q * I.Lit(S_) + I.Rk()}), post_offs=ch.pad({}),
+                 post=S.Inp(0), idx_slot=n,
+                 notes=[f"softmax-matmul: row maxima of {R} rows of {S_}"])
+    mb = ch.emit(m1, (R,)).buf
+    n = ch.nbuf + 1
+    z = Lowered(family="genred", body=S.exp(S.Inp(sv.buf) - S.Inp(mb)), arity=n,
+                out_size=R, out_shape=(R,), tensor_arg_index=list(ch.arg_index), K=S_,
+                offs=ch.pad({sv.buf: q * I.Lit(S_) + I.Rk(), mb: q}),
+                post_offs=ch.pad({}), post=S.Inp(0),
+                notes=["softmax-matmul: row sums of exp(s - max)"])
+    zb = ch.emit(z, (R,)).buf
+    n = ch.nbuf + 1
+    r = q // I.Lit(D)
+    d = q % I.Lit(D)
+    bt = r // I.Lit(Lq)                      # the batch part of the row
+    o = Lowered(family="genred",
+                body=S.exp(S.Inp(sv.buf) - S.Inp(mb)) * S.Inp(vv.buf), arity=n,
+                out_size=R * D, out_shape=tuple(so), tensor_arg_index=list(ch.arg_index),
+                K=S_,
+                offs=ch.pad({sv.buf: r * I.Lit(S_) + I.Rk(), mb: r,
+                             vv.buf: (bt * I.Lit(S_) + I.Rk()) * I.Lit(D) + d}),
+                post_offs=ch.pad({zb: r}),
+                post=S.Inp(0) * S.Recip(S.Inp(zb + 1)),
+                notes=["softmax-matmul: exp-weighted values over the row sum"])
+    return ch.emit(o, tuple(so))
+
+
+def _emit_take(ch: Chain, table: Val, index: Val, so: Tuple[int, ...]) -> Val:
+    """`table[index]` for an integer tensor `index`: a gather along axis 0.
+
+    A gather is a masked sum, and the index map stays data-independent:
+    `out[i, r] = sum_k table[k, r] * [index[i] = k]`, where `k` reaches the body as
+    a scalar through `idxSlot` and `index[i]` is read as an ordinary value. The
+    comparison is between two values, not an address computed from data -- which is
+    what lets `qkOnly` keep forbidding data-dependent index maps.
+    """
+    ts, xs = list(table.shape), list(index.shape)
+    rest = ts[1:]
+    if list(so) != xs + rest:
+        raise Unsupported(f"index of {tuple(ts)} by {tuple(xs)} gives {so}")
+    nr = _prod(rest)
+    q = I.Pid()
+    i, r = q // I.Lit(nr), q % I.Lit(nr)
+    islot = ch.nbuf + 1
+    k = S.Inp(islot)
+    x = S.Inp(index.buf)
+    hit = S.SelLe(x, k, S.SelLe(k, x, S.lit(1), S.lit(0)), S.lit(0))
+    st = Lowered(
+        family="genred", body=S.Inp(table.buf) * hit, arity=ch.nbuf + 1,
+        out_size=_prod(so), out_shape=tuple(so),
+        tensor_arg_index=list(ch.arg_index), K=ts[0],
+        offs=ch.pad({table.buf: I.Rk() * I.Lit(nr) + r if nr > 1 else I.Rk(),
+                     index.buf: i if nr > 1 else q}),
+        post_offs=ch.pad({}), post=S.Inp(0), idx_slot=islot,
+        notes=[f"gather rows of {tuple(ts)} at an index of shape {tuple(xs)}"])
+    return ch.emit(st, tuple(so))
+
+
 def _perm_of(n: fx.Node, rank: Optional[int]) -> Optional[List[int]]:
     """The axis permutation this node applies, or `None` if it is not one.
 
@@ -696,12 +1117,27 @@ def _perm_of(n: fx.Node, rank: Optional[int]) -> Optional[List[int]]:
     return None
 
 
-def _pointwise_se(node: fx.Node, gm: fx.GraphModule, args: List[Any]) -> S.SE:
+class _Converted:
+    """A node as a pointwise builder sees it: its tensor operands already turned
+    into spec expressions, in keyword arguments as well as positional ones
+    (`clamp(x, max=t)`). `orig` is the node itself, for a builder that needs to ask
+    about the graph."""
+
+    def __init__(self, node: fx.Node, args, kwargs):
+        self.orig, self.target, self.op = node, node.target, node.op
+        self.args, self.kwargs = tuple(args), dict(kwargs)
+
+
+def _pointwise_se(node: fx.Node, gm: fx.GraphModule, args: List[Any],
+                  conv=None) -> S.SE:
     from .frontend import POINTWISE_FUNCS, POINTWISE_MODULES
     if node.op == "call_module":
         sub = gm.get_submodule(node.target)
         return POINTWISE_MODULES[type(sub)](sub, args)
-    return table_get(POINTWISE_FUNCS, node.target)(args, node)
+    if conv is None:
+        conv = lambda a: _const_of(a, gm)
+    kw = {k: (conv(v) if isinstance(v, fx.Node) else v) for k, v in node.kwargs.items()}
+    return table_get(POINTWISE_FUNCS, node.target)(args, _Converted(node, args, kw))
 
 
 def _bind(node: fx.Node, target) -> Any:
@@ -709,18 +1145,19 @@ def _bind(node: fx.Node, target) -> Any:
     (a `dim`, a `p`, a scalar) already supplied.
 
     Re-lowering a node on its own means calling it outside the graph, where those
-    arguments are no longer implicit in the call site.
+    arguments are no longer implicit in the call site. The tensors are the node's
+    *distinct* inputs, in `all_input_nodes` order -- the order the caller supplies
+    shapes in -- and every occurrence is replaced, in keyword arguments too
+    (`F.linear(input=x, weight=w)`) and however many times one appears
+    (`matmul(x, x)`).
     """
-    positions = [i for i, a in enumerate(node.args) if isinstance(a, fx.Node)]
-    base = list(node.args)
-    kw = dict(node.kwargs)
-
+    order = list(node.all_input_nodes)
     is_method = isinstance(target, str)
 
     def fn(*tensors):
-        args = list(base)
-        for t, pos in zip(tensors, positions):
-            args[pos] = t
+        env = dict(zip(order, tensors))
+        args = fx.node.map_arg(node.args, lambda a: env[a])
+        kw = fx.node.map_arg(node.kwargs, lambda a: env[a])
         if is_method:
             # a `call_method` node's target is the method's *name*
             out = getattr(args[0], target)(*args[1:], **kw)
@@ -834,6 +1271,7 @@ class ShapeTracer(fx.Tracer):
 
     def __init__(self, mode):
         super().__init__()
+        self.proxy_buffer_attributes = True
         self.mode = mode
         self._args: List[Any] = []
         self._n_ph = 0
@@ -905,11 +1343,246 @@ def _fetch_attr(root, target: str):
     return obj
 
 
+def _parse_axes(side: str) -> List[Any]:
+    """`b (c l) ... h` -> ['b', ['c', 'l'], '...', 'h']."""
+    out: List[Any] = []
+    group: Optional[List[str]] = None
+    for tok in side.replace("(", " ( ").replace(")", " ) ").split():
+        if tok == "(":
+            if group is not None:
+                raise Unsupported("nested parentheses in a rearrange pattern")
+            group = []
+        elif tok == ")":
+            if group is None:
+                raise Unsupported("unbalanced rearrange pattern")
+            out.append(group)
+            group = None
+        elif group is not None:
+            group.append(tok)
+        else:
+            out.append(tok)
+    if group is not None:
+        raise Unsupported("unbalanced rearrange pattern")
+    return out
+
+
+def rearrange_as_views(x, pattern: str, **axes_lengths):
+    """`einops.rearrange`, spelled as `reshape`, `permute`, `reshape`.
+
+    einops does not know an `fx` proxy, so a model that calls it cannot be traced
+    as it stands. What `rearrange` does is fully determined by the pattern and the
+    input's shape: split every grouped input axis into its parts, reorder the parts,
+    merge the output groups. Written with tensor methods, that traces into nodes the
+    chain already lowers -- a permutation, and relabellings. Only splitting,
+    merging and reordering is modelled; an axis that appears on one side only (a
+    repeat or a reduction) is refused.
+    """
+    lhs, rhs = (s.strip() for s in pattern.split("->"))
+    L, R = _parse_axes(lhs), _parse_axes(rhs)
+    shape = list(x.shape)
+    n_ell = len(shape) - (len(L) - (1 if "..." in L else 0))
+    ell = [f"_e{i}" for i in range(max(0, n_ell))]
+
+    def expand(side):
+        flat, groups = [], []
+        for it in side:
+            if it == "...":
+                flat += ell
+                groups += [[e] for e in ell]
+            elif isinstance(it, list):
+                flat += it
+                groups.append(list(it))
+            else:
+                flat.append(it)
+                groups.append([it])
+        return flat, groups
+
+    lf, lg = expand(L)
+    rf, rg = expand(R)
+    if sorted(lf) != sorted(rf) or len(set(lf)) != len(lf):
+        raise Unsupported(f"rearrange {pattern!r} is not a pure permutation")
+    if len(lg) != len(shape):
+        raise Unsupported(f"rearrange {pattern!r} against rank {len(shape)}")
+    size: Dict[str, int] = {}
+    for grp, d in zip(lg, shape):
+        known = [a for a in grp if a in axes_lengths]
+        unknown = [a for a in grp if a not in axes_lengths]
+        prod_known = _prod([axes_lengths[a] for a in known])
+        for a in known:
+            size[a] = axes_lengths[a]
+        if len(unknown) > 1:
+            raise Unsupported(f"rearrange {pattern!r}: cannot infer {unknown}")
+        if unknown:
+            if d % prod_known:
+                raise Unsupported(f"rearrange {pattern!r}: {d} not divisible")
+            size[unknown[0]] = d // prod_known
+        elif prod_known != d:
+            raise Unsupported(f"rearrange {pattern!r}: group sizes do not match {d}")
+    y = x.reshape(*[size[a] for a in lf])
+    perm = [lf.index(a) for a in rf]
+    if perm != list(range(len(perm))):
+        y = y.permute(*perm)
+    return y.reshape(*[_prod([size[a] for a in g]) for g in rg])
+
+
+RANDOM_FACTORIES = ("rand", "randn", "randint", "rand_like", "randn_like",
+                    "randint_like", "normal", "bernoulli", "multinomial", "randperm")
+
+_TORCH_RANDN = torch.randn
+#: The tracer currently running, so a draw made during a trace can become a node.
+_ACTIVE_TRACER: List[Any] = []
+
+#: The parameter-path prefix naming a fresh standard-normal draw. Not a parameter:
+#: the runtime fills that buffer with `torch.randn` on every call.
+RANDN_PREFIX = "__randn__/"
+
+
+def fresh_randn(shape):
+    """A fresh standard-normal tensor -- the graph node a `torch.randn` in a forward
+    becomes."""
+    return _TORCH_RANDN(shape)
+
+
+def _refuse_randomness():
+    """Make random factories, for the duration of a trace, either record the draw
+    or refuse.
+
+    A forward that draws `torch.randn(...)` from constant shapes would otherwise
+    run it eagerly while tracing, and the draw would become a *constant* of the
+    spec -- a deterministic function the reference is not, since it draws afresh on
+    every call. What `randn` becomes instead is a node, `fresh_randn`, which the
+    chain gives an input buffer of its own and the runtime fills with a fresh draw
+    on every call: the same random function, its randomness kept outside the
+    verified core. Every other factory still refuses."""
+    saved = []
+    for name in RANDOM_FACTORIES:
+        f = getattr(torch, name, None)
+        if f is None:
+            continue
+        saved.append((name, f))
+
+        def refuse(*a, _name=name, **k):
+            raise Unsupported(f"torch.{_name} in forward: the reference is random")
+
+        def record(*a, **k):
+            shape = a[0] if len(a) == 1 and isinstance(a[0], (tuple, list, torch.Size)) \
+                else a
+            if not _ACTIVE_TRACER or not all(isinstance(d, int) for d in shape) \
+                    or k.get("generator") is not None \
+                    or k.get("dtype") not in (None, torch.float32):
+                raise Unsupported("torch.randn in forward with a shape, dtype or "
+                                  "generator this lowering does not record")
+            return _ACTIVE_TRACER[-1].create_proxy(
+                "call_function", fresh_randn, (tuple(int(d) for d in shape),), {})
+        setattr(torch, name, record if name == "randn" else refuse)
+    return saved
+
+
+def _einops_patched(model: nn.Module):
+    """Point every `rearrange` a model's forwards can see at `rearrange_as_views`
+    for the duration of a trace. Returns what to restore."""
+    try:
+        import einops
+    except ImportError:
+        return []
+    saved = []
+    seen = set()
+    for m in model.modules():
+        g = getattr(type(m).forward, "__globals__", None)
+        if g is None or id(g) in seen:
+            continue
+        seen.add(id(g))
+        if g.get("rearrange") is einops.rearrange:
+            saved.append((g, g["rearrange"]))
+            g["rearrange"] = rearrange_as_views
+    return saved
+
+
 def trace_model(model: nn.Module, example_args: List[Any], mode) -> fx.GraphModule:
     """Trace, falling back to a shape-aware trace for models that compute with
     their own shapes."""
+    from .frontend import preserved_state
+    saved = _einops_patched(model)
+    rng = _refuse_randomness()
     try:
-        gm = fx.symbolic_trace(model)
+        with preserved_state(model):
+            gm = _trace_model(model, example_args, mode)
+        # The GraphModule copied each attribute it reads while the trace's own
+        # assignments were still in place; read them again from the restored
+        # module, so `self.hidden` is the module's state and not a stale proxy.
+        for n in gm.graph.nodes:
+            if n.op == "get_attr":
+                try:
+                    v = _fetch_attr(model, n.target)
+                except AttributeError:
+                    continue            # a constant the trace itself lifted
+                if isinstance(v, torch.Tensor) and not isinstance(v, nn.Parameter) \
+                        and not isinstance(_fetch_attr(gm, n.target), nn.Parameter):
+                    owner, _, leaf = n.target.rpartition(".")
+                    setattr(gm.get_submodule(owner) if owner else gm, leaf, v)
+        return gm
+    finally:
+        for g, f in saved:
+            g["rearrange"] = f
+        for name, f in rng:
+            setattr(torch, name, f)
+
+
+def _unpassed_defaults(model: nn.Module, n_given: int) -> Dict[str, Any]:
+    """The forward arguments the task does not pass, at their defaults.
+
+    Traced as proxies, `initial_states=None` would take the `is not None` branch --
+    a proxy is not `None` -- and the graph would describe a call the task never
+    makes. Binding them to the value they will actually have makes the trace follow
+    the branch that runs.
+    """
+    import inspect
+    try:
+        params = list(inspect.signature(model.forward).parameters.values())
+    except (TypeError, ValueError):
+        return {}
+    out = {}
+    for p in params[n_given:]:
+        if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
+            break
+        if p.default is not inspect.Parameter.empty:
+            out[p.name] = p.default
+    return out
+
+
+def _drop_specialisation_guards(gm: fx.GraphModule) -> None:
+    """`fx` guards a bound argument with an assertion that it still has the value it
+    was bound to. The argument is never passed, so the assertion cannot fail; drop
+    it, so the placeholder is visibly unused."""
+    for n in list(gm.graph.nodes):
+        if n.op == "call_function" and getattr(n.target, "__name__", "") == \
+                "_assert_is_none":
+            gm.graph.erase_node(n)
+    gm.recompile()
+
+
+def _trace_model(model: nn.Module, example_args: List[Any], mode) -> fx.GraphModule:
+    concrete = _unpassed_defaults(model, len(example_args)) or None
+    try:
+        # Buffers are traced as reads, not captured as values: a mask computed from
+        # a buffer (`bias[:, :, :T, :T] == 0`) is then a computation on a named
+        # tensor the kernel reads, rather than a constant evaluated at trace time.
+        plain = fx.Tracer()
+        plain.proxy_buffer_attributes = True
+        _ACTIVE_TRACER.append(plain)
+        try:
+            graph = plain.trace(model, concrete_args=concrete)
+        finally:
+            _ACTIVE_TRACER.pop()
+        if any((n.op == "call_method" and n.target in ("size", "dim", "numel"))
+               or (n.op == "call_function" and op_name(n.target) == "getattr"
+                   and len(n.args) > 1 and n.args[1] in ("shape", "ndim"))
+               for n in graph.nodes):
+            # The graph computes with its own shapes as traced values; the
+            # shape-aware trace specialises them to the task's actual sizes.
+            raise Unsupported("graph computes with traced shapes")
+        gm = fx.GraphModule(plain.root, graph)
+        _drop_specialisation_guards(gm)
         gm.graph.lint()
         return gm
     except Exception as first:
@@ -918,13 +1591,342 @@ def trace_model(model: nn.Module, example_args: List[Any], mode) -> fx.GraphModu
             tracer._args = [torch.empty(tuple(a.shape), dtype=a.dtype)
                             if isinstance(a, torch.Tensor) else a
                             for a in example_args]
+        _ACTIVE_TRACER.append(tracer)
         try:
-            graph = tracer.trace(model)
-        except Exception:
-            raise first
+            graph = tracer.trace(model, concrete_args=concrete)
+        except Exception as second:
+            # The shape-aware trace gets further than the plain one whenever the
+            # plain one fails on shapes, so its failure is the informative one.
+            raise second from first
+        finally:
+            _ACTIVE_TRACER.pop()
         gm = fx.GraphModule(tracer.root, graph)
+        _drop_specialisation_guards(gm)
         gm.graph.lint()
         return gm
+
+
+def _is_neg_inf(v) -> bool:
+    return isinstance(v, float) and v == float("-inf")
+
+
+def _softmax_dim(u: fx.Node, gm: fx.GraphModule) -> Optional[int]:
+    """The axis of a softmax call, or `None` if `u` is not a softmax."""
+    if u.op == "call_module":
+        sub = gm.get_submodule(u.target)
+        return sub.dim if isinstance(sub, nn.Softmax) else None
+    if op_name(u.target) == "softmax":
+        d = u.kwargs.get("dim", u.args[1] if len(u.args) > 1 else None)
+        if not isinstance(d, int):
+            raise Unsupported("softmax without a literal dim")
+        return d
+    return None
+
+
+def _is_relu(u: fx.Node, gm: fx.GraphModule) -> bool:
+    if u.op == "call_module":
+        return type(gm.get_submodule(u.target)) is nn.ReLU
+    return op_name(u.target) in ("relu", "relu_")
+
+
+def rewrite_sdpa(gm: fx.GraphModule, shapes, dtypes) -> None:
+    """Spell `scaled_dot_product_attention` out as its definition.
+
+        softmax(Q K^T * scale + mask) V
+
+    with a causal mask built as `tril(ones(L, S)) == 0` and applied as
+    `masked_fill(-inf)` -- which `rewrite_neg_inf` then folds into the softmax,
+    since `-inf` is not a value the specs can hold. A boolean `attn_mask` is the
+    same fill of its complement; a float one is added.
+    """
+    g = gm.graph
+    for n in list(g.nodes):
+        if op_name(n.target) != "scaled_dot_product_attention":
+            continue
+        q, k, v = n.args[:3]
+        kw = dict(n.kwargs)
+        extra = list(n.args[3:])
+        names = ["attn_mask", "dropout_p", "is_causal", "scale", "enable_gqa"]
+        for nm, a in zip(names, extra):
+            kw[nm] = a
+        mask = kw.get("attn_mask")
+        if kw.get("dropout_p", 0.0) not in (0, 0.0) or kw.get("enable_gqa", False):
+            raise Unsupported("attention with dropout or grouped heads")
+        sq, sk = shapes.get(q), shapes.get(k)
+        if sq is None or sk is None:
+            raise Unsupported("attention operands of unknown shape")
+        Lq, Sk, E = sq[-2], sk[-2], sq[-1]
+        scale = kw.get("scale")
+        with g.inserting_before(n):
+            kt = g.call_method("transpose", (k, -2, -1))
+            s = g.call_function(torch.matmul, (q, kt))
+            s = g.call_function(operator.mul, (s, float(scale) if scale is not None
+                                                  else 1.0 / math.sqrt(E)))
+            if kw.get("is_causal", False):
+                if mask is not None:
+                    raise Unsupported("attention with both a mask and is_causal")
+                ones = g.call_function(torch.ones, (Lq, Sk))
+                keep = g.call_function(torch.tril, (ones,))
+                drop = g.call_function(operator.eq, (keep, 0))
+                s = g.call_method("masked_fill", (s, drop, float("-inf")))
+            elif mask is not None:
+                ms = shapes.get(mask)
+                if ms is None:
+                    raise Unsupported("attention mask of unknown shape")
+                if dtypes.get(mask) is torch.bool:
+                    # PyTorch's boolean mask says which entries to *keep*
+                    drop = g.call_function(operator.invert, (mask,))
+                    s = g.call_method("masked_fill", (s, drop, float("-inf")))
+                else:
+                    s = g.call_function(operator.add, (s, mask))
+            a = g.call_function(F.softmax, (s,), {"dim": -1})
+            out = g.call_function(torch.matmul, (a, v))
+        n.replace_all_uses_with(out)
+        g.erase_node(n)
+    g.lint()
+    gm.recompile()
+
+
+def softmax_matmul(s, v):
+    """`softmax(s, -1) @ v`, as one node -- what `rewrite_softmax_matmul` makes of the
+    pair, so the probabilities are never stored."""
+    return torch.matmul(torch.softmax(s, dim=-1), v)
+
+
+def rewrite_softmax_matmul(gm: fx.GraphModule) -> None:
+    """Fuse `matmul(softmax(s, dim=-1), v)` when the softmax has no other reader.
+
+    The probabilities are as large as the scores, and nothing but the product needs
+    them; `_emit_softmax_matmul` computes the product from the scores directly, so
+    an attention over 16384 positions stores its scores once, not twice."""
+    g = gm.graph
+    for n in list(g.nodes):
+        if op_name(n.target) != "matmul" or len(n.args) != 2:
+            continue
+        a, v = n.args
+        if not isinstance(a, fx.Node) or len(a.users) != 1:
+            continue
+        try:
+            d = _softmax_dim(a, gm)
+        except Unsupported:
+            continue
+        if d != -1:                       # over the last axis, the one contracted
+            continue
+        with g.inserting_before(n):
+            f = g.call_function(softmax_matmul, (a.args[0], v))
+        n.replace_all_uses_with(f)
+        g.erase_node(n)
+        g.erase_node(a)
+    g.lint()
+    gm.recompile()
+
+
+def rewrite_logsumexp(gm: fx.GraphModule) -> None:
+    """`logsumexp(x, dim) = log(sum(exp(x - m))) + m` with `m` the maximum along
+    `dim` -- PyTorch's own definition, shifted so `exp` cannot overflow. Spelled out
+    so its parts lower as the reductions they are."""
+    g = gm.graph
+    for n in list(g.nodes):
+        if op_name(n.target) != "logsumexp":
+            continue
+        x = n.kwargs.get("input", n.args[0])
+        d = n.kwargs.get("dim", n.args[1] if len(n.args) > 1 else None)
+        keep = n.kwargs.get("keepdim", n.args[2] if len(n.args) > 2 else False)
+        if isinstance(d, (list, tuple)) and len(d) == 1:
+            d = d[0]
+        if not isinstance(d, int):
+            raise Unsupported("logsumexp over several dims")
+        with g.inserting_before(n):
+            mx = g.call_function(torch.max, (x,), {"dim": d, "keepdim": True})
+            m = g.call_function(operator.getitem, (mx, 0))
+            e = g.call_function(torch.exp, (g.call_function(operator.sub, (x, m)),))
+            sm = g.call_function(torch.sum, (e, d), {"keepdim": True})
+            out = g.call_function(operator.add, (g.call_function(torch.log, (sm,)), m))
+            if not keep:
+                out = g.call_method("squeeze", (out, d))
+        n.replace_all_uses_with(out)
+        g.erase_node(n)
+    g.lint()
+    gm.recompile()
+
+
+def rewrite_neg_inf(gm: fx.GraphModule) -> None:
+    """Remove every `masked_fill(x, mask, -inf)` by folding it into its consumers.
+
+    `-inf` is not an element of the ordered field the specs are stated over, so a
+    tensor holding it cannot be a stage's output. It never has to be: in every
+    graph where it appears it is a device for making the *next* operator ignore
+    some entries, and what that operator makes of `-inf` is a finite value:
+
+      relu(fill(x, m, -inf))    = where(m, 0, relu(x))
+      exp(fill(x, m, -inf))     = where(m, 0, exp(x))
+      softmax(fill(x, m, -inf)) = e / sum(e),  e = where(m, 0, exp(x - c))
+
+    The softmax shift `c` cancels in exact arithmetic, so any value would do for
+    the certificate; it is chosen for the floats, to be what PyTorch uses -- the
+    maximum over the *unmasked* entries. That is `max(where(m, lo, x))` with `lo`
+    the row minimum, which no unmasked entry is below. A row that is masked
+    everywhere is `0/0`, as it is in PyTorch.
+
+    These are identities over the reals extended by `-inf`, applied in the
+    frontend -- the untrusted step, as every lowering rule is. Any other consumer
+    of the filled tensor is refused.
+    """
+    g = gm.graph
+    for n in list(g.nodes):
+        if op_name(n.target) != "masked_fill" or n.op not in ("call_method",
+                                                              "call_function"):
+            continue
+        val = n.kwargs.get("value", n.args[2] if len(n.args) > 2 else None)
+        if not _is_neg_inf(val):
+            continue
+        x, m = n.args[0], n.kwargs.get("mask", n.args[1] if len(n.args) > 1 else None)
+        for u in list(n.users):
+            with g.inserting_before(u):
+                d = _softmax_dim(u, gm)
+                if d is not None:
+                    lo = g.call_function(torch.min, (x,), {"dim": d, "keepdim": True})
+                    lo0 = g.call_function(operator.getitem, (lo, 0))
+                    xm = g.call_function(torch.where, (m, lo0, x))
+                    c = g.call_function(torch.max, (xm,), {"dim": d, "keepdim": True})
+                    c0 = g.call_function(operator.getitem, (c, 0))
+                    sh = g.call_function(operator.sub, (x, c0))
+                    ex = g.call_function(torch.exp, (sh,))
+                    e = g.call_function(torch.where, (m, 0.0, ex))
+                    s = g.call_function(torch.sum, (e, d), {"keepdim": True})
+                    new = g.call_function(operator.truediv, (e, s))
+                elif _is_relu(u, gm):
+                    r = g.call_function(torch.relu, (x,))
+                    new = g.call_function(torch.where, (m, 0.0, r))
+                elif op_name(u.target) == "exp":
+                    r = g.call_function(torch.exp, (x,))
+                    new = g.call_function(torch.where, (m, 0.0, r))
+                else:
+                    raise Unsupported(
+                        f"masked_fill with -inf feeds {op_name(u.target)!r}, whose "
+                        "result on -inf is not a finite value this frontend knows")
+            u.replace_all_uses_with(new)
+            g.erase_node(u)
+        g.erase_node(n)
+    g.lint()
+    gm.recompile()
+
+
+#: In-place operators that change only a tensor's shape, never its values.
+INPLACE_SHAPE = {"unsqueeze_": "unsqueeze", "squeeze_": "squeeze",
+                 "transpose_": "transpose", "t_": "t"}
+#: In-place operators that write values.
+INPLACE_WRITE = {"__setitem__", "scatter_", "scatter_add_", "index_put_", "fill_",
+                 "zero_", "masked_fill_", "index_fill_", "index_copy_"}
+
+
+def rewrite_inplace(gm: fx.GraphModule) -> None:
+    """Make in-place operators functional, or refuse them.
+
+    A trace records `x.unsqueeze_(2)` as a node whose result nothing uses, while
+    every *later* read of `x` sees the new shape -- an effect the dataflow graph does
+    not show. A shape-only operator changes nothing but `x`'s own metadata (a view
+    taken earlier keeps its own), so it becomes the functional operator, with every
+    later use of `x` redirected to it.
+
+    A value-writing operator is a different matter, since every alias of the
+    storage sees the write. Only one case is accepted: a write into a lifted
+    constant that nothing reads afterwards -- BigBird builds its `attention_probs`
+    that way, and returns them only when asked to. A dead store is unobservable, so
+    it is deleted. Any other write is refused.
+    """
+    g = gm.graph
+    order = {n: i for i, n in enumerate(g.nodes)}
+    for n in list(g.nodes):
+        if n.op != "call_method":
+            continue
+        nm = n.target
+        if nm in INPLACE_SHAPE:
+            x = n.args[0]
+            with g.inserting_after(n):
+                f = g.call_method(INPLACE_SHAPE[nm], tuple(n.args), dict(n.kwargs))
+            for u in list(x.users):
+                if u is not n and u is not f and order.get(u, -1) > order[n]:
+                    u.replace_input_with(x, f)
+            g.erase_node(n)
+        elif nm in INPLACE_WRITE:
+            x = n.args[0]
+            if n.users:
+                raise Unsupported(f"the result of in-place {nm} is used")
+            if x.op != "get_attr":
+                raise Unsupported(f"in-place {nm} into a computed tensor")
+            later = [m for m in g.nodes if order.get(m, -1) > order[n]
+                     and m.op == "get_attr" and m.target == x.target
+                     and any(order.get(u, -1) > order[n] and not (
+                         u.op == "call_method" and u.target in INPLACE_WRITE)
+                         for u in m.users)]
+            if later or any(u is not n and order[u] > order[n] for u in x.users):
+                raise Unsupported(f"in-place {nm} into a constant that is read later")
+            g.erase_node(n)
+    g.eliminate_dead_code()
+    g.lint()
+    gm.recompile()
+
+
+def rewrite_copy_into_attr(gm: fx.GraphModule) -> List[Tuple[fx.Node, Tuple[int, ...]]]:
+    """Make `self.state.copy_(src)` visible to the reads that follow it.
+
+    The copy mutates module state, which `fx` records as a node whose result
+    nothing uses: a later `self.state` is a fresh `get_attr` with no edge from the
+    copy, so the graph would read the value from *before* it. Every such later read
+    is redirected to `src`. A copy broadcasts, and a redirect does not, so each
+    `src` is returned with the shape it must have; the caller checks it.
+    """
+    g = gm.graph
+    checks: List[Tuple[fx.Node, Tuple[int, ...]]] = []
+    order = {n: i for i, n in enumerate(g.nodes)}
+    for n in list(g.nodes):
+        if op_name(n.target) != "copy_" or n.op != "call_method":
+            continue
+        dst, src = n.args[0], n.args[1]
+        if not (isinstance(dst, fx.Node) and dst.op == "get_attr"
+                and isinstance(src, fx.Node)):
+            raise Unsupported("copy_ into something other than module state")
+        if n.users:
+            raise Unsupported("the result of copy_ is used")
+        checks.append((src, tuple(_fetch_attr(gm, dst.target).shape)))
+        for m in list(g.nodes):
+            if m.op == "get_attr" and m.target == dst.target and order[m] > order[n]:
+                m.replace_all_uses_with(src)
+        g.erase_node(n)
+    g.eliminate_dead_code()
+    gm.recompile()
+    return checks
+
+
+def prepare_graph(model: nn.Module, example_args: List[Any], mode):
+    """Trace a model and apply every rewrite, returning the graph the chain compiler
+    lowers and each node's shape. Separate so a diagnostic can run *this* graph on
+    real tensors and compare it, node by node, with the kernel's buffers."""
+    from .explicit import make_explicit, settle_runtime_switches
+    settle_runtime_switches(model, example_args)
+    make_explicit(model)
+    gm = trace_model(model, example_args, mode)
+    if any(op_name(n.target) == "scaled_dot_product_attention" for n in gm.graph.nodes):
+        dt: Dict[fx.Node, Any] = {}
+        with mode:
+            sh = _node_shapes(gm, list(example_args), dt)
+        rewrite_sdpa(gm, sh, dt)
+    rewrite_logsumexp(gm)
+    rewrite_neg_inf(gm)
+    rewrite_softmax_matmul(gm)
+    rewrite_inplace(gm)
+    copies = rewrite_copy_into_attr(gm)
+    # A value nothing reads (`out = self.fc(out[:, -1])` in a model that returns
+    # the state instead) must emit no stage: the chain's result is its last one.
+    gm.graph.eliminate_dead_code()
+    gm.recompile()
+    with mode:
+        shapes = _node_shapes(gm, list(example_args))
+    for src, want in copies:
+        if shapes.get(src) != want:
+            raise Unsupported(f"copy_ of {shapes.get(src)} into state of {want}")
+    return gm, shapes
 
 
 def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
@@ -936,9 +1938,7 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
     into the producing stage's `post` rather than materialised, which keeps both the
     memory traffic and the number of locality obligations down.
     """
-    gm = trace_model(model, example_args, mode)
-    with mode:
-        shapes = _node_shapes(gm, list(example_args))
+    gm, shapes = prepare_graph(model, example_args, mode)
 
     nodes = [n for n in gm.graph.nodes]
     uses: Dict[fx.Node, int] = {n: 0 for n in nodes}
@@ -949,17 +1949,39 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
     # --- pass 1: which parameters does each node need, and in what order
     for n in nodes:
         if n.op == "get_attr":
-            shapes[n] = tuple(dict(gm.named_parameters()).get(
-                n.target, dict(gm.named_buffers()).get(n.target)).shape)
+            # a parameter, a buffer, or a plain tensor attribute / lifted constant
+            shapes[n] = tuple(_fetch_attr(gm, n.target).shape)
     subs: Dict[fx.Node, Any] = {}
     lowered: Dict[fx.Node, Lowered] = {}
     params: List[str] = []
+    from .rnn import RNN_MODULES, rnn_param_names
+    rnn_nodes: set = set()
     for n in nodes:
         if n.op == "get_attr":
             params.append(n.target)
             continue
+        if n.op == "call_function" and n.target is fresh_randn:
+            params.append(f"{RANDN_PREFIX}{n.name}:{','.join(map(str, n.args[0]))}")
+            continue
         if n.op not in ("call_module", "call_function", "call_method"):
             continue
+        if n.op == "call_module" and type(gm.get_submodule(n.target)) in RNN_MODULES:
+            rnn_nodes.add(n)
+            params += [f"{n.target}.{nm}"
+                       for nm in rnn_param_names(gm.get_submodule(n.target))]
+            continue
+        if op_name(n.target) == "getitem" and n.args and n.args[0] in rnn_nodes:
+            rnn_nodes.add(n)              # a result of a recurrent module
+            continue
+        if n.op == "call_module" and type(gm.get_submodule(n.target)) is nn.Embedding:
+            params.append(f"{n.target}.weight")
+            continue
+        if n.op == "call_function" and op_name(n.target) == "embedding":
+            continue                      # a gather, emitted directly
+        if op_name(n.target) in ("gather", "index_select"):
+            continue                      # likewise
+        if n.op == "call_function" and n.target is softmax_matmul:
+            continue                      # three stages, emitted directly
         if _is_pointwise(n, gm):
             continue
         if n.op in ("call_function", "call_method") and _alias_of(n, shapes) is not None:
@@ -971,8 +1993,15 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
             continue                      # an axis permutation is emitted directly
         if _cat_args(n, shapes) is not None:
             continue                      # a concatenation is emitted directly
+        if _relabel_of(n, shapes) is not None:
+            continue                      # an expand/unfold is emitted directly
+        if op_name(n.target) in ("ones", "zeros", "full") and not n.all_input_nodes:
+            continue                      # a constant, emitted directly
         if _split_parts(n, shapes) is not None:
             continue                      # a split names sub-ranges, it computes nothing
+        if op_name(n.target) == "getitem" and len(n.args) > 1 \
+                and isinstance(n.args[1], fx.Node):
+            continue                      # an integer-tensor index: a gather
         if op_name(n.target) == "getitem" and len(n.args) > 1:
             # Selecting one part of a `split` is a slice of the split's *input*, not
             # an index into the part -- the recorded shape here is one part's.
@@ -983,7 +2012,10 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
                 continue                  # a slice is emitted directly
         sub = gm.get_submodule(n.target) if n.op == "call_module" else n.target
         ins = [shapes[a] for a in n.all_input_nodes if a in shapes]
-        low = _lower_one(sub, ins, mode, n)
+        try:
+            low = _lower_one(sub, ins, mode, n)
+        except Unsupported as e:
+            raise Unsupported(f"node {n.name} ({op_name(n.target) or n.target}): {e}")
         subs[n], lowered[n] = sub, low
         for pp in low.param_paths:
             # the sub-lowering names parameters inside its wrapper; re-root them
@@ -1014,7 +2046,18 @@ def compile_chain(model: nn.Module, example_args: List[Any], mode) -> Lowered:
             ph += 1
     for pp in params:
         ch.param_paths.append(pp)
-    return _walk(ch, gm, nodes, env, shapes, uses, subs, lowered, produced_by, params)
+    owned = set(dict(model.named_parameters())) | set(dict(model.named_buffers()))
+    consts: Dict[str, Any] = {}
+    for n in nodes:
+        if n.op == "get_attr" and n.target not in owned:
+            v = _fetch_attr(gm, n.target)
+            from torch._subclasses.fake_tensor import FakeTensor
+            if not isinstance(v, torch.Tensor) or isinstance(v, FakeTensor):
+                raise Unsupported(f"constant {n.target} has no concrete value")
+            consts[n.target] = v.detach().cpu().clone()
+    low = _walk(ch, gm, nodes, env, shapes, uses, subs, lowered, produced_by, params)
+    low.consts = consts
+    return low
 
 
 def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
@@ -1022,6 +2065,9 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
     """Second pass: emit the stages, with buffer numbering now fixed."""
     pnames = list(params)
     splits: Dict[fx.Node, Tuple[Val, int, List[int]]] = {}
+    from .rnn import RNN_MODULES, RnnLowering
+    rnns: Dict[fx.Node, Any] = {}          # module call -> its lowering
+    rnn_state: Dict[fx.Node, Any] = {}     # `(h_n, c_n)` of an LSTM call
 
     for n in nodes:
         ch.cur_node = n.name
@@ -1036,6 +2082,7 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                 raise Unsupported("the graph returns an input unchanged")
             if out.buf != ch.nbuf - 1:
                 raise Unsupported("the output is not the last stage's result")
+            ch.finish_recurrences()
             ch.record_bounds()
             last = ch.stages[-1]
             return Lowered(
@@ -1046,10 +2093,96 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                 stages=list(ch.stages), sizes=list(ch.sizes),
                 stage_nodes=list(ch.node_of), stage_src=list(ch.node_src),
                 notes=ch.notes)
+        if n.op == "call_function" and n.target is fresh_randn:
+            # a fresh draw: an input buffer the runtime fills on every call
+            nm = f"{RANDN_PREFIX}{n.name}:{','.join(map(str, n.args[0]))}"
+            env[n] = Val(len(ch.arg_index) + pnames.index(nm), tuple(n.args[0]))
+            continue
         if n.op == "get_attr":
             # `self.bias` as an `nn.Parameter` is data the kernel reads, no
             # different from an argument.
             env[n] = Val(len(ch.arg_index) + pnames.index(n.target), shapes[n])
+            continue
+
+        if n.op == "call_module" and type(gm.get_submodule(n.target)) is nn.Embedding:
+            # A lookup is a gather: row `index[i]` of the table, as a masked sum.
+            emb = gm.get_submodule(n.target)
+            if emb.max_norm is not None:
+                raise Unsupported("Embedding with max_norm renormalises its table")
+            wb = len(ch.arg_index) + pnames.index(f"{n.target}.weight")
+            env[n] = _emit_take(ch, Val(wb, tuple(emb.weight.shape)),
+                                env[n.args[0]], shapes[n])
+            produced_by[n] = len(ch.stages) - 1
+            continue
+        if n.op == "call_function" and n.target is softmax_matmul:
+            env[n] = _emit_softmax_matmul(ch, env[n.args[0]], env[n.args[1]], shapes[n])
+            produced_by[n] = len(ch.stages) - 1
+            continue
+        if op_name(n.target) == "index_select" and n.op in ("call_function",
+                                                             "call_method"):
+            x = n.kwargs.get("input", n.args[0])
+            d = n.kwargs.get("dim", n.args[1] if len(n.args) > 1 else None)
+            ix = n.kwargs.get("index", n.args[2] if len(n.args) > 2 else None)
+            if not isinstance(d, int):
+                raise Unsupported("index_select without a literal dim")
+            env[n] = _emit_index_select(ch, env[x], d, env[ix], shapes[n])
+            produced_by[n] = len(ch.stages) - 1
+            continue
+        if op_name(n.target) == "gather" and n.op in ("call_function", "call_method"):
+            x = n.kwargs.get("input", n.args[0])
+            d = n.kwargs.get("dim", n.args[1] if len(n.args) > 1 else None)
+            ix = n.kwargs.get("index", n.args[2] if len(n.args) > 2 else None)
+            if not isinstance(d, int) or n.kwargs.get("sparse_grad"):
+                raise Unsupported("gather without a literal dim")
+            env[n] = _emit_gather(ch, env[x], d, env[ix], shapes[n])
+            produced_by[n] = len(ch.stages) - 1
+            continue
+        if n.op == "call_function" and op_name(n.target) == "embedding":
+            idx = n.kwargs.get("input", n.args[0] if n.args else None)
+            w = n.kwargs.get("weight", n.args[1] if len(n.args) > 1 else None)
+            mx = n.kwargs.get("max_norm", n.args[3] if len(n.args) > 3 else None)
+            if mx is not None:
+                raise Unsupported("embedding with max_norm renormalises its table")
+            env[n] = _emit_take(ch, env[w], env[idx], shapes[n])
+            produced_by[n] = len(ch.stages) - 1
+            continue
+        if n.op == "call_module" and type(gm.get_submodule(n.target)) in RNN_MODULES:
+            m = gm.get_submodule(n.target)
+            x = n.args[0]
+            hx = n.args[1] if len(n.args) > 1 else n.kwargs.get("hx")
+            if isinstance(hx, (tuple, list)):
+                h0, c0 = hx
+            else:
+                h0, c0 = hx, None
+            def val(a):
+                if a is None:
+                    return None
+                if not isinstance(a, fx.Node) or a not in env:
+                    raise Unsupported(f"{n.target}: initial state is not a tensor value")
+                return env[a]
+            target = n.target
+            lw = RnnLowering(
+                ch, n, m, env[x], val(h0), val(c0),
+                lambda nm, target=target: len(ch.arg_index) + pnames.index(f"{target}.{nm}"))
+            lw.emit()
+            rnns[n] = lw
+            continue
+        if op_name(n.target) == "getitem" and n.args and (
+                n.args[0] in rnns or n.args[0] in rnn_state):
+            src, idx = n.args[0], n.args[1]
+            if src in rnns and idx == 0:
+                st, shp = rnns[src].output()
+            elif src in rnns and idx == 1 and rnns[src].lstm:
+                rnn_state[n] = rnns[src]
+                continue
+            elif src in rnns and idx == 1:
+                st, shp = rnns[src].final(0)
+            elif src in rnn_state and idx in (0, 1):
+                st, shp = rnn_state[src].final(idx)
+            else:
+                raise Unsupported(f"result {idx!r} of a recurrent module")
+            env[n] = ch.emit(st, shp)
+            produced_by[n] = len(ch.stages) - 1
             continue
 
         if n.op in ("call_function", "call_method") and n not in shapes:
@@ -1059,7 +2192,7 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
         # a pure relabelling reuses the buffer it was given
         if n.op in ("call_function", "call_method"):
             al = _alias_of(n, shapes)
-            if al is not None and al in env:
+            if al is not None and al in env and _relabel_of(n, shapes) is None:
                 sh = shapes.get(n, env[al].shape)
                 if _prod(sh) != env[al].numel:
                     raise Unsupported(f"{n.target} changes the element count")
@@ -1103,6 +2236,10 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
             continue
         if op_name(n.target) == "getitem" and len(n.args) > 1:
             src, idx = n.args[0], n.args[1]
+            if isinstance(idx, fx.Node) and src in env and idx in env:
+                env[n] = _emit_take(ch, env[src], env[idx], shapes[n])
+                produced_by[n] = len(ch.stages) - 1
+                continue
             if src in splits and isinstance(idx, int):
                 v, dim, sizes = splits[src]
                 start = sum(sizes[:idx])
@@ -1121,6 +2258,31 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                     produced_by[n] = len(ch.stages) - 1
                     continue
 
+        if n.op == "call_function" and op_name(n.target) in ("ones", "zeros", "full") \
+                and not n.all_input_nodes and n in shapes:
+            # A tensor the forward builds from its shape alone: one constant stage.
+            if op_name(n.target) == "full":
+                c = n.args[1] if len(n.args) > 1 else n.kwargs.get("fill_value")
+                if not isinstance(c, (int, float)) or not math.isfinite(c):
+                    raise Unsupported(f"full with {c!r}")
+            else:
+                c = 1 if op_name(n.target) == "ones" else 0
+            so = shapes[n]
+            st = Lowered(family="genred", body=S.lit(c), arity=ch.nbuf + 1,
+                         out_size=_prod(so), out_shape=tuple(so),
+                         tensor_arg_index=list(ch.arg_index), K=1,
+                         offs=ch.pad({}), post_offs=ch.pad({}), post=S.Inp(0),
+                         notes=[f"constant {c} of shape {tuple(so)}"])
+            env[n] = ch.emit(st, tuple(so))
+            produced_by[n] = len(ch.stages) - 1
+            continue
+
+        rl = _relabel_of(n, shapes)
+        if rl is not None and n.all_input_nodes[0] in env:
+            env[n] = _emit_relabel(ch, n, env[n.all_input_nodes[0]], shapes[n], *rl)
+            produced_by[n] = len(ch.stages) - 1
+            continue
+
         ca = _cat_args(n, shapes)
         if ca is not None and all(a in env for a in ca[0]):
             env[n] = _emit_cat(ch, n, env, shapes, ca[0], ca[1])
@@ -1129,22 +2291,30 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
 
         ins = [env[a] for a in n.all_input_nodes if a in env]
         if _is_pointwise(n, gm):
+            if not ins and _is_const(n, gm):
+                continue                  # a constant, folded into its consumers
             # fold into the producing stage when this is its only consumer
             src = n.all_input_nodes[0] if n.all_input_nodes else None
             fuse = (src is not None and src in produced_by and uses[src] == 1
                     and produced_by[src] == len(ch.stages) - 1
                     and shapes.get(n) == env[src].shape
                     and len(ins) == 1 and ins[0].buf == env[src].buf)
-            se_args = [S.Inp(0) if (isinstance(a, fx.Node) and a is src)
-                       else (S.Inp(env[a].buf) if isinstance(a, fx.Node) and a in env
-                             else (_const_of(a) if isinstance(a, fx.Node) else a))
-                       for a in n.args]
+
+            def conv_fused(a, src=src):
+                if a is src:
+                    return S.Inp(0)
+                return S.Inp(env[a].buf) if a in env else _const_of(a, gm)
+
+            def conv_plain(a):
+                return S.Inp(env[a].buf) if a in env else _const_of(a, gm)
+            se_args = [conv_fused(a) if isinstance(a, fx.Node) else a for a in n.args]
             if fuse:
                 # Compose with the stage's existing `post`, do not replace it: that
                 # `post` may already add a bias, and slot 0 there is the reduced
                 # value, not this operator's input.
                 prev = ch.stages[-1]
-                prev.post = _subst_slot0(_pointwise_se(n, gm, se_args), prev.post)
+                prev.post = _subst_slot0(_pointwise_se(n, gm, se_args, conv_fused),
+                                         prev.post)
                 env[n] = env[src]
                 produced_by[n] = produced_by[src]
                 # the stage now holds *this* node's value, not the one it was
@@ -1176,8 +2346,8 @@ def _walk(ch: Chain, gm, nodes, env, shapes, uses, subs, lowered, produced_by,
                     sel = [I.Lit(0) if d == 1 else cc for cc, d in zip(tail, sv)]
                     offs[v.buf] = pack(sel, list(sv))
             body = _pointwise_se(n, gm, [
-                (S.Inp(env[a].buf) if a in env else _const_of(a))
-                if isinstance(a, fx.Node) else a for a in n.args])
+                conv_plain(a) if isinstance(a, fx.Node) else a for a in n.args],
+                conv_plain)
             st = identity_stage(ch, ins[0], body, so, f"pointwise {n.target}",
                                 extra_offs=offs)
             env[n] = ch.emit(st, shapes[n])

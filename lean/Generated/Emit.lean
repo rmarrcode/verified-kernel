@@ -20,2207 +20,4582 @@ set_option maxRecDepth 100000
 -- obligation costs more the longer the chain is.
 set_option maxHeartbeats 4000000
 
--- t017: a chain of 4 stage(s), 7 input buffer(s)
---   fused squeeze_activation into stage 0; fused expand1x1_activation into stage 1; fused expand3x3_activation into stage 2
-def t017_sizes : List Nat := [12582912, 134217728, 134217728, 268435456]
-def t017_sz : Sizes := Sizes.ofList 7 t017_sizes
-theorem t017_sz_pos : ∀ b n, t017_sz b = some n → 0 < n :=
-  Sizes.ofList_pos (by decide)
-
-def t017_s0_g : GenRed :=
-  { nout := 12582912, K := 3
-  , offs := (IE.split 7 (IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 393216)) (IE.lit 3)) IE.rk) (IE.lit 256)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256))) (IE.lit 256)) (IE.modi (IE.pid 0) (IE.lit 256)))), (1, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 6)) (IE.lit 3)) IE.rk))]) (IE.sparse []))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256)) (IE.lit 256)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 256)) (IE.lit 256)))
-  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
-  , postOffs := (IE.split 7 (IE.sparse [(2, (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 6)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 3)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 8, idxSlot := 1048576 }
-def t017_s0_block : Nat := 2
-def t017_s0_nkb : Nat := 2
-
-theorem t017_s0_wf : t017_s0_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t017_s0_impl {α : Type} [ExactScalar α] :
-    Implements (t017_s0_g.prog t017_s0_block t017_s0_nkb) (t017_s0_g.spec (α := α)) :=
-  GenRed.prog_implements t017_s0_g t017_s0_block t017_s0_nkb t017_s0_wf (by decide) (by decide)
-
-def t017_s1_g : GenRed :=
-  { nout := 134217728, K := 6
-  , offs := (IE.split 7 (IE.sparse [(3, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 64)) (IE.lit 6)) IE.rk))]) (IE.sparse [(7, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4194304)) (IE.lit 6)) IE.rk) (IE.lit 256)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256))) (IE.lit 256)) (IE.modi (IE.pid 0) (IE.lit 256))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256)) (IE.lit 256)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 256)) (IE.lit 256)))
-  , body := (SE.bin .mul (SE.inp 7) (SE.inp 3))
-  , postOffs := (IE.split 7 (IE.sparse [(4, (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 5)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 9, idxSlot := 1048576 }
-def t017_s1_block : Nat := 4
-def t017_s1_nkb : Nat := 2
-
-theorem t017_s1_wf : t017_s1_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t017_s1_impl {α : Type} [ExactScalar α] :
-    Implements (t017_s1_g.prog t017_s1_block t017_s1_nkb) (t017_s1_g.spec (α := α)) :=
-  GenRed.prog_implements t017_s1_g t017_s1_block t017_s1_nkb t017_s1_wf (by decide) (by decide)
-
-def t017_s2_g : GenRed :=
-  { nout := 134217728, K := 54
-  , offs := (IE.split 7 (IE.sparse [(5, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 64)) (IE.lit 6)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(7, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4194304)) (IE.lit 6)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 256)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 256)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 256)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4194304)) (IE.lit 6)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 256)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 256)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 256)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 12582911))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 257))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 256)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 256)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 257)))
-  , body := (SE.bin .mul (SE.inp 7) (SE.inp 5))
-  , postOffs := (IE.split 7 (IE.sparse [(6, (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 7)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 10, idxSlot := 1048576 }
-def t017_s2_block : Nat := 32
-def t017_s2_nkb : Nat := 2
-
-theorem t017_s2_wf : t017_s2_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t017_s2_impl {α : Type} [ExactScalar α] :
-    Implements (t017_s2_g.prog t017_s2_block t017_s2_nkb) (t017_s2_g.spec (α := α)) :=
-  GenRed.prog_implements t017_s2_g t017_s2_block t017_s2_nkb t017_s2_wf (by decide) (by decide)
-
-def t017_s3_g : GenRed :=
-  { nout := 268435456, K := 2
-  , offs := (IE.split 7 (IE.sparse []) (IE.sparse [(8, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8388608)) (IE.lit 64)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)) (IE.lit 63)))) (IE.lit 256)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256))) (IE.lit 256)) (IE.modi (IE.pid 0) (IE.lit 256)))), (9, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8388608)) (IE.lit 64)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)) (IE.lit 64)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)) (IE.lit 64)) (IE.lit 63)))) (IE.lit 256)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256))) (IE.lit 256)) (IE.modi (IE.pid 0) (IE.lit 256))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)) (IE.lit 64))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 64) (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 65536)) (IE.lit 128)) (IE.lit 128))))
-  , body := (SE.selLe (SE.inp 11) (SE.lit false 1 2) (SE.inp 8) (SE.inp 9))
-  , postOffs := (IE.split 7 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 11, idxSlot := 11 }
-def t017_s3_block : Nat := 2
-def t017_s3_nkb : Nat := 1
-
-theorem t017_s3_wf : t017_s3_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t017_s3_impl {α : Type} [ExactScalar α] :
-    Implements (t017_s3_g.prog t017_s3_block t017_s3_nkb) (t017_s3_g.spec (α := α)) :=
-  GenRed.prog_implements t017_s3_g t017_s3_block t017_s3_nkb t017_s3_wf (by decide) (by decide)
-
-/-- Stage 0 reads no intermediate past what was written there. -/
-theorem t017_s0_loc {α : Type} [ExactScalar α] :
-    SpecLocal t017_sz (t017_s0_g.spec (α := α)) :=
-  GenRed.specLocal t017_s0_g t017_sz
-    (fun b nn hn q kk hq hk => by
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s0_g.offs b = IE.lit 0 := by
-        simp [t017_s0_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s0_g.postOffs b = IE.lit 0 := by
-        simp [t017_s0_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-
-/-- Stage 1 reads no intermediate past what was written there. -/
-theorem t017_s1_loc {α : Type} [ExactScalar α] :
-    SpecLocal t017_sz (t017_s1_g.spec (α := α)) :=
-  GenRed.specLocal t017_s1_g t017_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h7 : b = 7
-      · subst h7
-        have hs : nn = 12582912 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 49152) (B := 256) (bound_pack (A := 192) (B := 256) (bound_pack (A := 32) (B := 6) (bound_div (a := 32) (d := 4194304) hq) hk) (bound_mod (c := 256) (by decide : (0 : Nat) < 256))) (bound_mod (c := 256) (by decide : (0 : Nat) < 256)))
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s1_g.offs b = IE.lit 0 := by
-        simp [t017_s1_g, IE.split_ge hb, IE.sparse, h7]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s1_g.postOffs b = IE.lit 0 := by
-        simp [t017_s1_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-
-/-- Stage 2 reads no intermediate past what was written there. -/
-theorem t017_s2_loc {α : Type} [ExactScalar α] :
-    SpecLocal t017_sz (t017_s2_g.spec (α := α)) :=
-  GenRed.specLocal t017_s2_g t017_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h7 : b = 7
-      · subst h7
-        have hs : nn = 12582912 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 12582912) (by decide : (0 : Nat) < 12582912))
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s2_g.offs b = IE.lit 0 := by
-        simp [t017_s2_g, IE.split_ge hb, IE.sparse, h7]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s2_g.postOffs b = IE.lit 0 := by
-        simp [t017_s2_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-
-/-- Stage 3 reads no intermediate past what was written there. -/
-theorem t017_s3_loc {α : Type} [ExactScalar α] :
-    SpecLocal t017_sz (t017_s3_g.spec (α := α)) :=
-  GenRed.specLocal t017_s3_g t017_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h8 : b = 8
-      · subst h8
-        have hs : nn = 134217728 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 524288) (B := 256) (bound_pack (A := 2048) (B := 256) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 8388608) hq) (ExactScalar.clamp_lt (c := 64) (by decide : (0 : Nat) < 64))) (bound_mod (c := 256) (by decide : (0 : Nat) < 256))) (bound_mod (c := 256) (by decide : (0 : Nat) < 256)))
-      by_cases h9 : b = 9
-      · subst h9
-        have hs : nn = 134217728 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 524288) (B := 256) (bound_pack (A := 2048) (B := 256) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 8388608) hq) (ExactScalar.clamp_lt (c := 64) (by decide : (0 : Nat) < 64))) (bound_mod (c := 256) (by decide : (0 : Nat) < 256))) (bound_mod (c := 256) (by decide : (0 : Nat) < 256)))
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s3_g.offs b = IE.lit 0 := by
-        simp [t017_s3_g, IE.split_ge hb, IE.sparse, h8, h9]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 7 ≤ b := Sizes.ofList_le hn
-      have hz : t017_s3_g.postOffs b = IE.lit 0 := by
-        simp [t017_s3_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t017_sz_pos b nn hn)
-
-def t017_chain (α : Type) [ExactScalar α] : List (Stage α) := [⟨t017_s0_g.prog t017_s0_block t017_s0_nkb, t017_s0_g.spec (α := α), 7⟩, ⟨t017_s1_g.prog t017_s1_block t017_s1_nkb, t017_s1_g.spec (α := α), 8⟩, ⟨t017_s2_g.prog t017_s2_block t017_s2_nkb, t017_s2_g.spec (α := α), 9⟩, ⟨t017_s3_g.prog t017_s3_block t017_s3_nkb, t017_s3_g.spec (α := α), 10⟩]
-
-theorem t017_imp {α : Type} [ExactScalar α] :
-    ∀ st ∈ t017_chain α, Implements st.prog st.spec :=
-  List.forall_mem_cons.mpr ⟨t017_s0_impl,
-  List.forall_mem_cons.mpr ⟨t017_s1_impl,
-  List.forall_mem_cons.mpr ⟨t017_s2_impl,
-  List.forall_mem_cons.mpr ⟨t017_s3_impl,
-  List.forall_mem_nil _⟩⟩⟩⟩
-
-theorem t017_szok {α : Type} [ExactScalar α] :
-    ∀ st ∈ t017_chain α, t017_sz st.out = some st.spec.outSize :=
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_nil _⟩⟩⟩⟩
-
-theorem t017_loc {α : Type} [ExactScalar α] :
-    ∀ st ∈ t017_chain α, SpecLocal t017_sz st.spec :=
-  List.forall_mem_cons.mpr ⟨t017_s0_loc,
-  List.forall_mem_cons.mpr ⟨t017_s1_loc,
-  List.forall_mem_cons.mpr ⟨t017_s2_loc,
-  List.forall_mem_cons.mpr ⟨t017_s3_loc,
-  List.forall_mem_nil _⟩⟩⟩⟩
-
-/-- Correctness certificate for t017: the whole chain. -/
-theorem t017_correct {α : Type} [ExactScalar α] :
-    ∀ (f : Nat → Buf α) (m : Mem α),
-      Compat (sizesAfter (t017_chain α) emptySizes)
-        (runStages (t017_chain α) f m) (specStages (t017_chain α) f) :=
-  fun f m => stages_correct t017_sz (t017_chain α) emptySizes f f m
-    (Compat.refl _ _) (emptySizes_sub t017_sz)
-    t017_szok t017_imp t017_loc
-
-def t017_s0_kernel : ReduceKernel :=
-  { name := "t017_s0", arity := 7, block := t017_s0_block, nkb := t017_s0_nkb, nout := 12582912, init := FE.zeroC, step := t017_s0_g.step t017_s0_block, stored := t017_s0_g.stored t017_s0_block }
-def t017_s1_kernel : ReduceKernel :=
-  { name := "t017_s1", arity := 8, block := t017_s1_block, nkb := t017_s1_nkb, nout := 134217728, init := FE.zeroC, step := t017_s1_g.step t017_s1_block, stored := t017_s1_g.stored t017_s1_block }
-def t017_s2_kernel : ReduceKernel :=
-  { name := "t017_s2", arity := 9, block := t017_s2_block, nkb := t017_s2_nkb, nout := 134217728, init := FE.zeroC, step := t017_s2_g.step t017_s2_block, stored := t017_s2_g.stored t017_s2_block }
-def t017_s3_kernel : ReduceKernel :=
-  { name := "t017_s3", arity := 10, block := t017_s3_block, nkb := t017_s3_nkb, nout := 268435456, init := FE.zeroC, step := t017_s3_g.step t017_s3_block, stored := t017_s3_g.stored t017_s3_block }
-def t017_kernel : ChainKernel :=
-  { name := "t017", arity := 7, sizes := [12582912, 134217728, 134217728, 268435456],
-    stages := [t017_s0_kernel, t017_s1_kernel, t017_s2_kernel, t017_s3_kernel] }
-
--- t018: a chain of 38 stage(s), 53 input buffer(s)
---   fused features.1 into stage 0; fused features.3.squeeze_activation into stage 2; fused features.3.expand1x1_activation into stage 3
-def t018_sizes : List Nat := [196635648, 48771072, 8128512, 32514048, 32514048, 65028096, 8128512, 32514048, 32514048, 65028096, 16257024, 65028096, 65028096, 130056192, 32514048, 4064256, 16257024, 16257024, 32514048, 6096384, 24385536, 24385536, 48771072, 6096384, 24385536, 24385536, 48771072, 8128512, 32514048, 32514048, 65028096, 15745024, 1968128, 7872512, 7872512, 15745024, 30752000, 32000]
-def t018_sz : Sizes := Sizes.ofList 53 t018_sizes
-theorem t018_sz_pos : ∀ b n, t018_sz b = some n → 0 < n :=
-  Sizes.ofList_pos (by decide)
-
-def t018_s0_g : GenRed :=
-  { nout := 196635648, K := 147
-  , offs := (IE.split 53 (IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 6144864)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 49))) (IE.lit 512)) (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 253)) (IE.lit 253)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 7)))) (IE.lit 512)) (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 253)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 64009)) (IE.lit 96)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 49))) (IE.lit 7)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 7))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]) (IE.sparse []))
-  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 253)) (IE.lit 253)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 7))) (IE.lit 512)) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 253)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 512)))
-  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
-  , postOffs := (IE.split 53 (IE.sparse [(2, (IE.modi (IE.divi (IE.pid 0) (IE.lit 64009)) (IE.lit 96)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 3)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 54, idxSlot := 1048576 }
-def t018_s0_block : Nat := 128
-def t018_s0_nkb : Nat := 2
-
-theorem t018_s0_wf : t018_s0_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s0_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s0_g.prog t018_s0_block t018_s0_nkb) (t018_s0_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s0_g t018_s0_block t018_s0_nkb t018_s0_wf (by decide) (by decide)
-
-def t018_s1_g : MaxRed :=
-  { nout := 48771072, K := 9
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(53, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1524096)) (IE.lit 96)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 96))) (IE.lit 253)) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 252) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2)))))) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 252) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 2)))))) (IE.lit 252)))) (IE.lit 253)) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 252) (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2)))))) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 252) (IE.mul (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 2)))))) (IE.lit 252)))))]))
-  , body := (SE.inp 53)
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , nInp := 55, idxSlot := 1048576 }
-def t018_s1_block : Nat := 8
-def t018_s1_nkb : Nat := 2
-
-theorem t018_s1_wf : t018_s1_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide)) }
-
-theorem t018_s1_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s1_g.prog t018_s1_block t018_s1_nkb) (t018_s1_g.spec (α := α)) :=
-  MaxRed.prog_implements t018_s1_g t018_s1_block t018_s1_nkb t018_s1_wf (by decide) (by decide) (by decide)
-
-
-def t018_s2_g : GenRed :=
-  { nout := 8128512, K := 96
-  , offs := (IE.split 53 (IE.sparse [(3, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 16)) (IE.lit 96)) IE.rk))]) (IE.sparse [(54, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 254016)) (IE.lit 96)) IE.rk) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 126)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 126)))
-  , body := (SE.bin .mul (SE.inp 54) (SE.inp 3))
-  , postOffs := (IE.split 53 (IE.sparse [(4, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 16)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 5)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 56, idxSlot := 1048576 }
-def t018_s2_block : Nat := 64
-def t018_s2_nkb : Nat := 2
-
-theorem t018_s2_wf : t018_s2_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s2_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s2_g.prog t018_s2_block t018_s2_nkb) (t018_s2_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s2_g t018_s2_block t018_s2_nkb t018_s2_wf (by decide) (by decide)
-
-def t018_s3_g : GenRed :=
-  { nout := 32514048, K := 16
-  , offs := (IE.split 53 (IE.sparse [(5, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)) (IE.lit 16)) IE.rk))]) (IE.sparse [(55, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 16)) IE.rk) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 126)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 126)))
-  , body := (SE.bin .mul (SE.inp 55) (SE.inp 5))
-  , postOffs := (IE.split 53 (IE.sparse [(6, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 7)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 57, idxSlot := 1048576 }
-def t018_s3_block : Nat := 16
-def t018_s3_nkb : Nat := 1
-
-theorem t018_s3_wf : t018_s3_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s3_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s3_g.prog t018_s3_block t018_s3_nkb) (t018_s3_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s3_g t018_s3_block t018_s3_nkb t018_s3_wf (by decide) (by decide)
-
-def t018_s4_g : GenRed :=
-  { nout := 32514048, K := 144
-  , offs := (IE.split 53 (IE.sparse [(7, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(55, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 8128511))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 127))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 127)))
-  , body := (SE.bin .mul (SE.inp 55) (SE.inp 7))
-  , postOffs := (IE.split 53 (IE.sparse [(8, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 9)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 58, idxSlot := 1048576 }
-def t018_s4_block : Nat := 128
-def t018_s4_nkb : Nat := 2
-
-theorem t018_s4_wf : t018_s4_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s4_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s4_g.prog t018_s4_block t018_s4_nkb) (t018_s4_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s4_g t018_s4_block t018_s4_nkb t018_s4_wf (by decide) (by decide)
-
-def t018_s5_g : GenRed :=
-  { nout := 65028096, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(56, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 64)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 63)))) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126)))), (57, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 64)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 64)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 64)) (IE.lit 63)))) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 64))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 64) (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 128))))
-  , body := (SE.selLe (SE.inp 59) (SE.lit false 1 2) (SE.inp 56) (SE.inp 57))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 59, idxSlot := 59 }
-def t018_s5_block : Nat := 2
-def t018_s5_nkb : Nat := 1
-
-theorem t018_s5_wf : t018_s5_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s5_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s5_g.prog t018_s5_block t018_s5_nkb) (t018_s5_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s5_g t018_s5_block t018_s5_nkb t018_s5_wf (by decide) (by decide)
-
-def t018_s6_g : GenRed :=
-  { nout := 8128512, K := 128
-  , offs := (IE.split 53 (IE.sparse [(9, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 16)) (IE.lit 128)) IE.rk))]) (IE.sparse [(58, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 254016)) (IE.lit 128)) IE.rk) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 126)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 126)))
-  , body := (SE.bin .mul (SE.inp 58) (SE.inp 9))
-  , postOffs := (IE.split 53 (IE.sparse [(10, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 16)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 11)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 60, idxSlot := 1048576 }
-def t018_s6_block : Nat := 128
-def t018_s6_nkb : Nat := 1
-
-theorem t018_s6_wf : t018_s6_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s6_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s6_g.prog t018_s6_block t018_s6_nkb) (t018_s6_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s6_g t018_s6_block t018_s6_nkb t018_s6_wf (by decide) (by decide)
-
-def t018_s7_g : GenRed :=
-  { nout := 32514048, K := 16
-  , offs := (IE.split 53 (IE.sparse [(11, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)) (IE.lit 16)) IE.rk))]) (IE.sparse [(59, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 16)) IE.rk) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 126)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 126)))
-  , body := (SE.bin .mul (SE.inp 59) (SE.inp 11))
-  , postOffs := (IE.split 53 (IE.sparse [(12, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 13)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 61, idxSlot := 1048576 }
-def t018_s7_block : Nat := 16
-def t018_s7_nkb : Nat := 1
-
-theorem t018_s7_wf : t018_s7_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s7_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s7_g.prog t018_s7_block t018_s7_nkb) (t018_s7_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s7_g t018_s7_block t018_s7_nkb t018_s7_wf (by decide) (by decide)
-
-def t018_s8_g : GenRed :=
-  { nout := 32514048, K := 144
-  , offs := (IE.split 53 (IE.sparse [(13, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(59, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 8128511))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 127))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 127)))
-  , body := (SE.bin .mul (SE.inp 59) (SE.inp 13))
-  , postOffs := (IE.split 53 (IE.sparse [(14, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 15)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 62, idxSlot := 1048576 }
-def t018_s8_block : Nat := 128
-def t018_s8_nkb : Nat := 2
-
-theorem t018_s8_wf : t018_s8_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s8_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s8_g.prog t018_s8_block t018_s8_nkb) (t018_s8_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s8_g t018_s8_block t018_s8_nkb t018_s8_wf (by decide) (by decide)
-
-def t018_s9_g : GenRed :=
-  { nout := 65028096, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(60, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 64)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 63)))) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126)))), (61, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 64)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 64)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 64)) (IE.lit 63)))) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 64))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 64) (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 128))))
-  , body := (SE.selLe (SE.inp 63) (SE.lit false 1 2) (SE.inp 60) (SE.inp 61))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 63, idxSlot := 63 }
-def t018_s9_block : Nat := 2
-def t018_s9_nkb : Nat := 1
-
-theorem t018_s9_wf : t018_s9_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s9_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s9_g.prog t018_s9_block t018_s9_nkb) (t018_s9_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s9_g t018_s9_block t018_s9_nkb t018_s9_wf (by decide) (by decide)
-
-def t018_s10_g : GenRed :=
-  { nout := 16257024, K := 128
-  , offs := (IE.split 53 (IE.sparse [(15, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 32)) (IE.lit 128)) IE.rk))]) (IE.sparse [(62, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 508032)) (IE.lit 128)) IE.rk) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 126)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 126)))
-  , body := (SE.bin .mul (SE.inp 62) (SE.inp 15))
-  , postOffs := (IE.split 53 (IE.sparse [(16, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 32)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 17)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 64, idxSlot := 1048576 }
-def t018_s10_block : Nat := 128
-def t018_s10_nkb : Nat := 1
-
-theorem t018_s10_wf : t018_s10_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s10_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s10_g.prog t018_s10_block t018_s10_nkb) (t018_s10_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s10_g t018_s10_block t018_s10_nkb t018_s10_wf (by decide) (by decide)
-
-def t018_s11_g : GenRed :=
-  { nout := 65028096, K := 32
-  , offs := (IE.split 53 (IE.sparse [(17, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 32)) IE.rk))]) (IE.sparse [(63, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 32)) IE.rk) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.lit 126)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 126)) (IE.lit 126)))
-  , body := (SE.bin .mul (SE.inp 63) (SE.inp 17))
-  , postOffs := (IE.split 53 (IE.sparse [(18, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 19)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 65, idxSlot := 1048576 }
-def t018_s11_block : Nat := 32
-def t018_s11_nkb : Nat := 1
-
-theorem t018_s11_wf : t018_s11_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s11_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s11_g.prog t018_s11_block t018_s11_nkb) (t018_s11_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s11_g t018_s11_block t018_s11_nkb t018_s11_wf (by decide) (by decide)
-
-def t018_s12_g : GenRed :=
-  { nout := 65028096, K := 288
-  , offs := (IE.split 53 (IE.sparse [(19, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(63, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 126)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 16257023))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 127))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 126)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 127)))
-  , body := (SE.bin .mul (SE.inp 63) (SE.inp 19))
-  , postOffs := (IE.split 53 (IE.sparse [(20, (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 128)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 21)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 66, idxSlot := 1048576 }
-def t018_s12_block : Nat := 256
-def t018_s12_nkb : Nat := 2
-
-theorem t018_s12_wf : t018_s12_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s12_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s12_g.prog t018_s12_block t018_s12_nkb) (t018_s12_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s12_g t018_s12_block t018_s12_nkb t018_s12_wf (by decide) (by decide)
-
-def t018_s13_g : GenRed :=
-  { nout := 130056192, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(64, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4064256)) (IE.lit 128)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)) (IE.lit 127)))) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126)))), (65, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4064256)) (IE.lit 128)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)) (IE.lit 128)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)) (IE.lit 128)) (IE.lit 127)))) (IE.lit 126)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 126)) (IE.lit 126))) (IE.lit 126)) (IE.modi (IE.pid 0) (IE.lit 126))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)) (IE.lit 128))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 128) (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 15876)) (IE.lit 256)) (IE.lit 256))))
-  , body := (SE.selLe (SE.inp 67) (SE.lit false 1 2) (SE.inp 64) (SE.inp 65))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 67, idxSlot := 67 }
-def t018_s13_block : Nat := 2
-def t018_s13_nkb : Nat := 1
-
-theorem t018_s13_wf : t018_s13_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s13_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s13_g.prog t018_s13_block t018_s13_nkb) (t018_s13_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s13_g t018_s13_block t018_s13_nkb t018_s13_wf (by decide) (by decide)
-
-def t018_s14_g : MaxRed :=
-  { nout := 32514048, K := 9
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(66, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 256)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256))) (IE.lit 126)) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 125) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2)))))) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 125) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 2)))))) (IE.lit 125)))) (IE.lit 126)) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 125) (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2)))))) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 125) (IE.mul (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 2)))))) (IE.lit 125)))))]))
-  , body := (SE.inp 66)
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , nInp := 68, idxSlot := 1048576 }
-def t018_s14_block : Nat := 8
-def t018_s14_nkb : Nat := 2
-
-theorem t018_s14_wf : t018_s14_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide)) }
-
-theorem t018_s14_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s14_g.prog t018_s14_block t018_s14_nkb) (t018_s14_g.spec (α := α)) :=
-  MaxRed.prog_implements t018_s14_g t018_s14_block t018_s14_nkb t018_s14_wf (by decide) (by decide) (by decide)
-
-
-def t018_s15_g : GenRed :=
-  { nout := 4064256, K := 256
-  , offs := (IE.split 53 (IE.sparse [(21, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 32)) (IE.lit 256)) IE.rk))]) (IE.sparse [(67, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 127008)) (IE.lit 256)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 67) (SE.inp 21))
-  , postOffs := (IE.split 53 (IE.sparse [(22, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 32)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 23)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 69, idxSlot := 1048576 }
-def t018_s15_block : Nat := 256
-def t018_s15_nkb : Nat := 1
-
-theorem t018_s15_wf : t018_s15_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s15_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s15_g.prog t018_s15_block t018_s15_nkb) (t018_s15_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s15_g t018_s15_block t018_s15_nkb t018_s15_wf (by decide) (by decide)
-
-def t018_s16_g : GenRed :=
-  { nout := 16257024, K := 32
-  , offs := (IE.split 53 (IE.sparse [(23, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 128)) (IE.lit 32)) IE.rk))]) (IE.sparse [(68, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 508032)) (IE.lit 32)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 68) (SE.inp 23))
-  , postOffs := (IE.split 53 (IE.sparse [(24, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 128)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 25)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 70, idxSlot := 1048576 }
-def t018_s16_block : Nat := 32
-def t018_s16_nkb : Nat := 1
-
-theorem t018_s16_wf : t018_s16_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s16_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s16_g.prog t018_s16_block t018_s16_nkb) (t018_s16_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s16_g t018_s16_block t018_s16_nkb t018_s16_wf (by decide) (by decide)
-
-def t018_s17_g : GenRed :=
-  { nout := 16257024, K := 288
-  , offs := (IE.split 53 (IE.sparse [(25, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 128)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(68, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 508032)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 508032)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 4064255))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 64)))
-  , body := (SE.bin .mul (SE.inp 68) (SE.inp 25))
-  , postOffs := (IE.split 53 (IE.sparse [(26, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 128)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 27)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 71, idxSlot := 1048576 }
-def t018_s17_block : Nat := 256
-def t018_s17_nkb : Nat := 2
-
-theorem t018_s17_wf : t018_s17_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s17_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s17_g.prog t018_s17_block t018_s17_nkb) (t018_s17_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s17_g t018_s17_block t018_s17_nkb t018_s17_wf (by decide) (by decide)
-
-def t018_s18_g : GenRed :=
-  { nout := 32514048, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(69, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 128)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.lit 127)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63)))), (70, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 128)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.lit 128)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.lit 128)) (IE.lit 127)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.lit 128))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 128) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.lit 256))))
-  , body := (SE.selLe (SE.inp 72) (SE.lit false 1 2) (SE.inp 69) (SE.inp 70))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 72, idxSlot := 72 }
-def t018_s18_block : Nat := 2
-def t018_s18_nkb : Nat := 1
-
-theorem t018_s18_wf : t018_s18_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s18_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s18_g.prog t018_s18_block t018_s18_nkb) (t018_s18_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s18_g t018_s18_block t018_s18_nkb t018_s18_wf (by decide) (by decide)
-
-def t018_s19_g : GenRed :=
-  { nout := 6096384, K := 256
-  , offs := (IE.split 53 (IE.sparse [(27, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 48)) (IE.lit 256)) IE.rk))]) (IE.sparse [(71, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 190512)) (IE.lit 256)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 71) (SE.inp 27))
-  , postOffs := (IE.split 53 (IE.sparse [(28, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 48)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 29)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 73, idxSlot := 1048576 }
-def t018_s19_block : Nat := 256
-def t018_s19_nkb : Nat := 1
-
-theorem t018_s19_wf : t018_s19_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s19_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s19_g.prog t018_s19_block t018_s19_nkb) (t018_s19_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s19_g t018_s19_block t018_s19_nkb t018_s19_wf (by decide) (by decide)
-
-def t018_s20_g : GenRed :=
-  { nout := 24385536, K := 48
-  , offs := (IE.split 53 (IE.sparse [(29, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)) (IE.lit 48)) IE.rk))]) (IE.sparse [(72, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 762048)) (IE.lit 48)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 72) (SE.inp 29))
-  , postOffs := (IE.split 53 (IE.sparse [(30, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 31)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 74, idxSlot := 1048576 }
-def t018_s20_block : Nat := 32
-def t018_s20_nkb : Nat := 2
-
-theorem t018_s20_wf : t018_s20_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s20_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s20_g.prog t018_s20_block t018_s20_nkb) (t018_s20_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s20_g t018_s20_block t018_s20_nkb t018_s20_wf (by decide) (by decide)
-
-def t018_s21_g : GenRed :=
-  { nout := 24385536, K := 432
-  , offs := (IE.split 53 (IE.sparse [(31, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(72, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 762048)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 762048)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 6096383))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 64)))
-  , body := (SE.bin .mul (SE.inp 72) (SE.inp 31))
-  , postOffs := (IE.split 53 (IE.sparse [(32, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 33)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 75, idxSlot := 1048576 }
-def t018_s21_block : Nat := 256
-def t018_s21_nkb : Nat := 2
-
-theorem t018_s21_wf : t018_s21_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s21_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s21_g.prog t018_s21_block t018_s21_nkb) (t018_s21_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s21_g t018_s21_block t018_s21_nkb t018_s21_wf (by decide) (by decide)
-
-def t018_s22_g : GenRed :=
-  { nout := 48771072, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(73, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1524096)) (IE.lit 192)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 191)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63)))), (74, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1524096)) (IE.lit 192)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 192)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 192)) (IE.lit 191)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 192))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 192) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 384))))
-  , body := (SE.selLe (SE.inp 76) (SE.lit false 1 2) (SE.inp 73) (SE.inp 74))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 76, idxSlot := 76 }
-def t018_s22_block : Nat := 2
-def t018_s22_nkb : Nat := 1
-
-theorem t018_s22_wf : t018_s22_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s22_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s22_g.prog t018_s22_block t018_s22_nkb) (t018_s22_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s22_g t018_s22_block t018_s22_nkb t018_s22_wf (by decide) (by decide)
-
-def t018_s23_g : GenRed :=
-  { nout := 6096384, K := 384
-  , offs := (IE.split 53 (IE.sparse [(33, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 48)) (IE.lit 384)) IE.rk))]) (IE.sparse [(75, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 190512)) (IE.lit 384)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 75) (SE.inp 33))
-  , postOffs := (IE.split 53 (IE.sparse [(34, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 48)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 35)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 77, idxSlot := 1048576 }
-def t018_s23_block : Nat := 256
-def t018_s23_nkb : Nat := 2
-
-theorem t018_s23_wf : t018_s23_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s23_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s23_g.prog t018_s23_block t018_s23_nkb) (t018_s23_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s23_g t018_s23_block t018_s23_nkb t018_s23_wf (by decide) (by decide)
-
-def t018_s24_g : GenRed :=
-  { nout := 24385536, K := 48
-  , offs := (IE.split 53 (IE.sparse [(35, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)) (IE.lit 48)) IE.rk))]) (IE.sparse [(76, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 762048)) (IE.lit 48)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 76) (SE.inp 35))
-  , postOffs := (IE.split 53 (IE.sparse [(36, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 37)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 78, idxSlot := 1048576 }
-def t018_s24_block : Nat := 32
-def t018_s24_nkb : Nat := 2
-
-theorem t018_s24_wf : t018_s24_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s24_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s24_g.prog t018_s24_block t018_s24_nkb) (t018_s24_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s24_g t018_s24_block t018_s24_nkb t018_s24_wf (by decide) (by decide)
-
-def t018_s25_g : GenRed :=
-  { nout := 24385536, K := 432
-  , offs := (IE.split 53 (IE.sparse [(37, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(76, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 762048)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 762048)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 6096383))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 64)))
-  , body := (SE.bin .mul (SE.inp 76) (SE.inp 37))
-  , postOffs := (IE.split 53 (IE.sparse [(38, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 192)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 39)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 79, idxSlot := 1048576 }
-def t018_s25_block : Nat := 256
-def t018_s25_nkb : Nat := 2
-
-theorem t018_s25_wf : t018_s25_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s25_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s25_g.prog t018_s25_block t018_s25_nkb) (t018_s25_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s25_g t018_s25_block t018_s25_nkb t018_s25_wf (by decide) (by decide)
-
-def t018_s26_g : GenRed :=
-  { nout := 48771072, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(77, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1524096)) (IE.lit 192)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 191)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63)))), (78, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1524096)) (IE.lit 192)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 192)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 192)) (IE.lit 191)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 192))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 192) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 384)) (IE.lit 384))))
-  , body := (SE.selLe (SE.inp 80) (SE.lit false 1 2) (SE.inp 77) (SE.inp 78))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 80, idxSlot := 80 }
-def t018_s26_block : Nat := 2
-def t018_s26_nkb : Nat := 1
-
-theorem t018_s26_wf : t018_s26_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s26_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s26_g.prog t018_s26_block t018_s26_nkb) (t018_s26_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s26_g t018_s26_block t018_s26_nkb t018_s26_wf (by decide) (by decide)
-
-def t018_s27_g : GenRed :=
-  { nout := 8128512, K := 384
-  , offs := (IE.split 53 (IE.sparse [(39, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 64)) (IE.lit 384)) IE.rk))]) (IE.sparse [(79, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 254016)) (IE.lit 384)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 79) (SE.inp 39))
-  , postOffs := (IE.split 53 (IE.sparse [(40, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 41)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 81, idxSlot := 1048576 }
-def t018_s27_block : Nat := 256
-def t018_s27_nkb : Nat := 2
-
-theorem t018_s27_wf : t018_s27_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s27_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s27_g.prog t018_s27_block t018_s27_nkb) (t018_s27_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s27_g t018_s27_block t018_s27_nkb t018_s27_wf (by decide) (by decide)
-
-def t018_s28_g : GenRed :=
-  { nout := 32514048, K := 64
-  , offs := (IE.split 53 (IE.sparse [(41, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.lit 64)) IE.rk))]) (IE.sparse [(80, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 64)) IE.rk) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.lit 63)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 63)) (IE.lit 63)))
-  , body := (SE.bin .mul (SE.inp 80) (SE.inp 41))
-  , postOffs := (IE.split 53 (IE.sparse [(42, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 43)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 82, idxSlot := 1048576 }
-def t018_s28_block : Nat := 64
-def t018_s28_nkb : Nat := 1
-
-theorem t018_s28_wf : t018_s28_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s28_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s28_g.prog t018_s28_block t018_s28_nkb) (t018_s28_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s28_g t018_s28_block t018_s28_nkb t018_s28_wf (by decide) (by decide)
-
-def t018_s29_g : GenRed :=
-  { nout := 32514048, K := 576
-  , offs := (IE.split 53 (IE.sparse [(43, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(80, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1016064)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 63)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 8128511))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 63)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 64)))
-  , body := (SE.bin .mul (SE.inp 80) (SE.inp 43))
-  , postOffs := (IE.split 53 (IE.sparse [(44, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 256)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 45)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 83, idxSlot := 1048576 }
-def t018_s29_block : Nat := 512
-def t018_s29_nkb : Nat := 2
-
-theorem t018_s29_wf : t018_s29_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s29_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s29_g.prog t018_s29_block t018_s29_nkb) (t018_s29_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s29_g t018_s29_block t018_s29_nkb t018_s29_wf (by decide) (by decide)
-
-def t018_s30_g : GenRed :=
-  { nout := 65028096, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(81, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 256)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)) (IE.lit 255)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63)))), (82, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2032128)) (IE.lit 256)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)) (IE.lit 256)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)) (IE.lit 256)) (IE.lit 255)))) (IE.lit 63)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 63)) (IE.lit 63))) (IE.lit 63)) (IE.modi (IE.pid 0) (IE.lit 63))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)) (IE.lit 256))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 256) (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 3969)) (IE.lit 512)) (IE.lit 512))))
-  , body := (SE.selLe (SE.inp 84) (SE.lit false 1 2) (SE.inp 81) (SE.inp 82))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 84, idxSlot := 84 }
-def t018_s30_block : Nat := 2
-def t018_s30_nkb : Nat := 1
-
-theorem t018_s30_wf : t018_s30_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s30_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s30_g.prog t018_s30_block t018_s30_nkb) (t018_s30_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s30_g t018_s30_block t018_s30_nkb t018_s30_wf (by decide) (by decide)
-
-def t018_s31_g : MaxRed :=
-  { nout := 15745024, K := 9
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(83, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 492032)) (IE.lit 512)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512))) (IE.lit 63)) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 62) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2)))))) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2))) (IE.divi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 62) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 2)))))) (IE.lit 62)))) (IE.lit 63)) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 62) (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2)))))) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.sub (IE.lit 0) (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2))) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.lit 62) (IE.mul (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 2)))))) (IE.lit 62)))))]))
-  , body := (SE.inp 83)
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , nInp := 85, idxSlot := 1048576 }
-def t018_s31_block : Nat := 8
-def t018_s31_nkb : Nat := 2
-
-theorem t018_s31_wf : t018_s31_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide)) }
-
-theorem t018_s31_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s31_g.prog t018_s31_block t018_s31_nkb) (t018_s31_g.spec (α := α)) :=
-  MaxRed.prog_implements t018_s31_g t018_s31_block t018_s31_nkb t018_s31_wf (by decide) (by decide) (by decide)
-
-
-def t018_s32_g : GenRed :=
-  { nout := 1968128, K := 512
-  , offs := (IE.split 53 (IE.sparse [(45, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 64)) (IE.lit 512)) IE.rk))]) (IE.sparse [(84, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 61504)) (IE.lit 512)) IE.rk) (IE.lit 31)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31))) (IE.lit 31)) (IE.modi (IE.pid 0) (IE.lit 31))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 31)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 31)))
-  , body := (SE.bin .mul (SE.inp 84) (SE.inp 45))
-  , postOffs := (IE.split 53 (IE.sparse [(46, (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 64)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 47)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 86, idxSlot := 1048576 }
-def t018_s32_block : Nat := 512
-def t018_s32_nkb : Nat := 1
-
-theorem t018_s32_wf : t018_s32_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s32_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s32_g.prog t018_s32_block t018_s32_nkb) (t018_s32_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s32_g t018_s32_block t018_s32_nkb t018_s32_wf (by decide) (by decide)
-
-def t018_s33_g : GenRed :=
-  { nout := 7872512, K := 64
-  , offs := (IE.split 53 (IE.sparse [(47, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 256)) (IE.lit 64)) IE.rk))]) (IE.sparse [(85, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 246016)) (IE.lit 64)) IE.rk) (IE.lit 31)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31))) (IE.lit 31)) (IE.modi (IE.pid 0) (IE.lit 31))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 31)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 31)))
-  , body := (SE.bin .mul (SE.inp 85) (SE.inp 47))
-  , postOffs := (IE.split 53 (IE.sparse [(48, (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 256)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 49)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 87, idxSlot := 1048576 }
-def t018_s33_block : Nat := 64
-def t018_s33_nkb : Nat := 1
-
-theorem t018_s33_wf : t018_s33_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s33_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s33_g.prog t018_s33_block t018_s33_nkb) (t018_s33_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s33_g t018_s33_block t018_s33_nkb t018_s33_wf (by decide) (by decide)
-
-def t018_s34_g : GenRed :=
-  { nout := 7872512, K := 576
-  , offs := (IE.split 53 (IE.sparse [(49, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 256)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]) (IE.sparse [(85, (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 246016)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 31)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 31)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 31)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.sub (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 246016)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 31)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 31)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 31)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 1968127))))]))
-  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 32))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 31)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 31)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 32)))
-  , body := (SE.bin .mul (SE.inp 85) (SE.inp 49))
-  , postOffs := (IE.split 53 (IE.sparse [(50, (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 256)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 51)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 88, idxSlot := 1048576 }
-def t018_s34_block : Nat := 512
-def t018_s34_nkb : Nat := 2
-
-theorem t018_s34_wf : t018_s34_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s34_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s34_g.prog t018_s34_block t018_s34_nkb) (t018_s34_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s34_g t018_s34_block t018_s34_nkb t018_s34_wf (by decide) (by decide)
-
-def t018_s35_g : GenRed :=
-  { nout := 15745024, K := 2
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(86, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 492032)) (IE.lit 256)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)) (IE.lit 255)))) (IE.lit 31)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31))) (IE.lit 31)) (IE.modi (IE.pid 0) (IE.lit 31)))), (87, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 492032)) (IE.lit 256)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)) (IE.lit 256)) (IE.sub (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)) (IE.lit 256)) (IE.lit 255)))) (IE.lit 31)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31))) (IE.lit 31)) (IE.modi (IE.pid 0) (IE.lit 31))))]))
-  , inRange := (BE.or (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 0)) (BE.cmp .le (IE.lit 0) (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)) (IE.lit 256))) (BE.and (BE.and (BE.cmp .eq IE.rk (IE.lit 1)) (BE.cmp .le (IE.lit 256) (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)))) (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 512)) (IE.lit 512))))
-  , body := (SE.selLe (SE.inp 89) (SE.lit false 1 2) (SE.inp 86) (SE.inp 87))
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.inp 0)
-  , outGuard := BE.tt
-  , nInp := 89, idxSlot := 89 }
-def t018_s35_block : Nat := 2
-def t018_s35_nkb : Nat := 1
-
-theorem t018_s35_wf : t018_s35_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s35_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s35_g.prog t018_s35_block t018_s35_nkb) (t018_s35_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s35_g t018_s35_block t018_s35_nkb t018_s35_wf (by decide) (by decide)
-
-def t018_s36_g : GenRed :=
-  { nout := 30752000, K := 512
-  , offs := (IE.split 53 (IE.sparse [(51, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 1000)) (IE.lit 512)) IE.rk))]) (IE.sparse [(88, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 961000)) (IE.lit 512)) IE.rk) (IE.lit 31)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31))) (IE.lit 31)) (IE.modi (IE.pid 0) (IE.lit 31))))]))
-  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 31)) (IE.lit 31)) (IE.lit 31)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 31)) (IE.lit 31)))
-  , body := (SE.bin .mul (SE.inp 88) (SE.inp 51))
-  , postOffs := (IE.split 53 (IE.sparse [(52, (IE.modi (IE.divi (IE.pid 0) (IE.lit 961)) (IE.lit 1000)))]) (IE.sparse []))
-  , post := (SE.bin .max (SE.bin .add (SE.inp 0) (SE.inp 53)) (SE.lit false 0 1))
-  , outGuard := BE.tt
-  , nInp := 90, idxSlot := 1048576 }
-def t018_s36_block : Nat := 512
-def t018_s36_nkb : Nat := 1
-
-theorem t018_s36_wf : t018_s36_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , range_ok := by decide
-  , guard_ok := by decide }
-
-theorem t018_s36_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s36_g.prog t018_s36_block t018_s36_nkb) (t018_s36_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s36_g t018_s36_block t018_s36_nkb t018_s36_wf (by decide) (by decide)
-
-def t018_s37_g : GenRed :=
-  { nout := 32000, K := 961
-  , offs := (IE.split 53 (IE.sparse []) (IE.sparse [(89, (IE.add (IE.mul (IE.pid 0) (IE.lit 961)) IE.rk))]))
+-- t001: reducing family, 2 inputs, 16777216 outputs, reduced extent 4096
+--   contraction: batch=1 M=4096 K=4096 N=4096
+def t001_g : GenRed :=
+  { nout := 16777216, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 4096)) (IE.lit 4096)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096))))]
   , inRange := BE.tt
-  , body := (SE.inp 89)
-  , postOffs := (IE.split 53 (IE.sparse []) (IE.sparse []))
-  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 961))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
   , outGuard := BE.tt
-  , nInp := 91, idxSlot := 1048576 }
-def t018_s37_block : Nat := 512
-def t018_s37_nkb : Nat := 2
+  , nInp := 2, idxSlot := 1048576 }
+def t001_block : Nat := 1024
+def t001_nkb : Nat := 4
 
-theorem t018_s37_wf : t018_s37_g.Wf :=
-  { offs_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
-  , post_ok := IE.qkOnly_split (IE.qkOnly_sparse _ (by decide)) (IE.qkOnly_sparse _ (by decide))
+/-- Index maps mention only the output and reduction indices. -/
+theorem t001_wf : t001_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
   , range_ok := by decide
   , guard_ok := by decide }
 
-theorem t018_s37_impl {α : Type} [ExactScalar α] :
-    Implements (t018_s37_g.prog t018_s37_block t018_s37_nkb) (t018_s37_g.spec (α := α)) :=
-  GenRed.prog_implements t018_s37_g t018_s37_block t018_s37_nkb t018_s37_wf (by decide) (by decide)
+/-- Correctness certificate for t001. -/
+theorem t001_correct {α : Type} [ExactScalar α] :
+    Implements (t001_g.prog t001_block t001_nkb) (t001_g.spec (α := α)) :=
+  GenRed.prog_implements t001_g t001_block t001_nkb t001_wf (by decide) (by decide)
 
-/-- Stage 0 reads no intermediate past what was written there. -/
-theorem t018_s0_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s0_g.spec (α := α)) :=
-  GenRed.specLocal t018_s0_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s0_g.offs b = IE.lit 0 := by
-        simp [t018_s0_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s0_g.postOffs b = IE.lit 0 := by
-        simp [t018_s0_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t001_kernel : ReduceKernel :=
+  { name := "t001", arity := 2, block := t001_block
+  , nkb := t001_nkb, nout := 16777216
+  , init := FE.zeroC
+  , step := t001_g.step t001_block
+  , stored := t001_g.stored t001_block }
 
-/-- Stage 1 reads no intermediate past what was written there. -/
-theorem t018_s1_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s1_g.spec (α := α)) :=
-  MaxRed.specLocal t018_s1_g t018_sz (by decide)
-    (fun b nn hn q kk hq hk => by
-      by_cases h53 : b = 53
-      · subst h53
-        have hs : nn = 196635648 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 777216) (B := 253) (bound_pack (A := 3072) (B := 253) (bound_pack (A := 32) (B := 96) (bound_div (a := 32) (d := 1524096) hq) (bound_mod (c := 96) (by decide : (0 : Nat) < 96))) (ExactScalar.clamp_lt (c := 253) (by decide : (0 : Nat) < 253))) (ExactScalar.clamp_lt (c := 253) (by decide : (0 : Nat) < 253)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s1_g.offs b = IE.lit 0 := by
-        simp [t018_s1_g, IE.split_ge hb, IE.sparse, h53]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s1_g.postOffs b = IE.lit 0 := by
-        simp [t018_s1_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t002: reducing family, 2 inputs, 8388608 outputs, reduced extent 8192
+--   contraction: batch=1 M=2048 K=8192 N=4096
+def t002_g : GenRed :=
+  { nout := 8388608, K := 8192
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 2048)) (IE.lit 8192)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t002_block : Nat := 1024
+def t002_nkb : Nat := 8
 
-/-- Stage 2 reads no intermediate past what was written there. -/
-theorem t018_s2_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s2_g.spec (α := α)) :=
-  GenRed.specLocal t018_s2_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h54 : b = 54
-      · subst h54
-        have hs : nn = 48771072 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 387072) (B := 126) (bound_pack (A := 3072) (B := 126) (bound_pack (A := 32) (B := 96) (bound_div (a := 32) (d := 254016) hq) hk) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s2_g.offs b = IE.lit 0 := by
-        simp [t018_s2_g, IE.split_ge hb, IE.sparse, h54]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s2_g.postOffs b = IE.lit 0 := by
-        simp [t018_s2_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t002_wf : t002_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 3 reads no intermediate past what was written there. -/
-theorem t018_s3_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s3_g.spec (α := α)) :=
-  GenRed.specLocal t018_s3_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h55 : b = 55
-      · subst h55
-        have hs : nn = 8128512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 64512) (B := 126) (bound_pack (A := 512) (B := 126) (bound_pack (A := 32) (B := 16) (bound_div (a := 32) (d := 1016064) hq) hk) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s3_g.offs b = IE.lit 0 := by
-        simp [t018_s3_g, IE.split_ge hb, IE.sparse, h55]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s3_g.postOffs b = IE.lit 0 := by
-        simp [t018_s3_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t002. -/
+theorem t002_correct {α : Type} [ExactScalar α] :
+    Implements (t002_g.prog t002_block t002_nkb) (t002_g.spec (α := α)) :=
+  GenRed.prog_implements t002_g t002_block t002_nkb t002_wf (by decide) (by decide)
 
-/-- Stage 4 reads no intermediate past what was written there. -/
-theorem t018_s4_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s4_g.spec (α := α)) :=
-  GenRed.specLocal t018_s4_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h55 : b = 55
-      · subst h55
-        have hs : nn = 8128512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 8128512) (by decide : (0 : Nat) < 8128512))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s4_g.offs b = IE.lit 0 := by
-        simp [t018_s4_g, IE.split_ge hb, IE.sparse, h55]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s4_g.postOffs b = IE.lit 0 := by
-        simp [t018_s4_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t002_kernel : ReduceKernel :=
+  { name := "t002", arity := 2, block := t002_block
+  , nkb := t002_nkb, nout := 8388608
+  , init := FE.zeroC
+  , step := t002_g.step t002_block
+  , stored := t002_g.stored t002_block }
 
-/-- Stage 5 reads no intermediate past what was written there. -/
-theorem t018_s5_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s5_g.spec (α := α)) :=
-  GenRed.specLocal t018_s5_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h56 : b = 56
-      · subst h56
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 258048) (B := 126) (bound_pack (A := 2048) (B := 126) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 2032128) hq) (ExactScalar.clamp_lt (c := 64) (by decide : (0 : Nat) < 64))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      by_cases h57 : b = 57
-      · subst h57
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 258048) (B := 126) (bound_pack (A := 2048) (B := 126) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 2032128) hq) (ExactScalar.clamp_lt (c := 64) (by decide : (0 : Nat) < 64))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s5_g.offs b = IE.lit 0 := by
-        simp [t018_s5_g, IE.split_ge hb, IE.sparse, h56, h57]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s5_g.postOffs b = IE.lit 0 := by
-        simp [t018_s5_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t003: reducing family, 2 inputs, 134217728 outputs, reduced extent 1024
+--   contraction: batch=128 M=512 K=1024 N=2048
+def t003_g : GenRed :=
+  { nout := 134217728, K := 1024
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1048576)) (IE.lit 512)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 2048)) (IE.lit 512))) (IE.lit 1024)) IE.rk)), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1048576)) (IE.lit 1024)) IE.rk) (IE.lit 2048)) (IE.modi (IE.pid 0) (IE.lit 2048))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t003_block : Nat := 1024
+def t003_nkb : Nat := 1
 
-/-- Stage 6 reads no intermediate past what was written there. -/
-theorem t018_s6_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s6_g.spec (α := α)) :=
-  GenRed.specLocal t018_s6_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h58 : b = 58
-      · subst h58
-        have hs : nn = 65028096 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 126) (bound_pack (A := 4096) (B := 126) (bound_pack (A := 32) (B := 128) (bound_div (a := 32) (d := 254016) hq) hk) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s6_g.offs b = IE.lit 0 := by
-        simp [t018_s6_g, IE.split_ge hb, IE.sparse, h58]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s6_g.postOffs b = IE.lit 0 := by
-        simp [t018_s6_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t003_wf : t003_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 7 reads no intermediate past what was written there. -/
-theorem t018_s7_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s7_g.spec (α := α)) :=
-  GenRed.specLocal t018_s7_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h59 : b = 59
-      · subst h59
-        have hs : nn = 8128512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 64512) (B := 126) (bound_pack (A := 512) (B := 126) (bound_pack (A := 32) (B := 16) (bound_div (a := 32) (d := 1016064) hq) hk) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s7_g.offs b = IE.lit 0 := by
-        simp [t018_s7_g, IE.split_ge hb, IE.sparse, h59]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s7_g.postOffs b = IE.lit 0 := by
-        simp [t018_s7_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t003. -/
+theorem t003_correct {α : Type} [ExactScalar α] :
+    Implements (t003_g.prog t003_block t003_nkb) (t003_g.spec (α := α)) :=
+  GenRed.prog_implements t003_g t003_block t003_nkb t003_wf (by decide) (by decide)
 
-/-- Stage 8 reads no intermediate past what was written there. -/
-theorem t018_s8_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s8_g.spec (α := α)) :=
-  GenRed.specLocal t018_s8_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h59 : b = 59
-      · subst h59
-        have hs : nn = 8128512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 8128512) (by decide : (0 : Nat) < 8128512))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s8_g.offs b = IE.lit 0 := by
-        simp [t018_s8_g, IE.split_ge hb, IE.sparse, h59]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s8_g.postOffs b = IE.lit 0 := by
-        simp [t018_s8_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t003_kernel : ReduceKernel :=
+  { name := "t003", arity := 2, block := t003_block
+  , nkb := t003_nkb, nout := 134217728
+  , init := FE.zeroC
+  , step := t003_g.step t003_block
+  , stored := t003_g.stored t003_block }
 
-/-- Stage 9 reads no intermediate past what was written there. -/
-theorem t018_s9_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s9_g.spec (α := α)) :=
-  GenRed.specLocal t018_s9_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h60 : b = 60
-      · subst h60
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 258048) (B := 126) (bound_pack (A := 2048) (B := 126) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 2032128) hq) (ExactScalar.clamp_lt (c := 64) (by decide : (0 : Nat) < 64))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      by_cases h61 : b = 61
-      · subst h61
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 258048) (B := 126) (bound_pack (A := 2048) (B := 126) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 2032128) hq) (ExactScalar.clamp_lt (c := 64) (by decide : (0 : Nat) < 64))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s9_g.offs b = IE.lit 0 := by
-        simp [t018_s9_g, IE.split_ge hb, IE.sparse, h60, h61]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s9_g.postOffs b = IE.lit 0 := by
-        simp [t018_s9_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t004: reducing family, 2 inputs, 1024 outputs, reduced extent 1048576
+--   contraction: batch=1 M=1024 K=1048576 N=1
+def t004_g : GenRed :=
+  { nout := 1024, K := 1048576
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 1024)) (IE.lit 1048576)) IE.rk)), (1, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t004_block : Nat := 1024
+def t004_nkb : Nat := 1024
 
-/-- Stage 10 reads no intermediate past what was written there. -/
-theorem t018_s10_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s10_g.spec (α := α)) :=
-  GenRed.specLocal t018_s10_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h62 : b = 62
-      · subst h62
-        have hs : nn = 65028096 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 126) (bound_pack (A := 4096) (B := 126) (bound_pack (A := 32) (B := 128) (bound_div (a := 32) (d := 508032) hq) hk) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s10_g.offs b = IE.lit 0 := by
-        simp [t018_s10_g, IE.split_ge hb, IE.sparse, h62]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s10_g.postOffs b = IE.lit 0 := by
-        simp [t018_s10_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t004_wf : t004_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 11 reads no intermediate past what was written there. -/
-theorem t018_s11_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s11_g.spec (α := α)) :=
-  GenRed.specLocal t018_s11_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h63 : b = 63
-      · subst h63
-        have hs : nn = 16257024 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 129024) (B := 126) (bound_pack (A := 1024) (B := 126) (bound_pack (A := 32) (B := 32) (bound_div (a := 32) (d := 2032128) hq) hk) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s11_g.offs b = IE.lit 0 := by
-        simp [t018_s11_g, IE.split_ge hb, IE.sparse, h63]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s11_g.postOffs b = IE.lit 0 := by
-        simp [t018_s11_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t004. -/
+theorem t004_correct {α : Type} [ExactScalar α] :
+    Implements (t004_g.prog t004_block t004_nkb) (t004_g.spec (α := α)) :=
+  GenRed.prog_implements t004_g t004_block t004_nkb t004_wf (by decide) (by decide)
 
-/-- Stage 12 reads no intermediate past what was written there. -/
-theorem t018_s12_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s12_g.spec (α := α)) :=
-  GenRed.specLocal t018_s12_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h63 : b = 63
-      · subst h63
-        have hs : nn = 16257024 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 16257024) (by decide : (0 : Nat) < 16257024))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s12_g.offs b = IE.lit 0 := by
-        simp [t018_s12_g, IE.split_ge hb, IE.sparse, h63]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s12_g.postOffs b = IE.lit 0 := by
-        simp [t018_s12_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t004_kernel : ReduceKernel :=
+  { name := "t004", arity := 2, block := t004_block
+  , nkb := t004_nkb, nout := 1024
+  , init := FE.zeroC
+  , step := t004_g.step t004_block
+  , stored := t004_g.stored t004_block }
 
-/-- Stage 13 reads no intermediate past what was written there. -/
-theorem t018_s13_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s13_g.spec (α := α)) :=
-  GenRed.specLocal t018_s13_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h64 : b = 64
-      · subst h64
-        have hs : nn = 65028096 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 126) (bound_pack (A := 4096) (B := 126) (bound_pack (A := 32) (B := 128) (bound_div (a := 32) (d := 4064256) hq) (ExactScalar.clamp_lt (c := 128) (by decide : (0 : Nat) < 128))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      by_cases h65 : b = 65
-      · subst h65
-        have hs : nn = 65028096 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 126) (bound_pack (A := 4096) (B := 126) (bound_pack (A := 32) (B := 128) (bound_div (a := 32) (d := 4064256) hq) (ExactScalar.clamp_lt (c := 128) (by decide : (0 : Nat) < 128))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126))) (bound_mod (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s13_g.offs b = IE.lit 0 := by
-        simp [t018_s13_g, IE.split_ge hb, IE.sparse, h64, h65]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s13_g.postOffs b = IE.lit 0 := by
-        simp [t018_s13_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t005: pointwise, arity 1, 268435456 outputs
+def t005_se : SE := (SE.bin .mul (SE.inp 0) (SE.lit false 157 50))
+def t005_block : Nat := 1024
+def t005_n : Nat := 268435456
+def t005_nblocks : Nat := 262144
+def t005_kernel : FlatKernel :=
+  { name := "t005", arity := 1, block := t005_block
+  , n := t005_n, nblocks := t005_nblocks
+  , val := SE.toFE t005_block t005_n t005_se }
 
-/-- Stage 14 reads no intermediate past what was written there. -/
-theorem t018_s14_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s14_g.spec (α := α)) :=
-  MaxRed.specLocal t018_s14_g t018_sz (by decide)
-    (fun b nn hn q kk hq hk => by
-      by_cases h66 : b = 66
-      · subst h66
-        have hs : nn = 130056192 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 1032192) (B := 126) (bound_pack (A := 8192) (B := 126) (bound_pack (A := 32) (B := 256) (bound_div (a := 32) (d := 1016064) hq) (bound_mod (c := 256) (by decide : (0 : Nat) < 256))) (ExactScalar.clamp_lt (c := 126) (by decide : (0 : Nat) < 126))) (ExactScalar.clamp_lt (c := 126) (by decide : (0 : Nat) < 126)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s14_g.offs b = IE.lit 0 := by
-        simp [t018_s14_g, IE.split_ge hb, IE.sparse, h66]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s14_g.postOffs b = IE.lit 0 := by
-        simp [t018_s14_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t005. -/
+theorem t005_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t005_nblocks t005_block t005_n
+                 (SE.toFE t005_block t005_n t005_se))
+               (SE.spec (α := α) t005_se 1 t005_n) :=
+  SE.flat_correct 1 t005_se (by decide) (by decide)
 
-/-- Stage 15 reads no intermediate past what was written there. -/
-theorem t018_s15_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s15_g.spec (α := α)) :=
-  GenRed.specLocal t018_s15_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h67 : b = 67
-      · subst h67
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 63) (bound_pack (A := 8192) (B := 63) (bound_pack (A := 32) (B := 256) (bound_div (a := 32) (d := 127008) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s15_g.offs b = IE.lit 0 := by
-        simp [t018_s15_g, IE.split_ge hb, IE.sparse, h67]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s15_g.postOffs b = IE.lit 0 := by
-        simp [t018_s15_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t006: reducing family, 2 inputs, 65536 outputs, reduced extent 524288
+--   contraction: batch=1 M=256 K=524288 N=256
+def t006_g : GenRed :=
+  { nout := 65536, K := 524288
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 256)) (IE.lit 256)) (IE.lit 524288)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 256)) (IE.modi (IE.pid 0) (IE.lit 256))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t006_block : Nat := 1024
+def t006_nkb : Nat := 512
 
-/-- Stage 16 reads no intermediate past what was written there. -/
-theorem t018_s16_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s16_g.spec (α := α)) :=
-  GenRed.specLocal t018_s16_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h68 : b = 68
-      · subst h68
-        have hs : nn = 4064256 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 64512) (B := 63) (bound_pack (A := 1024) (B := 63) (bound_pack (A := 32) (B := 32) (bound_div (a := 32) (d := 508032) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s16_g.offs b = IE.lit 0 := by
-        simp [t018_s16_g, IE.split_ge hb, IE.sparse, h68]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s16_g.postOffs b = IE.lit 0 := by
-        simp [t018_s16_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t006_wf : t006_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 17 reads no intermediate past what was written there. -/
-theorem t018_s17_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s17_g.spec (α := α)) :=
-  GenRed.specLocal t018_s17_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h68 : b = 68
-      · subst h68
-        have hs : nn = 4064256 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 4064256) (by decide : (0 : Nat) < 4064256))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s17_g.offs b = IE.lit 0 := by
-        simp [t018_s17_g, IE.split_ge hb, IE.sparse, h68]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s17_g.postOffs b = IE.lit 0 := by
-        simp [t018_s17_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t006. -/
+theorem t006_correct {α : Type} [ExactScalar α] :
+    Implements (t006_g.prog t006_block t006_nkb) (t006_g.spec (α := α)) :=
+  GenRed.prog_implements t006_g t006_block t006_nkb t006_wf (by decide) (by decide)
 
-/-- Stage 18 reads no intermediate past what was written there. -/
-theorem t018_s18_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s18_g.spec (α := α)) :=
-  GenRed.specLocal t018_s18_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h69 : b = 69
-      · subst h69
-        have hs : nn = 16257024 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 258048) (B := 63) (bound_pack (A := 4096) (B := 63) (bound_pack (A := 32) (B := 128) (bound_div (a := 32) (d := 1016064) hq) (ExactScalar.clamp_lt (c := 128) (by decide : (0 : Nat) < 128))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      by_cases h70 : b = 70
-      · subst h70
-        have hs : nn = 16257024 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 258048) (B := 63) (bound_pack (A := 4096) (B := 63) (bound_pack (A := 32) (B := 128) (bound_div (a := 32) (d := 1016064) hq) (ExactScalar.clamp_lt (c := 128) (by decide : (0 : Nat) < 128))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s18_g.offs b = IE.lit 0 := by
-        simp [t018_s18_g, IE.split_ge hb, IE.sparse, h69, h70]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s18_g.postOffs b = IE.lit 0 := by
-        simp [t018_s18_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t006_kernel : ReduceKernel :=
+  { name := "t006", arity := 2, block := t006_block
+  , nkb := t006_nkb, nout := 65536
+  , init := FE.zeroC
+  , step := t006_g.step t006_block
+  , stored := t006_g.stored t006_block }
 
-/-- Stage 19 reads no intermediate past what was written there. -/
-theorem t018_s19_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s19_g.spec (α := α)) :=
-  GenRed.specLocal t018_s19_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h71 : b = 71
-      · subst h71
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 63) (bound_pack (A := 8192) (B := 63) (bound_pack (A := 32) (B := 256) (bound_div (a := 32) (d := 190512) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s19_g.offs b = IE.lit 0 := by
-        simp [t018_s19_g, IE.split_ge hb, IE.sparse, h71]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s19_g.postOffs b = IE.lit 0 := by
-        simp [t018_s19_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t007: reducing family, 2 inputs, 268435456 outputs, reduced extent 64
+--   contraction: batch=1 M=8192 K=64 N=32768
+def t007_g : GenRed :=
+  { nout := 268435456, K := 64
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 8192)) (IE.lit 64)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 32768)) (IE.modi (IE.pid 0) (IE.lit 32768))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t007_block : Nat := 64
+def t007_nkb : Nat := 1
 
-/-- Stage 20 reads no intermediate past what was written there. -/
-theorem t018_s20_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s20_g.spec (α := α)) :=
-  GenRed.specLocal t018_s20_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h72 : b = 72
-      · subst h72
-        have hs : nn = 6096384 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 96768) (B := 63) (bound_pack (A := 1536) (B := 63) (bound_pack (A := 32) (B := 48) (bound_div (a := 32) (d := 762048) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s20_g.offs b = IE.lit 0 := by
-        simp [t018_s20_g, IE.split_ge hb, IE.sparse, h72]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s20_g.postOffs b = IE.lit 0 := by
-        simp [t018_s20_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t007_wf : t007_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 21 reads no intermediate past what was written there. -/
-theorem t018_s21_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s21_g.spec (α := α)) :=
-  GenRed.specLocal t018_s21_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h72 : b = 72
-      · subst h72
-        have hs : nn = 6096384 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 6096384) (by decide : (0 : Nat) < 6096384))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s21_g.offs b = IE.lit 0 := by
-        simp [t018_s21_g, IE.split_ge hb, IE.sparse, h72]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s21_g.postOffs b = IE.lit 0 := by
-        simp [t018_s21_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t007. -/
+theorem t007_correct {α : Type} [ExactScalar α] :
+    Implements (t007_g.prog t007_block t007_nkb) (t007_g.spec (α := α)) :=
+  GenRed.prog_implements t007_g t007_block t007_nkb t007_wf (by decide) (by decide)
 
-/-- Stage 22 reads no intermediate past what was written there. -/
-theorem t018_s22_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s22_g.spec (α := α)) :=
-  GenRed.specLocal t018_s22_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h73 : b = 73
-      · subst h73
-        have hs : nn = 24385536 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 387072) (B := 63) (bound_pack (A := 6144) (B := 63) (bound_pack (A := 32) (B := 192) (bound_div (a := 32) (d := 1524096) hq) (ExactScalar.clamp_lt (c := 192) (by decide : (0 : Nat) < 192))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      by_cases h74 : b = 74
-      · subst h74
-        have hs : nn = 24385536 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 387072) (B := 63) (bound_pack (A := 6144) (B := 63) (bound_pack (A := 32) (B := 192) (bound_div (a := 32) (d := 1524096) hq) (ExactScalar.clamp_lt (c := 192) (by decide : (0 : Nat) < 192))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s22_g.offs b = IE.lit 0 := by
-        simp [t018_s22_g, IE.split_ge hb, IE.sparse, h73, h74]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s22_g.postOffs b = IE.lit 0 := by
-        simp [t018_s22_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t007_kernel : ReduceKernel :=
+  { name := "t007", arity := 2, block := t007_block
+  , nkb := t007_nkb, nout := 268435456
+  , init := FE.zeroC
+  , step := t007_g.step t007_block
+  , stored := t007_g.stored t007_block }
 
-/-- Stage 23 reads no intermediate past what was written there. -/
-theorem t018_s23_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s23_g.spec (α := α)) :=
-  GenRed.specLocal t018_s23_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h75 : b = 75
-      · subst h75
-        have hs : nn = 48771072 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 774144) (B := 63) (bound_pack (A := 12288) (B := 63) (bound_pack (A := 32) (B := 384) (bound_div (a := 32) (d := 190512) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s23_g.offs b = IE.lit 0 := by
-        simp [t018_s23_g, IE.split_ge hb, IE.sparse, h75]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s23_g.postOffs b = IE.lit 0 := by
-        simp [t018_s23_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t008: reducing family, 2 inputs, 48581805 outputs, reduced extent 2949
+--   contraction: batch=1 M=8205 K=2949 N=5921
+def t008_g : GenRed :=
+  { nout := 48581805, K := 2949
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 5921)) (IE.lit 8205)) (IE.lit 2949)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 5921)) (IE.modi (IE.pid 0) (IE.lit 5921))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t008_block : Nat := 1024
+def t008_nkb : Nat := 3
 
-/-- Stage 24 reads no intermediate past what was written there. -/
-theorem t018_s24_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s24_g.spec (α := α)) :=
-  GenRed.specLocal t018_s24_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h76 : b = 76
-      · subst h76
-        have hs : nn = 6096384 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 96768) (B := 63) (bound_pack (A := 1536) (B := 63) (bound_pack (A := 32) (B := 48) (bound_div (a := 32) (d := 762048) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s24_g.offs b = IE.lit 0 := by
-        simp [t018_s24_g, IE.split_ge hb, IE.sparse, h76]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s24_g.postOffs b = IE.lit 0 := by
-        simp [t018_s24_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t008_wf : t008_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 25 reads no intermediate past what was written there. -/
-theorem t018_s25_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s25_g.spec (α := α)) :=
-  GenRed.specLocal t018_s25_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h76 : b = 76
-      · subst h76
-        have hs : nn = 6096384 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 6096384) (by decide : (0 : Nat) < 6096384))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s25_g.offs b = IE.lit 0 := by
-        simp [t018_s25_g, IE.split_ge hb, IE.sparse, h76]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s25_g.postOffs b = IE.lit 0 := by
-        simp [t018_s25_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t008. -/
+theorem t008_correct {α : Type} [ExactScalar α] :
+    Implements (t008_g.prog t008_block t008_nkb) (t008_g.spec (α := α)) :=
+  GenRed.prog_implements t008_g t008_block t008_nkb t008_wf (by decide) (by decide)
 
-/-- Stage 26 reads no intermediate past what was written there. -/
-theorem t018_s26_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s26_g.spec (α := α)) :=
-  GenRed.specLocal t018_s26_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h77 : b = 77
-      · subst h77
-        have hs : nn = 24385536 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 387072) (B := 63) (bound_pack (A := 6144) (B := 63) (bound_pack (A := 32) (B := 192) (bound_div (a := 32) (d := 1524096) hq) (ExactScalar.clamp_lt (c := 192) (by decide : (0 : Nat) < 192))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      by_cases h78 : b = 78
-      · subst h78
-        have hs : nn = 24385536 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 387072) (B := 63) (bound_pack (A := 6144) (B := 63) (bound_pack (A := 32) (B := 192) (bound_div (a := 32) (d := 1524096) hq) (ExactScalar.clamp_lt (c := 192) (by decide : (0 : Nat) < 192))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s26_g.offs b = IE.lit 0 := by
-        simp [t018_s26_g, IE.split_ge hb, IE.sparse, h77, h78]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s26_g.postOffs b = IE.lit 0 := by
-        simp [t018_s26_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t008_kernel : ReduceKernel :=
+  { name := "t008", arity := 2, block := t008_block
+  , nkb := t008_nkb, nout := 48581805
+  , init := FE.zeroC
+  , step := t008_g.step t008_block
+  , stored := t008_g.stored t008_block }
 
-/-- Stage 27 reads no intermediate past what was written there. -/
-theorem t018_s27_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s27_g.spec (α := α)) :=
-  GenRed.specLocal t018_s27_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h79 : b = 79
-      · subst h79
-        have hs : nn = 48771072 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 774144) (B := 63) (bound_pack (A := 12288) (B := 63) (bound_pack (A := 32) (B := 384) (bound_div (a := 32) (d := 254016) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s27_g.offs b = IE.lit 0 := by
-        simp [t018_s27_g, IE.split_ge hb, IE.sparse, h79]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s27_g.postOffs b = IE.lit 0 := by
-        simp [t018_s27_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t009: reducing family, 2 inputs, 268435456 outputs, reduced extent 32
+--   contraction: batch=1 M=8192 K=32 N=32768
+def t009_g : GenRed :=
+  { nout := 268435456, K := 32
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 8192)) (IE.lit 32)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 32768)) (IE.modi (IE.pid 0) (IE.lit 32768))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t009_block : Nat := 32
+def t009_nkb : Nat := 1
 
-/-- Stage 28 reads no intermediate past what was written there. -/
-theorem t018_s28_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s28_g.spec (α := α)) :=
-  GenRed.specLocal t018_s28_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h80 : b = 80
-      · subst h80
-        have hs : nn = 8128512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 129024) (B := 63) (bound_pack (A := 2048) (B := 63) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 1016064) hq) hk) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s28_g.offs b = IE.lit 0 := by
-        simp [t018_s28_g, IE.split_ge hb, IE.sparse, h80]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s28_g.postOffs b = IE.lit 0 := by
-        simp [t018_s28_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t009_wf : t009_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 29 reads no intermediate past what was written there. -/
-theorem t018_s29_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s29_g.spec (α := α)) :=
-  GenRed.specLocal t018_s29_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h80 : b = 80
-      · subst h80
-        have hs : nn = 8128512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 8128512) (by decide : (0 : Nat) < 8128512))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s29_g.offs b = IE.lit 0 := by
-        simp [t018_s29_g, IE.split_ge hb, IE.sparse, h80]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s29_g.postOffs b = IE.lit 0 := by
-        simp [t018_s29_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t009. -/
+theorem t009_correct {α : Type} [ExactScalar α] :
+    Implements (t009_g.prog t009_block t009_nkb) (t009_g.spec (α := α)) :=
+  GenRed.prog_implements t009_g t009_block t009_nkb t009_wf (by decide) (by decide)
 
-/-- Stage 30 reads no intermediate past what was written there. -/
-theorem t018_s30_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s30_g.spec (α := α)) :=
-  GenRed.specLocal t018_s30_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h81 : b = 81
-      · subst h81
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 63) (bound_pack (A := 8192) (B := 63) (bound_pack (A := 32) (B := 256) (bound_div (a := 32) (d := 2032128) hq) (ExactScalar.clamp_lt (c := 256) (by decide : (0 : Nat) < 256))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      by_cases h82 : b = 82
-      · subst h82
-        have hs : nn = 32514048 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 516096) (B := 63) (bound_pack (A := 8192) (B := 63) (bound_pack (A := 32) (B := 256) (bound_div (a := 32) (d := 2032128) hq) (ExactScalar.clamp_lt (c := 256) (by decide : (0 : Nat) < 256))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63))) (bound_mod (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s30_g.offs b = IE.lit 0 := by
-        simp [t018_s30_g, IE.split_ge hb, IE.sparse, h81, h82]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s30_g.postOffs b = IE.lit 0 := by
-        simp [t018_s30_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t009_kernel : ReduceKernel :=
+  { name := "t009", arity := 2, block := t009_block
+  , nkb := t009_nkb, nout := 268435456
+  , init := FE.zeroC
+  , step := t009_g.step t009_block
+  , stored := t009_g.stored t009_block }
 
-/-- Stage 31 reads no intermediate past what was written there. -/
-theorem t018_s31_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s31_g.spec (α := α)) :=
-  MaxRed.specLocal t018_s31_g t018_sz (by decide)
-    (fun b nn hn q kk hq hk => by
-      by_cases h83 : b = 83
-      · subst h83
-        have hs : nn = 65028096 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 1032192) (B := 63) (bound_pack (A := 16384) (B := 63) (bound_pack (A := 32) (B := 512) (bound_div (a := 32) (d := 492032) hq) (bound_mod (c := 512) (by decide : (0 : Nat) < 512))) (ExactScalar.clamp_lt (c := 63) (by decide : (0 : Nat) < 63))) (ExactScalar.clamp_lt (c := 63) (by decide : (0 : Nat) < 63)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s31_g.offs b = IE.lit 0 := by
-        simp [t018_s31_g, IE.split_ge hb, IE.sparse, h83]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s31_g.postOffs b = IE.lit 0 := by
-        simp [t018_s31_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t010: reducing family, 2 inputs, 12582912 outputs, reduced extent 2048
+--   contraction: batch=16 M=1024 K=2048 N=768
+def t010_g : GenRed :=
+  { nout := 12582912, K := 2048
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 786432)) (IE.lit 1024)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 768)) (IE.lit 1024))) (IE.lit 2048)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 768)) (IE.modi (IE.pid 0) (IE.lit 768))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t010_block : Nat := 1024
+def t010_nkb : Nat := 2
 
-/-- Stage 32 reads no intermediate past what was written there. -/
-theorem t018_s32_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s32_g.spec (α := α)) :=
-  GenRed.specLocal t018_s32_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h84 : b = 84
-      · subst h84
-        have hs : nn = 15745024 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 507904) (B := 31) (bound_pack (A := 16384) (B := 31) (bound_pack (A := 32) (B := 512) (bound_div (a := 32) (d := 61504) hq) hk) (bound_mod (c := 31) (by decide : (0 : Nat) < 31))) (bound_mod (c := 31) (by decide : (0 : Nat) < 31)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s32_g.offs b = IE.lit 0 := by
-        simp [t018_s32_g, IE.split_ge hb, IE.sparse, h84]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s32_g.postOffs b = IE.lit 0 := by
-        simp [t018_s32_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t010_wf : t010_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 33 reads no intermediate past what was written there. -/
-theorem t018_s33_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s33_g.spec (α := α)) :=
-  GenRed.specLocal t018_s33_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h85 : b = 85
-      · subst h85
-        have hs : nn = 1968128 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 63488) (B := 31) (bound_pack (A := 2048) (B := 31) (bound_pack (A := 32) (B := 64) (bound_div (a := 32) (d := 246016) hq) hk) (bound_mod (c := 31) (by decide : (0 : Nat) < 31))) (bound_mod (c := 31) (by decide : (0 : Nat) < 31)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s33_g.offs b = IE.lit 0 := by
-        simp [t018_s33_g, IE.split_ge hb, IE.sparse, h85]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s33_g.postOffs b = IE.lit 0 := by
-        simp [t018_s33_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t010. -/
+theorem t010_correct {α : Type} [ExactScalar α] :
+    Implements (t010_g.prog t010_block t010_nkb) (t010_g.spec (α := α)) :=
+  GenRed.prog_implements t010_g t010_block t010_nkb t010_wf (by decide) (by decide)
 
-/-- Stage 34 reads no intermediate past what was written there. -/
-theorem t018_s34_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s34_g.spec (α := α)) :=
-  GenRed.specLocal t018_s34_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h85 : b = 85
-      · subst h85
-        have hs : nn = 1968128 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (ExactScalar.clamp_lt (c := 1968128) (by decide : (0 : Nat) < 1968128))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s34_g.offs b = IE.lit 0 := by
-        simp [t018_s34_g, IE.split_ge hb, IE.sparse, h85]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s34_g.postOffs b = IE.lit 0 := by
-        simp [t018_s34_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+def t010_kernel : ReduceKernel :=
+  { name := "t010", arity := 2, block := t010_block
+  , nkb := t010_nkb, nout := 12582912
+  , init := FE.zeroC
+  , step := t010_g.step t010_block
+  , stored := t010_g.stored t010_block }
 
-/-- Stage 35 reads no intermediate past what was written there. -/
-theorem t018_s35_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s35_g.spec (α := α)) :=
-  GenRed.specLocal t018_s35_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h86 : b = 86
-      · subst h86
-        have hs : nn = 7872512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 253952) (B := 31) (bound_pack (A := 8192) (B := 31) (bound_pack (A := 32) (B := 256) (bound_div (a := 32) (d := 492032) hq) (ExactScalar.clamp_lt (c := 256) (by decide : (0 : Nat) < 256))) (bound_mod (c := 31) (by decide : (0 : Nat) < 31))) (bound_mod (c := 31) (by decide : (0 : Nat) < 31)))
-      by_cases h87 : b = 87
-      · subst h87
-        have hs : nn = 7872512 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 253952) (B := 31) (bound_pack (A := 8192) (B := 31) (bound_pack (A := 32) (B := 256) (bound_div (a := 32) (d := 492032) hq) (ExactScalar.clamp_lt (c := 256) (by decide : (0 : Nat) < 256))) (bound_mod (c := 31) (by decide : (0 : Nat) < 31))) (bound_mod (c := 31) (by decide : (0 : Nat) < 31)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s35_g.offs b = IE.lit 0 := by
-        simp [t018_s35_g, IE.split_ge hb, IE.sparse, h86, h87]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s35_g.postOffs b = IE.lit 0 := by
-        simp [t018_s35_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+-- t011: reducing family, 2 inputs, 402653184 outputs, reduced extent 256
+--   contraction: batch=1024 M=512 K=256 N=768
+def t011_g : GenRed :=
+  { nout := 402653184, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 393216)) (IE.lit 512)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 768)) (IE.lit 512))) (IE.lit 256)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 768)) (IE.modi (IE.pid 0) (IE.lit 768))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t011_block : Nat := 256
+def t011_nkb : Nat := 1
 
-/-- Stage 36 reads no intermediate past what was written there. -/
-theorem t018_s36_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s36_g.spec (α := α)) :=
-  GenRed.specLocal t018_s36_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h88 : b = 88
-      · subst h88
-        have hs : nn = 15745024 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 507904) (B := 31) (bound_pack (A := 16384) (B := 31) (bound_pack (A := 32) (B := 512) (bound_div (a := 32) (d := 961000) hq) hk) (bound_mod (c := 31) (by decide : (0 : Nat) < 31))) (bound_mod (c := 31) (by decide : (0 : Nat) < 31)))
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s36_g.offs b = IE.lit 0 := by
-        simp [t018_s36_g, IE.split_ge hb, IE.sparse, h88]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s36_g.postOffs b = IE.lit 0 := by
-        simp [t018_s36_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Index maps mention only the output and reduction indices. -/
+theorem t011_wf : t011_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-/-- Stage 37 reads no intermediate past what was written there. -/
-theorem t018_s37_loc {α : Type} [ExactScalar α] :
-    SpecLocal t018_sz (t018_s37_g.spec (α := α)) :=
-  GenRed.specLocal t018_s37_g t018_sz
-    (fun b nn hn q kk hq hk => by
-      by_cases h89 : b = 89
-      · subst h89
-        have hs : nn = 30752000 :=
-          Sizes.ofList_some (by decide) (by decide) hn
-        subst hs
-        exact (bound_pack (A := 32000) (B := 961) hq hk)
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s37_g.offs b = IE.lit 0 := by
-        simp [t018_s37_g, IE.split_ge hb, IE.sparse, h89]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
-    (fun b nn hn q hq => by
-      have hb : 53 ≤ b := Sizes.ofList_le hn
-      have hz : t018_s37_g.postOffs b = IE.lit 0 := by
-        simp [t018_s37_g, IE.split_ge hb, IE.sparse]
-      rw [hz]
-      exact t018_sz_pos b nn hn)
+/-- Correctness certificate for t011. -/
+theorem t011_correct {α : Type} [ExactScalar α] :
+    Implements (t011_g.prog t011_block t011_nkb) (t011_g.spec (α := α)) :=
+  GenRed.prog_implements t011_g t011_block t011_nkb t011_wf (by decide) (by decide)
 
-def t018_chain (α : Type) [ExactScalar α] : List (Stage α) := [⟨t018_s0_g.prog t018_s0_block t018_s0_nkb, t018_s0_g.spec (α := α), 53⟩, ⟨t018_s1_g.prog t018_s1_block t018_s1_nkb, t018_s1_g.spec (α := α), 54⟩, ⟨t018_s2_g.prog t018_s2_block t018_s2_nkb, t018_s2_g.spec (α := α), 55⟩, ⟨t018_s3_g.prog t018_s3_block t018_s3_nkb, t018_s3_g.spec (α := α), 56⟩, ⟨t018_s4_g.prog t018_s4_block t018_s4_nkb, t018_s4_g.spec (α := α), 57⟩, ⟨t018_s5_g.prog t018_s5_block t018_s5_nkb, t018_s5_g.spec (α := α), 58⟩, ⟨t018_s6_g.prog t018_s6_block t018_s6_nkb, t018_s6_g.spec (α := α), 59⟩, ⟨t018_s7_g.prog t018_s7_block t018_s7_nkb, t018_s7_g.spec (α := α), 60⟩, ⟨t018_s8_g.prog t018_s8_block t018_s8_nkb, t018_s8_g.spec (α := α), 61⟩, ⟨t018_s9_g.prog t018_s9_block t018_s9_nkb, t018_s9_g.spec (α := α), 62⟩, ⟨t018_s10_g.prog t018_s10_block t018_s10_nkb, t018_s10_g.spec (α := α), 63⟩, ⟨t018_s11_g.prog t018_s11_block t018_s11_nkb, t018_s11_g.spec (α := α), 64⟩, ⟨t018_s12_g.prog t018_s12_block t018_s12_nkb, t018_s12_g.spec (α := α), 65⟩, ⟨t018_s13_g.prog t018_s13_block t018_s13_nkb, t018_s13_g.spec (α := α), 66⟩, ⟨t018_s14_g.prog t018_s14_block t018_s14_nkb, t018_s14_g.spec (α := α), 67⟩, ⟨t018_s15_g.prog t018_s15_block t018_s15_nkb, t018_s15_g.spec (α := α), 68⟩, ⟨t018_s16_g.prog t018_s16_block t018_s16_nkb, t018_s16_g.spec (α := α), 69⟩, ⟨t018_s17_g.prog t018_s17_block t018_s17_nkb, t018_s17_g.spec (α := α), 70⟩, ⟨t018_s18_g.prog t018_s18_block t018_s18_nkb, t018_s18_g.spec (α := α), 71⟩, ⟨t018_s19_g.prog t018_s19_block t018_s19_nkb, t018_s19_g.spec (α := α), 72⟩, ⟨t018_s20_g.prog t018_s20_block t018_s20_nkb, t018_s20_g.spec (α := α), 73⟩, ⟨t018_s21_g.prog t018_s21_block t018_s21_nkb, t018_s21_g.spec (α := α), 74⟩, ⟨t018_s22_g.prog t018_s22_block t018_s22_nkb, t018_s22_g.spec (α := α), 75⟩, ⟨t018_s23_g.prog t018_s23_block t018_s23_nkb, t018_s23_g.spec (α := α), 76⟩, ⟨t018_s24_g.prog t018_s24_block t018_s24_nkb, t018_s24_g.spec (α := α), 77⟩, ⟨t018_s25_g.prog t018_s25_block t018_s25_nkb, t018_s25_g.spec (α := α), 78⟩, ⟨t018_s26_g.prog t018_s26_block t018_s26_nkb, t018_s26_g.spec (α := α), 79⟩, ⟨t018_s27_g.prog t018_s27_block t018_s27_nkb, t018_s27_g.spec (α := α), 80⟩, ⟨t018_s28_g.prog t018_s28_block t018_s28_nkb, t018_s28_g.spec (α := α), 81⟩, ⟨t018_s29_g.prog t018_s29_block t018_s29_nkb, t018_s29_g.spec (α := α), 82⟩, ⟨t018_s30_g.prog t018_s30_block t018_s30_nkb, t018_s30_g.spec (α := α), 83⟩, ⟨t018_s31_g.prog t018_s31_block t018_s31_nkb, t018_s31_g.spec (α := α), 84⟩, ⟨t018_s32_g.prog t018_s32_block t018_s32_nkb, t018_s32_g.spec (α := α), 85⟩, ⟨t018_s33_g.prog t018_s33_block t018_s33_nkb, t018_s33_g.spec (α := α), 86⟩, ⟨t018_s34_g.prog t018_s34_block t018_s34_nkb, t018_s34_g.spec (α := α), 87⟩, ⟨t018_s35_g.prog t018_s35_block t018_s35_nkb, t018_s35_g.spec (α := α), 88⟩, ⟨t018_s36_g.prog t018_s36_block t018_s36_nkb, t018_s36_g.spec (α := α), 89⟩, ⟨t018_s37_g.prog t018_s37_block t018_s37_nkb, t018_s37_g.spec (α := α), 90⟩]
+def t011_kernel : ReduceKernel :=
+  { name := "t011", arity := 2, block := t011_block
+  , nkb := t011_nkb, nout := 402653184
+  , init := FE.zeroC
+  , step := t011_g.step t011_block
+  , stored := t011_g.stored t011_block }
 
-theorem t018_imp {α : Type} [ExactScalar α] :
-    ∀ st ∈ t018_chain α, Implements st.prog st.spec :=
-  List.forall_mem_cons.mpr ⟨t018_s0_impl,
-  List.forall_mem_cons.mpr ⟨t018_s1_impl,
-  List.forall_mem_cons.mpr ⟨t018_s2_impl,
-  List.forall_mem_cons.mpr ⟨t018_s3_impl,
-  List.forall_mem_cons.mpr ⟨t018_s4_impl,
-  List.forall_mem_cons.mpr ⟨t018_s5_impl,
-  List.forall_mem_cons.mpr ⟨t018_s6_impl,
-  List.forall_mem_cons.mpr ⟨t018_s7_impl,
-  List.forall_mem_cons.mpr ⟨t018_s8_impl,
-  List.forall_mem_cons.mpr ⟨t018_s9_impl,
-  List.forall_mem_cons.mpr ⟨t018_s10_impl,
-  List.forall_mem_cons.mpr ⟨t018_s11_impl,
-  List.forall_mem_cons.mpr ⟨t018_s12_impl,
-  List.forall_mem_cons.mpr ⟨t018_s13_impl,
-  List.forall_mem_cons.mpr ⟨t018_s14_impl,
-  List.forall_mem_cons.mpr ⟨t018_s15_impl,
-  List.forall_mem_cons.mpr ⟨t018_s16_impl,
-  List.forall_mem_cons.mpr ⟨t018_s17_impl,
-  List.forall_mem_cons.mpr ⟨t018_s18_impl,
-  List.forall_mem_cons.mpr ⟨t018_s19_impl,
-  List.forall_mem_cons.mpr ⟨t018_s20_impl,
-  List.forall_mem_cons.mpr ⟨t018_s21_impl,
-  List.forall_mem_cons.mpr ⟨t018_s22_impl,
-  List.forall_mem_cons.mpr ⟨t018_s23_impl,
-  List.forall_mem_cons.mpr ⟨t018_s24_impl,
-  List.forall_mem_cons.mpr ⟨t018_s25_impl,
-  List.forall_mem_cons.mpr ⟨t018_s26_impl,
-  List.forall_mem_cons.mpr ⟨t018_s27_impl,
-  List.forall_mem_cons.mpr ⟨t018_s28_impl,
-  List.forall_mem_cons.mpr ⟨t018_s29_impl,
-  List.forall_mem_cons.mpr ⟨t018_s30_impl,
-  List.forall_mem_cons.mpr ⟨t018_s31_impl,
-  List.forall_mem_cons.mpr ⟨t018_s32_impl,
-  List.forall_mem_cons.mpr ⟨t018_s33_impl,
-  List.forall_mem_cons.mpr ⟨t018_s34_impl,
-  List.forall_mem_cons.mpr ⟨t018_s35_impl,
-  List.forall_mem_cons.mpr ⟨t018_s36_impl,
-  List.forall_mem_cons.mpr ⟨t018_s37_impl,
-  List.forall_mem_nil _⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩
+-- t012: reducing family, 2 inputs, 16777216 outputs, reduced extent 1
+--   broadcast map: [(4096, 1), (4096, 4096)] -> (4096, 4096)
+def t012_g : GenRed :=
+  { nout := 16777216, K := 1
+  , offs := IE.sparse [(0, (IE.divi (IE.pid 0) (IE.lit 4096))), (1, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t012_block : Nat := 1
+def t012_nkb : Nat := 1
 
-theorem t018_szok {α : Type} [ExactScalar α] :
-    ∀ st ∈ t018_chain α, t018_sz st.out = some st.spec.outSize :=
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_cons.mpr ⟨rfl,
-  List.forall_mem_nil _⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩
+/-- Index maps mention only the output and reduction indices. -/
+theorem t012_wf : t012_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
 
-theorem t018_loc {α : Type} [ExactScalar α] :
-    ∀ st ∈ t018_chain α, SpecLocal t018_sz st.spec :=
-  List.forall_mem_cons.mpr ⟨t018_s0_loc,
-  List.forall_mem_cons.mpr ⟨t018_s1_loc,
-  List.forall_mem_cons.mpr ⟨t018_s2_loc,
-  List.forall_mem_cons.mpr ⟨t018_s3_loc,
-  List.forall_mem_cons.mpr ⟨t018_s4_loc,
-  List.forall_mem_cons.mpr ⟨t018_s5_loc,
-  List.forall_mem_cons.mpr ⟨t018_s6_loc,
-  List.forall_mem_cons.mpr ⟨t018_s7_loc,
-  List.forall_mem_cons.mpr ⟨t018_s8_loc,
-  List.forall_mem_cons.mpr ⟨t018_s9_loc,
-  List.forall_mem_cons.mpr ⟨t018_s10_loc,
-  List.forall_mem_cons.mpr ⟨t018_s11_loc,
-  List.forall_mem_cons.mpr ⟨t018_s12_loc,
-  List.forall_mem_cons.mpr ⟨t018_s13_loc,
-  List.forall_mem_cons.mpr ⟨t018_s14_loc,
-  List.forall_mem_cons.mpr ⟨t018_s15_loc,
-  List.forall_mem_cons.mpr ⟨t018_s16_loc,
-  List.forall_mem_cons.mpr ⟨t018_s17_loc,
-  List.forall_mem_cons.mpr ⟨t018_s18_loc,
-  List.forall_mem_cons.mpr ⟨t018_s19_loc,
-  List.forall_mem_cons.mpr ⟨t018_s20_loc,
-  List.forall_mem_cons.mpr ⟨t018_s21_loc,
-  List.forall_mem_cons.mpr ⟨t018_s22_loc,
-  List.forall_mem_cons.mpr ⟨t018_s23_loc,
-  List.forall_mem_cons.mpr ⟨t018_s24_loc,
-  List.forall_mem_cons.mpr ⟨t018_s25_loc,
-  List.forall_mem_cons.mpr ⟨t018_s26_loc,
-  List.forall_mem_cons.mpr ⟨t018_s27_loc,
-  List.forall_mem_cons.mpr ⟨t018_s28_loc,
-  List.forall_mem_cons.mpr ⟨t018_s29_loc,
-  List.forall_mem_cons.mpr ⟨t018_s30_loc,
-  List.forall_mem_cons.mpr ⟨t018_s31_loc,
-  List.forall_mem_cons.mpr ⟨t018_s32_loc,
-  List.forall_mem_cons.mpr ⟨t018_s33_loc,
-  List.forall_mem_cons.mpr ⟨t018_s34_loc,
-  List.forall_mem_cons.mpr ⟨t018_s35_loc,
-  List.forall_mem_cons.mpr ⟨t018_s36_loc,
-  List.forall_mem_cons.mpr ⟨t018_s37_loc,
-  List.forall_mem_nil _⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩⟩
+/-- Correctness certificate for t012. -/
+theorem t012_correct {α : Type} [ExactScalar α] :
+    Implements (t012_g.prog t012_block t012_nkb) (t012_g.spec (α := α)) :=
+  GenRed.prog_implements t012_g t012_block t012_nkb t012_wf (by decide) (by decide)
 
-/-- Correctness certificate for t018: the whole chain. -/
+def t012_kernel : ReduceKernel :=
+  { name := "t012", arity := 2, block := t012_block
+  , nkb := t012_nkb, nout := 16777216
+  , init := FE.zeroC
+  , step := t012_g.step t012_block
+  , stored := t012_g.stored t012_block }
+
+-- t013: reducing family, 2 inputs, 16777216 outputs, reduced extent 4096
+--   contraction: batch=1 M=4096 K=4096 N=4096
+def t013_g : GenRed :=
+  { nout := 16777216, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 4096)) (IE.lit 4096)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t013_block : Nat := 1024
+def t013_nkb : Nat := 4
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t013_wf : t013_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t013. -/
+theorem t013_correct {α : Type} [ExactScalar α] :
+    Implements (t013_g.prog t013_block t013_nkb) (t013_g.spec (α := α)) :=
+  GenRed.prog_implements t013_g t013_block t013_nkb t013_wf (by decide) (by decide)
+
+def t013_kernel : ReduceKernel :=
+  { name := "t013", arity := 2, block := t013_block
+  , nkb := t013_nkb, nout := 16777216
+  , init := FE.zeroC
+  , step := t013_g.step t013_block
+  , stored := t013_g.stored t013_block }
+
+-- t014: reducing family, 2 inputs, 16777216 outputs, reduced extent 4096
+--   contraction: batch=1 M=4096 K=4096 N=4096, triu mask
+def t014_g : GenRed :=
+  { nout := 16777216, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 4096)) (IE.lit 4096)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := (BE.cmp .le (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096)))
+  , nInp := 2, idxSlot := 1048576 }
+def t014_block : Nat := 1024
+def t014_nkb : Nat := 4
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t014_wf : t014_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t014. -/
+theorem t014_correct {α : Type} [ExactScalar α] :
+    Implements (t014_g.prog t014_block t014_nkb) (t014_g.spec (α := α)) :=
+  GenRed.prog_implements t014_g t014_block t014_nkb t014_wf (by decide) (by decide)
+
+def t014_kernel : ReduceKernel :=
+  { name := "t014", arity := 2, block := t014_block
+  , nkb := t014_nkb, nout := 16777216
+  , init := FE.zeroC
+  , step := t014_g.step t014_block
+  , stored := t014_g.stored t014_block }
+
+-- t015: reducing family, 2 inputs, 16777216 outputs, reduced extent 4096
+--   contraction: batch=1 M=4096 K=4096 N=4096, tril mask
+def t015_g : GenRed :=
+  { nout := 16777216, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 4096)) (IE.lit 4096)) IE.rk)), (1, (IE.add (IE.mul IE.rk (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := (BE.cmp .le (IE.modi (IE.pid 0) (IE.lit 4096)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 4096)))
+  , nInp := 2, idxSlot := 1048576 }
+def t015_block : Nat := 1024
+def t015_nkb : Nat := 4
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t015_wf : t015_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t015. -/
+theorem t015_correct {α : Type} [ExactScalar α] :
+    Implements (t015_g.prog t015_block t015_nkb) (t015_g.spec (α := α)) :=
+  GenRed.prog_implements t015_g t015_block t015_nkb t015_wf (by decide) (by decide)
+
+def t015_kernel : ReduceKernel :=
+  { name := "t015", arity := 2, block := t015_block
+  , nkb := t015_nkb, nout := 16777216
+  , init := FE.zeroC
+  , step := t015_g.step t015_block
+  , stored := t015_g.stored t015_block }
+
+-- t016: reducing family, 2 inputs, 8388608 outputs, reduced extent 8192
+--   contraction: batch=1 M=2048 K=8192 N=4096, lhs^T
+def t016_g : GenRed :=
+  { nout := 8388608, K := 8192
+  , offs := IE.sparse [(0, (IE.add (IE.mul IE.rk (IE.lit 2048)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 2048)))), (1, (IE.add (IE.mul IE.rk (IE.lit 4096)) (IE.modi (IE.pid 0) (IE.lit 4096))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t016_block : Nat := 1024
+def t016_nkb : Nat := 8
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t016_wf : t016_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t016. -/
+theorem t016_correct {α : Type} [ExactScalar α] :
+    Implements (t016_g.prog t016_block t016_nkb) (t016_g.spec (α := α)) :=
+  GenRed.prog_implements t016_g t016_block t016_nkb t016_wf (by decide) (by decide)
+
+def t016_kernel : ReduceKernel :=
+  { name := "t016", arity := 2, block := t016_block
+  , nkb := t016_nkb, nout := 8388608
+  , init := FE.zeroC
+  , step := t016_g.step t016_block
+  , stored := t016_g.stored t016_block }
+
+-- t017: reducing family, 2 inputs, 8388608 outputs, reduced extent 8192
+--   contraction: batch=1 M=2048 K=8192 N=4096, rhs^T
+def t017_g : GenRed :=
+  { nout := 8388608, K := 8192
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 2048)) (IE.lit 8192)) IE.rk)), (1, (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 4096)) (IE.lit 8192)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t017_block : Nat := 1024
+def t017_nkb : Nat := 8
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t017_wf : t017_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t017. -/
+theorem t017_correct {α : Type} [ExactScalar α] :
+    Implements (t017_g.prog t017_block t017_nkb) (t017_g.spec (α := α)) :=
+  GenRed.prog_implements t017_g t017_block t017_nkb t017_wf (by decide) (by decide)
+
+def t017_kernel : ReduceKernel :=
+  { name := "t017", arity := 2, block := t017_block
+  , nkb := t017_nkb, nout := 8388608
+  , init := FE.zeroC
+  , step := t017_g.step t017_block
+  , stored := t017_g.stored t017_block }
+
+-- t018: reducing family, 2 inputs, 8388608 outputs, reduced extent 8192
+--   contraction: batch=1 M=2048 K=8192 N=4096, lhs^T, rhs^T
+def t018_g : GenRed :=
+  { nout := 8388608, K := 8192
+  , offs := IE.sparse [(0, (IE.add (IE.mul IE.rk (IE.lit 2048)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 4096)) (IE.lit 2048)))), (1, (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 4096)) (IE.lit 8192)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t018_block : Nat := 1024
+def t018_nkb : Nat := 8
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t018_wf : t018_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t018. -/
 theorem t018_correct {α : Type} [ExactScalar α] :
-    ∀ (f : Nat → Buf α) (m : Mem α),
-      Compat (sizesAfter (t018_chain α) emptySizes)
-        (runStages (t018_chain α) f m) (specStages (t018_chain α) f) :=
-  fun f m => stages_correct t018_sz (t018_chain α) emptySizes f f m
-    (Compat.refl _ _) (emptySizes_sub t018_sz)
-    t018_szok t018_imp t018_loc
+    Implements (t018_g.prog t018_block t018_nkb) (t018_g.spec (α := α)) :=
+  GenRed.prog_implements t018_g t018_block t018_nkb t018_wf (by decide) (by decide)
 
-def t018_s0_kernel : ReduceKernel :=
-  { name := "t018_s0", arity := 53, block := t018_s0_block, nkb := t018_s0_nkb, nout := 196635648, init := FE.zeroC, step := t018_s0_g.step t018_s0_block, stored := t018_s0_g.stored t018_s0_block }
-def t018_s1_kernel : ReduceKernel :=
-  { name := "t018_s1", arity := 54, block := t018_s1_block, nkb := t018_s1_nkb, nout := 48771072, init := t018_s1_g.seed, step := t018_s1_g.step t018_s1_block, stored := t018_s1_g.stored t018_s1_block }
-def t018_s2_kernel : ReduceKernel :=
-  { name := "t018_s2", arity := 55, block := t018_s2_block, nkb := t018_s2_nkb, nout := 8128512, init := FE.zeroC, step := t018_s2_g.step t018_s2_block, stored := t018_s2_g.stored t018_s2_block }
-def t018_s3_kernel : ReduceKernel :=
-  { name := "t018_s3", arity := 56, block := t018_s3_block, nkb := t018_s3_nkb, nout := 32514048, init := FE.zeroC, step := t018_s3_g.step t018_s3_block, stored := t018_s3_g.stored t018_s3_block }
-def t018_s4_kernel : ReduceKernel :=
-  { name := "t018_s4", arity := 57, block := t018_s4_block, nkb := t018_s4_nkb, nout := 32514048, init := FE.zeroC, step := t018_s4_g.step t018_s4_block, stored := t018_s4_g.stored t018_s4_block }
-def t018_s5_kernel : ReduceKernel :=
-  { name := "t018_s5", arity := 58, block := t018_s5_block, nkb := t018_s5_nkb, nout := 65028096, init := FE.zeroC, step := t018_s5_g.step t018_s5_block, stored := t018_s5_g.stored t018_s5_block }
-def t018_s6_kernel : ReduceKernel :=
-  { name := "t018_s6", arity := 59, block := t018_s6_block, nkb := t018_s6_nkb, nout := 8128512, init := FE.zeroC, step := t018_s6_g.step t018_s6_block, stored := t018_s6_g.stored t018_s6_block }
-def t018_s7_kernel : ReduceKernel :=
-  { name := "t018_s7", arity := 60, block := t018_s7_block, nkb := t018_s7_nkb, nout := 32514048, init := FE.zeroC, step := t018_s7_g.step t018_s7_block, stored := t018_s7_g.stored t018_s7_block }
-def t018_s8_kernel : ReduceKernel :=
-  { name := "t018_s8", arity := 61, block := t018_s8_block, nkb := t018_s8_nkb, nout := 32514048, init := FE.zeroC, step := t018_s8_g.step t018_s8_block, stored := t018_s8_g.stored t018_s8_block }
-def t018_s9_kernel : ReduceKernel :=
-  { name := "t018_s9", arity := 62, block := t018_s9_block, nkb := t018_s9_nkb, nout := 65028096, init := FE.zeroC, step := t018_s9_g.step t018_s9_block, stored := t018_s9_g.stored t018_s9_block }
-def t018_s10_kernel : ReduceKernel :=
-  { name := "t018_s10", arity := 63, block := t018_s10_block, nkb := t018_s10_nkb, nout := 16257024, init := FE.zeroC, step := t018_s10_g.step t018_s10_block, stored := t018_s10_g.stored t018_s10_block }
-def t018_s11_kernel : ReduceKernel :=
-  { name := "t018_s11", arity := 64, block := t018_s11_block, nkb := t018_s11_nkb, nout := 65028096, init := FE.zeroC, step := t018_s11_g.step t018_s11_block, stored := t018_s11_g.stored t018_s11_block }
-def t018_s12_kernel : ReduceKernel :=
-  { name := "t018_s12", arity := 65, block := t018_s12_block, nkb := t018_s12_nkb, nout := 65028096, init := FE.zeroC, step := t018_s12_g.step t018_s12_block, stored := t018_s12_g.stored t018_s12_block }
-def t018_s13_kernel : ReduceKernel :=
-  { name := "t018_s13", arity := 66, block := t018_s13_block, nkb := t018_s13_nkb, nout := 130056192, init := FE.zeroC, step := t018_s13_g.step t018_s13_block, stored := t018_s13_g.stored t018_s13_block }
-def t018_s14_kernel : ReduceKernel :=
-  { name := "t018_s14", arity := 67, block := t018_s14_block, nkb := t018_s14_nkb, nout := 32514048, init := t018_s14_g.seed, step := t018_s14_g.step t018_s14_block, stored := t018_s14_g.stored t018_s14_block }
-def t018_s15_kernel : ReduceKernel :=
-  { name := "t018_s15", arity := 68, block := t018_s15_block, nkb := t018_s15_nkb, nout := 4064256, init := FE.zeroC, step := t018_s15_g.step t018_s15_block, stored := t018_s15_g.stored t018_s15_block }
-def t018_s16_kernel : ReduceKernel :=
-  { name := "t018_s16", arity := 69, block := t018_s16_block, nkb := t018_s16_nkb, nout := 16257024, init := FE.zeroC, step := t018_s16_g.step t018_s16_block, stored := t018_s16_g.stored t018_s16_block }
-def t018_s17_kernel : ReduceKernel :=
-  { name := "t018_s17", arity := 70, block := t018_s17_block, nkb := t018_s17_nkb, nout := 16257024, init := FE.zeroC, step := t018_s17_g.step t018_s17_block, stored := t018_s17_g.stored t018_s17_block }
-def t018_s18_kernel : ReduceKernel :=
-  { name := "t018_s18", arity := 71, block := t018_s18_block, nkb := t018_s18_nkb, nout := 32514048, init := FE.zeroC, step := t018_s18_g.step t018_s18_block, stored := t018_s18_g.stored t018_s18_block }
-def t018_s19_kernel : ReduceKernel :=
-  { name := "t018_s19", arity := 72, block := t018_s19_block, nkb := t018_s19_nkb, nout := 6096384, init := FE.zeroC, step := t018_s19_g.step t018_s19_block, stored := t018_s19_g.stored t018_s19_block }
-def t018_s20_kernel : ReduceKernel :=
-  { name := "t018_s20", arity := 73, block := t018_s20_block, nkb := t018_s20_nkb, nout := 24385536, init := FE.zeroC, step := t018_s20_g.step t018_s20_block, stored := t018_s20_g.stored t018_s20_block }
-def t018_s21_kernel : ReduceKernel :=
-  { name := "t018_s21", arity := 74, block := t018_s21_block, nkb := t018_s21_nkb, nout := 24385536, init := FE.zeroC, step := t018_s21_g.step t018_s21_block, stored := t018_s21_g.stored t018_s21_block }
-def t018_s22_kernel : ReduceKernel :=
-  { name := "t018_s22", arity := 75, block := t018_s22_block, nkb := t018_s22_nkb, nout := 48771072, init := FE.zeroC, step := t018_s22_g.step t018_s22_block, stored := t018_s22_g.stored t018_s22_block }
-def t018_s23_kernel : ReduceKernel :=
-  { name := "t018_s23", arity := 76, block := t018_s23_block, nkb := t018_s23_nkb, nout := 6096384, init := FE.zeroC, step := t018_s23_g.step t018_s23_block, stored := t018_s23_g.stored t018_s23_block }
-def t018_s24_kernel : ReduceKernel :=
-  { name := "t018_s24", arity := 77, block := t018_s24_block, nkb := t018_s24_nkb, nout := 24385536, init := FE.zeroC, step := t018_s24_g.step t018_s24_block, stored := t018_s24_g.stored t018_s24_block }
-def t018_s25_kernel : ReduceKernel :=
-  { name := "t018_s25", arity := 78, block := t018_s25_block, nkb := t018_s25_nkb, nout := 24385536, init := FE.zeroC, step := t018_s25_g.step t018_s25_block, stored := t018_s25_g.stored t018_s25_block }
-def t018_s26_kernel : ReduceKernel :=
-  { name := "t018_s26", arity := 79, block := t018_s26_block, nkb := t018_s26_nkb, nout := 48771072, init := FE.zeroC, step := t018_s26_g.step t018_s26_block, stored := t018_s26_g.stored t018_s26_block }
-def t018_s27_kernel : ReduceKernel :=
-  { name := "t018_s27", arity := 80, block := t018_s27_block, nkb := t018_s27_nkb, nout := 8128512, init := FE.zeroC, step := t018_s27_g.step t018_s27_block, stored := t018_s27_g.stored t018_s27_block }
-def t018_s28_kernel : ReduceKernel :=
-  { name := "t018_s28", arity := 81, block := t018_s28_block, nkb := t018_s28_nkb, nout := 32514048, init := FE.zeroC, step := t018_s28_g.step t018_s28_block, stored := t018_s28_g.stored t018_s28_block }
-def t018_s29_kernel : ReduceKernel :=
-  { name := "t018_s29", arity := 82, block := t018_s29_block, nkb := t018_s29_nkb, nout := 32514048, init := FE.zeroC, step := t018_s29_g.step t018_s29_block, stored := t018_s29_g.stored t018_s29_block }
-def t018_s30_kernel : ReduceKernel :=
-  { name := "t018_s30", arity := 83, block := t018_s30_block, nkb := t018_s30_nkb, nout := 65028096, init := FE.zeroC, step := t018_s30_g.step t018_s30_block, stored := t018_s30_g.stored t018_s30_block }
-def t018_s31_kernel : ReduceKernel :=
-  { name := "t018_s31", arity := 84, block := t018_s31_block, nkb := t018_s31_nkb, nout := 15745024, init := t018_s31_g.seed, step := t018_s31_g.step t018_s31_block, stored := t018_s31_g.stored t018_s31_block }
-def t018_s32_kernel : ReduceKernel :=
-  { name := "t018_s32", arity := 85, block := t018_s32_block, nkb := t018_s32_nkb, nout := 1968128, init := FE.zeroC, step := t018_s32_g.step t018_s32_block, stored := t018_s32_g.stored t018_s32_block }
-def t018_s33_kernel : ReduceKernel :=
-  { name := "t018_s33", arity := 86, block := t018_s33_block, nkb := t018_s33_nkb, nout := 7872512, init := FE.zeroC, step := t018_s33_g.step t018_s33_block, stored := t018_s33_g.stored t018_s33_block }
-def t018_s34_kernel : ReduceKernel :=
-  { name := "t018_s34", arity := 87, block := t018_s34_block, nkb := t018_s34_nkb, nout := 7872512, init := FE.zeroC, step := t018_s34_g.step t018_s34_block, stored := t018_s34_g.stored t018_s34_block }
-def t018_s35_kernel : ReduceKernel :=
-  { name := "t018_s35", arity := 88, block := t018_s35_block, nkb := t018_s35_nkb, nout := 15745024, init := FE.zeroC, step := t018_s35_g.step t018_s35_block, stored := t018_s35_g.stored t018_s35_block }
-def t018_s36_kernel : ReduceKernel :=
-  { name := "t018_s36", arity := 89, block := t018_s36_block, nkb := t018_s36_nkb, nout := 30752000, init := FE.zeroC, step := t018_s36_g.step t018_s36_block, stored := t018_s36_g.stored t018_s36_block }
-def t018_s37_kernel : ReduceKernel :=
-  { name := "t018_s37", arity := 90, block := t018_s37_block, nkb := t018_s37_nkb, nout := 32000, init := FE.zeroC, step := t018_s37_g.step t018_s37_block, stored := t018_s37_g.stored t018_s37_block }
-def t018_kernel : ChainKernel :=
-  { name := "t018", arity := 53, sizes := [196635648, 48771072, 8128512, 32514048, 32514048, 65028096, 8128512, 32514048, 32514048, 65028096, 16257024, 65028096, 65028096, 130056192, 32514048, 4064256, 16257024, 16257024, 32514048, 6096384, 24385536, 24385536, 48771072, 6096384, 24385536, 24385536, 48771072, 8128512, 32514048, 32514048, 65028096, 15745024, 1968128, 7872512, 7872512, 15745024, 30752000, 32000],
-    stages := [t018_s0_kernel, t018_s1_kernel, t018_s2_kernel, t018_s3_kernel, t018_s4_kernel, t018_s5_kernel, t018_s6_kernel, t018_s7_kernel, t018_s8_kernel, t018_s9_kernel, t018_s10_kernel, t018_s11_kernel, t018_s12_kernel, t018_s13_kernel, t018_s14_kernel, t018_s15_kernel, t018_s16_kernel, t018_s17_kernel, t018_s18_kernel, t018_s19_kernel, t018_s20_kernel, t018_s21_kernel, t018_s22_kernel, t018_s23_kernel, t018_s24_kernel, t018_s25_kernel, t018_s26_kernel, t018_s27_kernel, t018_s28_kernel, t018_s29_kernel, t018_s30_kernel, t018_s31_kernel, t018_s32_kernel, t018_s33_kernel, t018_s34_kernel, t018_s35_kernel, t018_s36_kernel, t018_s37_kernel] }
+def t018_kernel : ReduceKernel :=
+  { name := "t018", arity := 2, block := t018_block
+  , nkb := t018_nkb, nout := 8388608
+  , init := FE.zeroC
+  , step := t018_g.step t018_block
+  , stored := t018_g.stored t018_block }
+
+-- t019: pointwise, arity 1, 201326592 outputs
+def t019_se : SE := (SE.bin .max (SE.inp 0) (SE.lit false 0 1))
+def t019_block : Nat := 1024
+def t019_n : Nat := 201326592
+def t019_nblocks : Nat := 196608
+def t019_kernel : FlatKernel :=
+  { name := "t019", arity := 1, block := t019_block
+  , n := t019_n, nblocks := t019_nblocks
+  , val := SE.toFE t019_block t019_n t019_se }
+
+/-- Correctness certificate for t019. -/
+theorem t019_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t019_nblocks t019_block t019_n
+                 (SE.toFE t019_block t019_n t019_se))
+               (SE.spec (α := α) t019_se 1 t019_n) :=
+  SE.flat_correct 1 t019_se (by decide) (by decide)
+
+-- t020: pointwise, arity 1, 201326592 outputs
+def t020_se : SE := (SE.selLe (SE.inp 0) (SE.lit false 0 1) (SE.bin .mul (SE.lit false 1 100) (SE.inp 0)) (SE.inp 0))
+def t020_block : Nat := 1024
+def t020_n : Nat := 201326592
+def t020_nblocks : Nat := 196608
+def t020_kernel : FlatKernel :=
+  { name := "t020", arity := 1, block := t020_block
+  , n := t020_n, nblocks := t020_nblocks
+  , val := SE.toFE t020_block t020_n t020_se }
+
+/-- Correctness certificate for t020. -/
+theorem t020_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t020_nblocks t020_block t020_n
+                 (SE.toFE t020_block t020_n t020_se))
+               (SE.spec (α := α) t020_se 1 t020_n) :=
+  SE.flat_correct 1 t020_se (by decide) (by decide)
+
+-- t021: pointwise, arity 1, 201326592 outputs
+def t021_se : SE := (SE.recip (SE.bin .add (SE.lit false 1 1) (SE.un .exp (SE.bin .sub (SE.lit false 0 1) (SE.inp 0)))))
+def t021_block : Nat := 1024
+def t021_n : Nat := 201326592
+def t021_nblocks : Nat := 196608
+def t021_kernel : FlatKernel :=
+  { name := "t021", arity := 1, block := t021_block
+  , n := t021_n, nblocks := t021_nblocks
+  , val := SE.toFE t021_block t021_n t021_se }
+
+/-- Correctness certificate for t021. -/
+theorem t021_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t021_nblocks t021_block t021_n
+                 (SE.toFE t021_block t021_n t021_se))
+               (SE.spec (α := α) t021_se 1 t021_n) :=
+  SE.flat_correct 1 t021_se (by decide) (by decide)
+
+-- t022: pointwise, arity 1, 201326592 outputs
+def t022_se : SE := (SE.un .tanh (SE.inp 0))
+def t022_block : Nat := 1024
+def t022_n : Nat := 201326592
+def t022_nblocks : Nat := 196608
+def t022_kernel : FlatKernel :=
+  { name := "t022", arity := 1, block := t022_block
+  , n := t022_n, nblocks := t022_nblocks
+  , val := SE.toFE t022_block t022_n t022_se }
+
+/-- Correctness certificate for t022. -/
+theorem t022_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t022_nblocks t022_block t022_n
+                 (SE.toFE t022_block t022_n t022_se))
+               (SE.spec (α := α) t022_se 1 t022_n) :=
+  SE.flat_correct 1 t022_se (by decide) (by decide)
+
+-- t023: three-stage normalisation, 1 input buffer(s), intermediates 512 and 512 at buffers 1 and 2
+--   softmax over dim 1 of (512, 393216): row max, then sum of exp(x - max), then divide
+def t023_s1_g : MaxRed :=
+  { nout := 512, K := 393216
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 393216)) IE.rk))]
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 1 }
+def t023_s1_block : Nat := 1024
+def t023_s1_nkb : Nat := 384
+
+theorem t023_s1_wf : t023_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+theorem t023_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t023_s1_g.prog t023_s1_block t023_s1_nkb) (t023_s1_g.spec (α := α)) :=
+  MaxRed.prog_implements t023_s1_g t023_s1_block t023_s1_nkb t023_s1_wf (by decide) (by decide) (by decide)
+
+
+def t023_s2_g : GenRed :=
+  { nout := 512, K := 393216
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 393216)) IE.rk)), (1, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.un .exp (SE.bin .sub (SE.inp 0) (SE.inp 1)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t023_s2_block : Nat := 1024
+def t023_s2_nkb : Nat := 384
+
+theorem t023_s2_wf : t023_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t023_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t023_s2_g.prog t023_s2_block t023_s2_nkb) (t023_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t023_s2_g t023_s2_block t023_s2_nkb t023_s2_wf (by decide) (by decide)
+
+def t023_s3_g : GenRed :=
+  { nout := 201326592, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.divi (IE.pid 0) (IE.lit 393216))), (2, (IE.divi (IE.pid 0) (IE.lit 393216)))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.un .exp (SE.bin .sub (SE.inp 0) (SE.inp 1))) (SE.recip (SE.inp 2)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t023_s3_block : Nat := 1
+def t023_s3_nkb : Nat := 1
+
+theorem t023_s3_wf : t023_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t023_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t023_s3_g.prog t023_s3_block t023_s3_nkb) (t023_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t023_s3_g t023_s3_block t023_s3_nkb t023_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t023_l2 {α : Type} [ExactScalar α] :
+    Loc (t023_s2_g.spec (α := α)) 1 512 :=
+  GenRed.loc t023_s2_g 1 512 (fun q _ hq _ => hq) (fun _ _ => (by decide : (0 : Nat) < 512))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t023_l3a {α : Type} [ExactScalar α] :
+    Loc (t023_s3_g.spec (α := α)) 1 512 :=
+  GenRed.loc t023_s3_g 1 512 (fun q k hq hk => (bound_div (a := 512) (d := 393216) hq)) (fun _ _ => (by decide : (0 : Nat) < 512))
+
+theorem t023_l3b {α : Type} [ExactScalar α] :
+    Loc (t023_s3_g.spec (α := α)) 2 512 :=
+  GenRed.loc t023_s3_g 2 512 (fun q k hq hk => (bound_div (a := 512) (d := 393216) hq)) (fun _ _ => (by decide : (0 : Nat) < 512))
+
+/-- Correctness certificate for t023: the composed three-stage pipeline. -/
+theorem t023_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t023_s3_g.spec (α := α)).outSize →
+      runThree (t023_s1_g.prog t023_s1_block t023_s1_nkb)
+               (t023_s2_g.prog t023_s2_block t023_s2_nkb)
+               (t023_s3_g.prog t023_s3_block t023_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t023_s1_g.spec (α := α)) (t023_s2_g.spec (α := α))
+            (t023_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t023_s1_impl t023_s2_impl t023_s3_impl t023_l2 t023_l3a t023_l3b
+
+def t023_s1_kernel : ReduceKernel :=
+  { name := "t023_s1", arity := 1, block := t023_s1_block, nkb := t023_s1_nkb, nout := 512, init := t023_s1_g.seed, step := t023_s1_g.step t023_s1_block, stored := t023_s1_g.stored t023_s1_block }
+def t023_s2_kernel : ReduceKernel :=
+  { name := "t023_s2", arity := 2, block := t023_s2_block, nkb := t023_s2_nkb, nout := 512, init := FE.zeroC, step := t023_s2_g.step t023_s2_block, stored := t023_s2_g.stored t023_s2_block }
+def t023_s3_kernel : ReduceKernel :=
+  { name := "t023_s3", arity := 3, block := t023_s3_block, nkb := t023_s3_nkb, nout := 201326592, init := FE.zeroC, step := t023_s3_g.step t023_s3_block, stored := t023_s3_g.stored t023_s3_block }
+def t023_kernel : PipelineKernel3 :=
+  { name := "t023", arity := 1, n1 := 512, n2 := 512, stage1 := t023_s1_kernel, stage2 := t023_s2_kernel, stage3 := t023_s3_kernel }
+
+-- t024: three-stage normalisation, 1 input buffer(s), intermediates 512 and 512 at buffers 1 and 2
+--   log_softmax over dim 1 of (512, 393216): row max, then sum of exp(x - max), then divide
+def t024_s1_g : MaxRed :=
+  { nout := 512, K := 393216
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 393216)) IE.rk))]
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 1 }
+def t024_s1_block : Nat := 1024
+def t024_s1_nkb : Nat := 384
+
+theorem t024_s1_wf : t024_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+theorem t024_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t024_s1_g.prog t024_s1_block t024_s1_nkb) (t024_s1_g.spec (α := α)) :=
+  MaxRed.prog_implements t024_s1_g t024_s1_block t024_s1_nkb t024_s1_wf (by decide) (by decide) (by decide)
+
+
+def t024_s2_g : GenRed :=
+  { nout := 512, K := 393216
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 393216)) IE.rk)), (1, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.un .exp (SE.bin .sub (SE.inp 0) (SE.inp 1)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t024_s2_block : Nat := 1024
+def t024_s2_nkb : Nat := 384
+
+theorem t024_s2_wf : t024_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t024_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t024_s2_g.prog t024_s2_block t024_s2_nkb) (t024_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t024_s2_g t024_s2_block t024_s2_nkb t024_s2_wf (by decide) (by decide)
+
+def t024_s3_g : GenRed :=
+  { nout := 201326592, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.divi (IE.pid 0) (IE.lit 393216))), (2, (IE.divi (IE.pid 0) (IE.lit 393216)))]
+  , inRange := BE.tt
+  , body := (SE.bin .sub (SE.bin .sub (SE.inp 0) (SE.inp 1)) (SE.un .log (SE.inp 2)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t024_s3_block : Nat := 1
+def t024_s3_nkb : Nat := 1
+
+theorem t024_s3_wf : t024_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t024_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t024_s3_g.prog t024_s3_block t024_s3_nkb) (t024_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t024_s3_g t024_s3_block t024_s3_nkb t024_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t024_l2 {α : Type} [ExactScalar α] :
+    Loc (t024_s2_g.spec (α := α)) 1 512 :=
+  GenRed.loc t024_s2_g 1 512 (fun q _ hq _ => hq) (fun _ _ => (by decide : (0 : Nat) < 512))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t024_l3a {α : Type} [ExactScalar α] :
+    Loc (t024_s3_g.spec (α := α)) 1 512 :=
+  GenRed.loc t024_s3_g 1 512 (fun q k hq hk => (bound_div (a := 512) (d := 393216) hq)) (fun _ _ => (by decide : (0 : Nat) < 512))
+
+theorem t024_l3b {α : Type} [ExactScalar α] :
+    Loc (t024_s3_g.spec (α := α)) 2 512 :=
+  GenRed.loc t024_s3_g 2 512 (fun q k hq hk => (bound_div (a := 512) (d := 393216) hq)) (fun _ _ => (by decide : (0 : Nat) < 512))
+
+/-- Correctness certificate for t024: the composed three-stage pipeline. -/
+theorem t024_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t024_s3_g.spec (α := α)).outSize →
+      runThree (t024_s1_g.prog t024_s1_block t024_s1_nkb)
+               (t024_s2_g.prog t024_s2_block t024_s2_nkb)
+               (t024_s3_g.prog t024_s3_block t024_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t024_s1_g.spec (α := α)) (t024_s2_g.spec (α := α))
+            (t024_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t024_s1_impl t024_s2_impl t024_s3_impl t024_l2 t024_l3a t024_l3b
+
+def t024_s1_kernel : ReduceKernel :=
+  { name := "t024_s1", arity := 1, block := t024_s1_block, nkb := t024_s1_nkb, nout := 512, init := t024_s1_g.seed, step := t024_s1_g.step t024_s1_block, stored := t024_s1_g.stored t024_s1_block }
+def t024_s2_kernel : ReduceKernel :=
+  { name := "t024_s2", arity := 2, block := t024_s2_block, nkb := t024_s2_nkb, nout := 512, init := FE.zeroC, step := t024_s2_g.step t024_s2_block, stored := t024_s2_g.stored t024_s2_block }
+def t024_s3_kernel : ReduceKernel :=
+  { name := "t024_s3", arity := 3, block := t024_s3_block, nkb := t024_s3_nkb, nout := 201326592, init := FE.zeroC, step := t024_s3_g.step t024_s3_block, stored := t024_s3_g.stored t024_s3_block }
+def t024_kernel : PipelineKernel3 :=
+  { name := "t024", arity := 1, n1 := 512, n2 := 512, stage1 := t024_s1_kernel, stage2 := t024_s2_kernel, stage3 := t024_s3_kernel }
+
+-- t025: pointwise, arity 1, 201326592 outputs
+def t025_se : SE := (SE.bin .mul (SE.inp 0) (SE.recip (SE.bin .add (SE.lit false 1 1) (SE.un .exp (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))))))
+def t025_block : Nat := 1024
+def t025_n : Nat := 201326592
+def t025_nblocks : Nat := 196608
+def t025_kernel : FlatKernel :=
+  { name := "t025", arity := 1, block := t025_block
+  , n := t025_n, nblocks := t025_nblocks
+  , val := SE.toFE t025_block t025_n t025_se }
+
+/-- Correctness certificate for t025. -/
+theorem t025_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t025_nblocks t025_block t025_n
+                 (SE.toFE t025_block t025_n t025_se))
+               (SE.spec (α := α) t025_se 1 t025_n) :=
+  SE.flat_correct 1 t025_se (by decide) (by decide)
+
+-- t026: pointwise, arity 1, 201326592 outputs
+def t026_se : SE := (SE.bin .mul (SE.bin .mul (SE.lit false 1 2) (SE.inp 0)) (SE.bin .add (SE.lit false 1 1) (SE.un .erf (SE.bin .mul (SE.inp 0) (SE.recip (SE.un .sqrt (SE.lit false 2 1)))))))
+def t026_block : Nat := 1024
+def t026_n : Nat := 201326592
+def t026_nblocks : Nat := 196608
+def t026_kernel : FlatKernel :=
+  { name := "t026", arity := 1, block := t026_block
+  , n := t026_n, nblocks := t026_nblocks
+  , val := SE.toFE t026_block t026_n t026_se }
+
+/-- Correctness certificate for t026. -/
+theorem t026_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t026_nblocks t026_block t026_n
+                 (SE.toFE t026_block t026_n t026_se))
+               (SE.spec (α := α) t026_se 1 t026_n) :=
+  SE.flat_correct 1 t026_se (by decide) (by decide)
+
+-- t027: pointwise, arity 1, 201326592 outputs
+def t027_se : SE := (SE.bin .mul (SE.lit false 955375017913994 909273931795369) (SE.selLe (SE.inp 0) (SE.lit false 0 1) (SE.bin .mul (SE.lit false 1432529283788243 856129058194449) (SE.bin .sub (SE.un .exp (SE.inp 0)) (SE.lit false 1 1))) (SE.inp 0)))
+def t027_block : Nat := 1024
+def t027_n : Nat := 201326592
+def t027_nblocks : Nat := 196608
+def t027_kernel : FlatKernel :=
+  { name := "t027", arity := 1, block := t027_block
+  , n := t027_n, nblocks := t027_nblocks
+  , val := SE.toFE t027_block t027_n t027_se }
+
+/-- Correctness certificate for t027. -/
+theorem t027_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t027_nblocks t027_block t027_n
+                 (SE.toFE t027_block t027_n t027_se))
+               (SE.spec (α := α) t027_se 1 t027_n) :=
+  SE.flat_correct 1 t027_se (by decide) (by decide)
+
+-- t028: pointwise, arity 1, 201326592 outputs
+def t028_se : SE := (SE.bin .min (SE.bin .max (SE.bin .add (SE.bin .div (SE.inp 0) (SE.lit false 6 1)) (SE.lit false 1 2)) (SE.lit false 0 1)) (SE.lit false 1 1))
+def t028_block : Nat := 1024
+def t028_n : Nat := 201326592
+def t028_nblocks : Nat := 196608
+def t028_kernel : FlatKernel :=
+  { name := "t028", arity := 1, block := t028_block
+  , n := t028_n, nblocks := t028_nblocks
+  , val := SE.toFE t028_block t028_n t028_se }
+
+/-- Correctness certificate for t028. -/
+theorem t028_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t028_nblocks t028_block t028_n
+                 (SE.toFE t028_block t028_n t028_se))
+               (SE.spec (α := α) t028_se 1 t028_n) :=
+  SE.flat_correct 1 t028_se (by decide) (by decide)
+
+-- t029: pointwise, arity 1, 201326592 outputs
+def t029_se : SE := (SE.un .log (SE.bin .add (SE.lit false 1 1) (SE.un .exp (SE.inp 0))))
+def t029_block : Nat := 1024
+def t029_n : Nat := 201326592
+def t029_nblocks : Nat := 196608
+def t029_kernel : FlatKernel :=
+  { name := "t029", arity := 1, block := t029_block
+  , n := t029_n, nblocks := t029_nblocks
+  , val := SE.toFE t029_block t029_n t029_se }
+
+/-- Correctness certificate for t029. -/
+theorem t029_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t029_nblocks t029_block t029_n
+                 (SE.toFE t029_block t029_n t029_se))
+               (SE.spec (α := α) t029_se 1 t029_n) :=
+  SE.flat_correct 1 t029_se (by decide) (by decide)
+
+-- t030: pointwise, arity 1, 201326592 outputs
+def t030_se : SE := (SE.bin .div (SE.inp 0) (SE.bin .add (SE.lit false 1 1) (SE.un .abs (SE.inp 0))))
+def t030_block : Nat := 1024
+def t030_n : Nat := 201326592
+def t030_nblocks : Nat := 196608
+def t030_kernel : FlatKernel :=
+  { name := "t030", arity := 1, block := t030_block
+  , n := t030_n, nblocks := t030_nblocks
+  , val := SE.toFE t030_block t030_n t030_se }
+
+/-- Correctness certificate for t030. -/
+theorem t030_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t030_nblocks t030_block t030_n
+                 (SE.toFE t030_block t030_n t030_se))
+               (SE.spec (α := α) t030_se 1 t030_n) :=
+  SE.flat_correct 1 t030_se (by decide) (by decide)
+
+-- t031: pointwise, arity 1, 201326592 outputs
+def t031_se : SE := (SE.selLe (SE.inp 0) (SE.lit false 0 1) (SE.bin .mul (SE.lit false 1 1) (SE.bin .sub (SE.un .exp (SE.inp 0)) (SE.lit false 1 1))) (SE.inp 0))
+def t031_block : Nat := 1024
+def t031_n : Nat := 201326592
+def t031_nblocks : Nat := 196608
+def t031_kernel : FlatKernel :=
+  { name := "t031", arity := 1, block := t031_block
+  , n := t031_n, nblocks := t031_nblocks
+  , val := SE.toFE t031_block t031_n t031_se }
+
+/-- Correctness certificate for t031. -/
+theorem t031_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t031_nblocks t031_block t031_n
+                 (SE.toFE t031_block t031_n t031_se))
+               (SE.spec (α := α) t031_se 1 t031_n) :=
+  SE.flat_correct 1 t031_se (by decide) (by decide)
+
+-- t032: pointwise, arity 1, 201326592 outputs
+def t032_se : SE := (SE.bin .min (SE.bin .max (SE.inp 0) (SE.lit true 1 1)) (SE.lit false 1 1))
+def t032_block : Nat := 1024
+def t032_n : Nat := 201326592
+def t032_nblocks : Nat := 196608
+def t032_kernel : FlatKernel :=
+  { name := "t032", arity := 1, block := t032_block
+  , n := t032_n, nblocks := t032_nblocks
+  , val := SE.toFE t032_block t032_n t032_se }
+
+/-- Correctness certificate for t032. -/
+theorem t032_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t032_nblocks t032_block t032_n
+                 (SE.toFE t032_block t032_n t032_se))
+               (SE.spec (α := α) t032_se 1 t032_n) :=
+  SE.flat_correct 1 t032_se (by decide) (by decide)
+
+-- t033: three-stage normalisation, 3 input buffer(s), intermediates 64 and 64 at buffers 3 and 4
+--   BatchNorm2d on (16, 64, 512, 512): 64 statistics over 4194304 elements, eps=1e-05, affine
+def t033_s1_g : GenRed :=
+  { nout := 64, K := 4194304
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi IE.rk (IE.lit 262144)) (IE.lit 64)) (IE.pid 0)) (IE.lit 262144)) (IE.modi IE.rk (IE.lit 262144))))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t033_s1_block : Nat := 1024
+def t033_s1_nkb : Nat := 4096
+
+theorem t033_s1_wf : t033_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t033_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t033_s1_g.prog t033_s1_block t033_s1_nkb) (t033_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t033_s1_g t033_s1_block t033_s1_nkb t033_s1_wf (by decide) (by decide)
+
+def t033_s2_g : GenRed :=
+  { nout := 64, K := 4194304
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi IE.rk (IE.lit 262144)) (IE.lit 64)) (IE.pid 0)) (IE.lit 262144)) (IE.modi IE.rk (IE.lit 262144)))), (3, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 4194304))) (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 4194304))))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t033_s2_block : Nat := 1024
+def t033_s2_nkb : Nat := 4096
+
+theorem t033_s2_wf : t033_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t033_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t033_s2_g.prog t033_s2_block t033_s2_nkb) (t033_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t033_s2_g t033_s2_block t033_s2_nkb t033_s2_wf (by decide) (by decide)
+
+def t033_s3_g : GenRed :=
+  { nout := 268435456, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64))), (2, (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64))), (3, (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64))), (4, (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64)))]
+  , inRange := BE.tt
+  , body := (SE.bin .add (SE.bin .mul (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 4194304))) (SE.recip (SE.un .sqrt (SE.bin .add (SE.bin .mul (SE.inp 4) (SE.lit false 1 4194304)) (SE.lit false 1 100000))))) (SE.inp 1)) (SE.inp 2))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 5, idxSlot := 1048576 }
+def t033_s3_block : Nat := 1
+def t033_s3_nkb : Nat := 1
+
+theorem t033_s3_wf : t033_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t033_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t033_s3_g.prog t033_s3_block t033_s3_nkb) (t033_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t033_s3_g t033_s3_block t033_s3_nkb t033_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t033_l2 {α : Type} [ExactScalar α] :
+    Loc (t033_s2_g.spec (α := α)) 3 64 :=
+  GenRed.loc t033_s2_g 3 64 (fun q _ hq _ => hq) (fun _ _ => (by decide : (0 : Nat) < 64))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t033_l3a {α : Type} [ExactScalar α] :
+    Loc (t033_s3_g.spec (α := α)) 3 64 :=
+  GenRed.loc t033_s3_g 3 64 (fun q k hq hk => (bound_mod (c := 64) (by decide : (0 : Nat) < 64))) (fun _ _ => (by decide : (0 : Nat) < 64))
+
+theorem t033_l3b {α : Type} [ExactScalar α] :
+    Loc (t033_s3_g.spec (α := α)) 4 64 :=
+  GenRed.loc t033_s3_g 4 64 (fun q k hq hk => (bound_mod (c := 64) (by decide : (0 : Nat) < 64))) (fun _ _ => (by decide : (0 : Nat) < 64))
+
+/-- Correctness certificate for t033: the composed three-stage pipeline. -/
+theorem t033_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t033_s3_g.spec (α := α)).outSize →
+      runThree (t033_s1_g.prog t033_s1_block t033_s1_nkb)
+               (t033_s2_g.prog t033_s2_block t033_s2_nkb)
+               (t033_s3_g.prog t033_s3_block t033_s3_nkb) 3 4 bufs m1 m2 m3 q
+        = compose3 (t033_s1_g.spec (α := α)) (t033_s2_g.spec (α := α))
+            (t033_s3_g.spec (α := α)) 3 4 bufs q :=
+  three_stage (by decide) t033_s1_impl t033_s2_impl t033_s3_impl t033_l2 t033_l3a t033_l3b
+
+def t033_s1_kernel : ReduceKernel :=
+  { name := "t033_s1", arity := 1, block := t033_s1_block, nkb := t033_s1_nkb, nout := 64, init := FE.zeroC, step := t033_s1_g.step t033_s1_block, stored := t033_s1_g.stored t033_s1_block }
+def t033_s2_kernel : ReduceKernel :=
+  { name := "t033_s2", arity := 4, block := t033_s2_block, nkb := t033_s2_nkb, nout := 64, init := FE.zeroC, step := t033_s2_g.step t033_s2_block, stored := t033_s2_g.stored t033_s2_block }
+def t033_s3_kernel : ReduceKernel :=
+  { name := "t033_s3", arity := 5, block := t033_s3_block, nkb := t033_s3_nkb, nout := 268435456, init := FE.zeroC, step := t033_s3_g.step t033_s3_block, stored := t033_s3_g.stored t033_s3_block }
+def t033_kernel : PipelineKernel3 :=
+  { name := "t033", arity := 3, n1 := 64, n2 := 64, stage1 := t033_s1_kernel, stage2 := t033_s2_kernel, stage3 := t033_s3_kernel }
+
+-- t034: three-stage normalisation, 1 input buffer(s), intermediates 896 and 896 at buffers 1 and 2
+--   InstanceNorm2d on (14, 64, 512, 512): 896 statistics over 262144 elements, eps=1e-05
+def t034_s1_g : GenRed :=
+  { nout := 896, K := 262144
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 262144)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t034_s1_block : Nat := 1024
+def t034_s1_nkb : Nat := 256
+
+theorem t034_s1_wf : t034_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t034_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t034_s1_g.prog t034_s1_block t034_s1_nkb) (t034_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t034_s1_g t034_s1_block t034_s1_nkb t034_s1_wf (by decide) (by decide)
+
+def t034_s2_g : GenRed :=
+  { nout := 896, K := 262144
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 262144)) IE.rk)), (1, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 1) (SE.lit false 1 262144))) (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 1) (SE.lit false 1 262144))))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t034_s2_block : Nat := 1024
+def t034_s2_nkb : Nat := 256
+
+theorem t034_s2_wf : t034_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t034_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t034_s2_g.prog t034_s2_block t034_s2_nkb) (t034_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t034_s2_g t034_s2_block t034_s2_nkb t034_s2_wf (by decide) (by decide)
+
+def t034_s3_g : GenRed :=
+  { nout := 234881024, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.divi (IE.pid 0) (IE.lit 262144))), (2, (IE.divi (IE.pid 0) (IE.lit 262144)))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 1) (SE.lit false 1 262144))) (SE.recip (SE.un .sqrt (SE.bin .add (SE.bin .mul (SE.inp 2) (SE.lit false 1 262144)) (SE.lit false 1 100000)))))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t034_s3_block : Nat := 1
+def t034_s3_nkb : Nat := 1
+
+theorem t034_s3_wf : t034_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t034_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t034_s3_g.prog t034_s3_block t034_s3_nkb) (t034_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t034_s3_g t034_s3_block t034_s3_nkb t034_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t034_l2 {α : Type} [ExactScalar α] :
+    Loc (t034_s2_g.spec (α := α)) 1 896 :=
+  GenRed.loc t034_s2_g 1 896 (fun q _ hq _ => hq) (fun _ _ => (by decide : (0 : Nat) < 896))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t034_l3a {α : Type} [ExactScalar α] :
+    Loc (t034_s3_g.spec (α := α)) 1 896 :=
+  GenRed.loc t034_s3_g 1 896 (fun q k hq hk => (bound_div (a := 896) (d := 262144) hq)) (fun _ _ => (by decide : (0 : Nat) < 896))
+
+theorem t034_l3b {α : Type} [ExactScalar α] :
+    Loc (t034_s3_g.spec (α := α)) 2 896 :=
+  GenRed.loc t034_s3_g 2 896 (fun q k hq hk => (bound_div (a := 896) (d := 262144) hq)) (fun _ _ => (by decide : (0 : Nat) < 896))
+
+/-- Correctness certificate for t034: the composed three-stage pipeline. -/
+theorem t034_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t034_s3_g.spec (α := α)).outSize →
+      runThree (t034_s1_g.prog t034_s1_block t034_s1_nkb)
+               (t034_s2_g.prog t034_s2_block t034_s2_nkb)
+               (t034_s3_g.prog t034_s3_block t034_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t034_s1_g.spec (α := α)) (t034_s2_g.spec (α := α))
+            (t034_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t034_s1_impl t034_s2_impl t034_s3_impl t034_l2 t034_l3a t034_l3b
+
+def t034_s1_kernel : ReduceKernel :=
+  { name := "t034_s1", arity := 1, block := t034_s1_block, nkb := t034_s1_nkb, nout := 896, init := FE.zeroC, step := t034_s1_g.step t034_s1_block, stored := t034_s1_g.stored t034_s1_block }
+def t034_s2_kernel : ReduceKernel :=
+  { name := "t034_s2", arity := 2, block := t034_s2_block, nkb := t034_s2_nkb, nout := 896, init := FE.zeroC, step := t034_s2_g.step t034_s2_block, stored := t034_s2_g.stored t034_s2_block }
+def t034_s3_kernel : ReduceKernel :=
+  { name := "t034_s3", arity := 3, block := t034_s3_block, nkb := t034_s3_nkb, nout := 234881024, init := FE.zeroC, step := t034_s3_g.step t034_s3_block, stored := t034_s3_g.stored t034_s3_block }
+def t034_kernel : PipelineKernel3 :=
+  { name := "t034", arity := 1, n1 := 896, n2 := 896, stage1 := t034_s1_kernel, stage2 := t034_s2_kernel, stage3 := t034_s3_kernel }
+
+-- t035: three-stage normalisation, 3 input buffer(s), intermediates 112 and 112 at buffers 3 and 4
+--   GroupNorm on (14, 64, 512, 512): 112 statistics over 2097152 elements, eps=1e-05, affine
+def t035_s1_g : GenRed :=
+  { nout := 112, K := 2097152
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8)) (IE.lit 64)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 8)) (IE.lit 8))) (IE.divi IE.rk (IE.lit 262144))) (IE.lit 262144)) (IE.modi IE.rk (IE.lit 262144))))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t035_s1_block : Nat := 1024
+def t035_s1_nkb : Nat := 2048
+
+theorem t035_s1_wf : t035_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t035_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t035_s1_g.prog t035_s1_block t035_s1_nkb) (t035_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t035_s1_g t035_s1_block t035_s1_nkb t035_s1_wf (by decide) (by decide)
+
+def t035_s2_g : GenRed :=
+  { nout := 112, K := 2097152
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8)) (IE.lit 64)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 8)) (IE.lit 8))) (IE.divi IE.rk (IE.lit 262144))) (IE.lit 262144)) (IE.modi IE.rk (IE.lit 262144)))), (3, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 2097152))) (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 2097152))))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t035_s2_block : Nat := 1024
+def t035_s2_nkb : Nat := 2048
+
+theorem t035_s2_wf : t035_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t035_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t035_s2_g.prog t035_s2_block t035_s2_nkb) (t035_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t035_s2_g t035_s2_block t035_s2_nkb t035_s2_wf (by decide) (by decide)
+
+def t035_s3_g : GenRed :=
+  { nout := 234881024, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64))), (2, (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64))), (3, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16777216)) (IE.lit 8)) (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64)) (IE.lit 8)))), (4, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16777216)) (IE.lit 8)) (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64)) (IE.lit 8))))]
+  , inRange := BE.tt
+  , body := (SE.bin .add (SE.bin .mul (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 2097152))) (SE.recip (SE.un .sqrt (SE.bin .add (SE.bin .mul (SE.inp 4) (SE.lit false 1 2097152)) (SE.lit false 1 100000))))) (SE.inp 1)) (SE.inp 2))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 5, idxSlot := 1048576 }
+def t035_s3_block : Nat := 1
+def t035_s3_nkb : Nat := 1
+
+theorem t035_s3_wf : t035_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t035_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t035_s3_g.prog t035_s3_block t035_s3_nkb) (t035_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t035_s3_g t035_s3_block t035_s3_nkb t035_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t035_l2 {α : Type} [ExactScalar α] :
+    Loc (t035_s2_g.spec (α := α)) 3 112 :=
+  GenRed.loc t035_s2_g 3 112 (fun q _ hq _ => hq) (fun _ _ => (by decide : (0 : Nat) < 112))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t035_l3a {α : Type} [ExactScalar α] :
+    Loc (t035_s3_g.spec (α := α)) 3 112 :=
+  GenRed.loc t035_s3_g 3 112 (fun q k hq hk => (bound_pack (A := 14) (B := 8) (bound_div (a := 14) (d := 16777216) hq) (bound_group (C := 64) (CG := 8) (G := 8) (x := q / 262144) (by decide) (by decide) (by decide)))) (fun _ _ => (by decide : (0 : Nat) < 112))
+
+theorem t035_l3b {α : Type} [ExactScalar α] :
+    Loc (t035_s3_g.spec (α := α)) 4 112 :=
+  GenRed.loc t035_s3_g 4 112 (fun q k hq hk => (bound_pack (A := 14) (B := 8) (bound_div (a := 14) (d := 16777216) hq) (bound_group (C := 64) (CG := 8) (G := 8) (x := q / 262144) (by decide) (by decide) (by decide)))) (fun _ _ => (by decide : (0 : Nat) < 112))
+
+/-- Correctness certificate for t035: the composed three-stage pipeline. -/
+theorem t035_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t035_s3_g.spec (α := α)).outSize →
+      runThree (t035_s1_g.prog t035_s1_block t035_s1_nkb)
+               (t035_s2_g.prog t035_s2_block t035_s2_nkb)
+               (t035_s3_g.prog t035_s3_block t035_s3_nkb) 3 4 bufs m1 m2 m3 q
+        = compose3 (t035_s1_g.spec (α := α)) (t035_s2_g.spec (α := α))
+            (t035_s3_g.spec (α := α)) 3 4 bufs q :=
+  three_stage (by decide) t035_s1_impl t035_s2_impl t035_s3_impl t035_l2 t035_l3a t035_l3b
+
+def t035_s1_kernel : ReduceKernel :=
+  { name := "t035_s1", arity := 1, block := t035_s1_block, nkb := t035_s1_nkb, nout := 112, init := FE.zeroC, step := t035_s1_g.step t035_s1_block, stored := t035_s1_g.stored t035_s1_block }
+def t035_s2_kernel : ReduceKernel :=
+  { name := "t035_s2", arity := 4, block := t035_s2_block, nkb := t035_s2_nkb, nout := 112, init := FE.zeroC, step := t035_s2_g.step t035_s2_block, stored := t035_s2_g.stored t035_s2_block }
+def t035_s3_kernel : ReduceKernel :=
+  { name := "t035_s3", arity := 5, block := t035_s3_block, nkb := t035_s3_nkb, nout := 234881024, init := FE.zeroC, step := t035_s3_g.step t035_s3_block, stored := t035_s3_g.stored t035_s3_block }
+def t035_kernel : PipelineKernel3 :=
+  { name := "t035", arity := 3, n1 := 112, n2 := 112, stage1 := t035_s1_kernel, stage2 := t035_s2_kernel, stage3 := t035_s3_kernel }
+
+-- t036: two-stage pipeline, 1 input(s), 3670016-element intermediate at buffer 1
+--   row normalisation over dim 1 of (14, 64, 512, 512): outer=14 K=64 inner=262144, intermediate 3670016
+def t036_s1_g : GenRed :=
+  { nout := 3670016, K := 64
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64)) IE.rk) (IE.lit 262144)) (IE.modi (IE.pid 0) (IE.lit 262144))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 0))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t036_s1_block : Nat := 64
+def t036_s1_nkb : Nat := 1
+
+theorem t036_s1_wf : t036_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t036_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t036_s1_g.prog t036_s1_block t036_s1_nkb) (t036_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t036_s1_g t036_s1_block t036_s1_nkb t036_s1_wf (by decide) (by decide)
+
+def t036_s2_g : GenRed :=
+  { nout := 234881024, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.mul (IE.lit 64) (IE.lit 262144))) (IE.lit 262144)) (IE.modi (IE.pid 0) (IE.lit 262144))))]
+  , inRange := BE.tt
+  , body := (SE.bin .div (SE.inp 0) (SE.un .sqrt (SE.bin .add (SE.bin .mul (SE.inp 1) (SE.lit false 1 64)) (SE.lit false 1 100000))))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t036_s2_block : Nat := 1
+def t036_s2_nkb : Nat := 1
+
+theorem t036_s2_wf : t036_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t036_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t036_s2_g.prog t036_s2_block t036_s2_nkb) (t036_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t036_s2_g t036_s2_block t036_s2_nkb t036_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t036_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t036_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t036_s2_g.spec (α := α)).outSize →
+        (t036_s2_g.spec (α := α)).out (subst bufs 1 u) q
+          = (t036_s2_g.spec (α := α)).out (subst bufs 1 v) q :=
+  GenRed.spec_locality t036_s2_g 1 3670016
+    (fun q k hq hk => (bound_row (outer := 14) (K := 64) (inner := 262144) (by decide) hq))
+    (fun _ _ => (by decide : (0 : Nat) < 3670016))
+
+/-- Correctness certificate for t036: the composed pipeline. -/
+theorem t036_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t036_s2_g.spec (α := α)).outSize →
+      runTwo (t036_s1_g.prog t036_s1_block t036_s1_nkb)
+             (t036_s2_g.prog t036_s2_block t036_s2_nkb) 1 bufs m1 m2 q
+        = (t036_s2_g.spec (α := α)).out
+            (subst bufs 1 (fun i => (t036_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t036_s1_impl t036_s2_impl t036_loc
+
+def t036_s1_kernel : ReduceKernel :=
+  { name := "t036_s1", arity := 1, block := t036_s1_block, nkb := t036_s1_nkb, nout := 3670016, init := FE.zeroC, step := t036_s1_g.step t036_s1_block, stored := t036_s1_g.stored t036_s1_block }
+def t036_s2_kernel : ReduceKernel :=
+  { name := "t036_s2", arity := 2, block := t036_s2_block, nkb := t036_s2_nkb, nout := 234881024, init := FE.zeroC, step := t036_s2_g.step t036_s2_block, stored := t036_s2_g.stored t036_s2_block }
+def t036_kernel : PipelineKernel :=
+  { name := "t036", arity := 1, n1 := 3670016, stage1 := t036_s1_kernel, stage2 := t036_s2_kernel }
+
+-- t037: three-stage normalisation, 1 input buffer(s), intermediates 4096 and 1 at buffers 1 and 2
+--   whole-tensor normalisation over (14, 64, 512, 512): tree reduction of 234881024 elements via 4096 partials
+def t037_s1_g : GenRed :=
+  { nout := 4096, K := 57344
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 57344)) IE.rk))]
+  , inRange := (BE.cmp .lt (IE.add (IE.mul (IE.pid 0) (IE.lit 57344)) IE.rk) (IE.lit 234881024))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 0))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t037_s1_block : Nat := 1024
+def t037_s1_nkb : Nat := 56
+
+theorem t037_s1_wf : t037_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t037_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t037_s1_g.prog t037_s1_block t037_s1_nkb) (t037_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t037_s1_g t037_s1_block t037_s1_nkb t037_s1_wf (by decide) (by decide)
+
+def t037_s2_g : GenRed :=
+  { nout := 1, K := 4096
+  , offs := IE.sparse [(1, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.inp 1)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t037_s2_block : Nat := 1024
+def t037_s2_nkb : Nat := 4
+
+theorem t037_s2_wf : t037_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t037_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t037_s2_g.prog t037_s2_block t037_s2_nkb) (t037_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t037_s2_g t037_s2_block t037_s2_nkb t037_s2_wf (by decide) (by decide)
+
+def t037_s3_g : GenRed :=
+  { nout := 234881024, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.bin .div (SE.inp 0) (SE.un .sqrt (SE.inp 2)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t037_s3_block : Nat := 1
+def t037_s3_nkb : Nat := 1
+
+theorem t037_s3_wf : t037_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t037_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t037_s3_g.prog t037_s3_block t037_s3_nkb) (t037_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t037_s3_g t037_s3_block t037_s3_nkb t037_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t037_l2 {α : Type} [ExactScalar α] :
+    Loc (t037_s2_g.spec (α := α)) 1 4096 :=
+  GenRed.loc t037_s2_g 1 4096 (fun _ k _ hk => hk) (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t037_l3a {α : Type} [ExactScalar α] :
+    Loc (t037_s3_g.spec (α := α)) 1 4096 :=
+  GenRed.loc t037_s3_g 1 4096 (fun _ _ _ _ => (by decide : (0 : Nat) < 4096)) (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+theorem t037_l3b {α : Type} [ExactScalar α] :
+    Loc (t037_s3_g.spec (α := α)) 2 1 :=
+  GenRed.loc t037_s3_g 2 1 (fun _ _ _ _ => (by decide : (0 : Nat) < 1)) (fun _ _ => (by decide : (0 : Nat) < 1))
+
+/-- Correctness certificate for t037: the composed three-stage pipeline. -/
+theorem t037_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t037_s3_g.spec (α := α)).outSize →
+      runThree (t037_s1_g.prog t037_s1_block t037_s1_nkb)
+               (t037_s2_g.prog t037_s2_block t037_s2_nkb)
+               (t037_s3_g.prog t037_s3_block t037_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t037_s1_g.spec (α := α)) (t037_s2_g.spec (α := α))
+            (t037_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t037_s1_impl t037_s2_impl t037_s3_impl t037_l2 t037_l3a t037_l3b
+
+def t037_s1_kernel : ReduceKernel :=
+  { name := "t037_s1", arity := 1, block := t037_s1_block, nkb := t037_s1_nkb, nout := 4096, init := FE.zeroC, step := t037_s1_g.step t037_s1_block, stored := t037_s1_g.stored t037_s1_block }
+def t037_s2_kernel : ReduceKernel :=
+  { name := "t037_s2", arity := 2, block := t037_s2_block, nkb := t037_s2_nkb, nout := 1, init := FE.zeroC, step := t037_s2_g.step t037_s2_block, stored := t037_s2_g.stored t037_s2_block }
+def t037_s3_kernel : ReduceKernel :=
+  { name := "t037_s3", arity := 3, block := t037_s3_block, nkb := t037_s3_nkb, nout := 234881024, init := FE.zeroC, step := t037_s3_g.step t037_s3_block, stored := t037_s3_g.stored t037_s3_block }
+def t037_kernel : PipelineKernel3 :=
+  { name := "t037", arity := 1, n1 := 4096, n2 := 1, stage1 := t037_s1_kernel, stage2 := t037_s2_kernel, stage3 := t037_s3_kernel }
+
+-- t038: two-stage pipeline, 1 input(s), 4096-element intermediate at buffer 1
+--   row normalisation over dim 1 of (4096, 65535): outer=4096 K=65535 inner=1, intermediate 4096
+def t038_s1_g : GenRed :=
+  { nout := 4096, K := 65535
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 65535)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.un .abs (SE.inp 0))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t038_s1_block : Nat := 1024
+def t038_s1_nkb : Nat := 64
+
+theorem t038_s1_wf : t038_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t038_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t038_s1_g.prog t038_s1_block t038_s1_nkb) (t038_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t038_s1_g t038_s1_block t038_s1_nkb t038_s1_wf (by decide) (by decide)
+
+def t038_s2_g : GenRed :=
+  { nout := 268431360, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.divi (IE.pid 0) (IE.lit 65535)))]
+  , inRange := BE.tt
+  , body := (SE.bin .div (SE.inp 0) (SE.bin .mul (SE.inp 1) (SE.lit false 1 65535)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t038_s2_block : Nat := 1
+def t038_s2_nkb : Nat := 1
+
+theorem t038_s2_wf : t038_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t038_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t038_s2_g.prog t038_s2_block t038_s2_nkb) (t038_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t038_s2_g t038_s2_block t038_s2_nkb t038_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t038_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t038_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t038_s2_g.spec (α := α)).outSize →
+        (t038_s2_g.spec (α := α)).out (subst bufs 1 u) q
+          = (t038_s2_g.spec (α := α)).out (subst bufs 1 v) q :=
+  GenRed.spec_locality t038_s2_g 1 4096
+    (fun q k hq hk => (bound_div (a := 4096) (d := 65535) hq))
+    (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+/-- Correctness certificate for t038: the composed pipeline. -/
+theorem t038_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t038_s2_g.spec (α := α)).outSize →
+      runTwo (t038_s1_g.prog t038_s1_block t038_s1_nkb)
+             (t038_s2_g.prog t038_s2_block t038_s2_nkb) 1 bufs m1 m2 q
+        = (t038_s2_g.spec (α := α)).out
+            (subst bufs 1 (fun i => (t038_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t038_s1_impl t038_s2_impl t038_loc
+
+def t038_s1_kernel : ReduceKernel :=
+  { name := "t038_s1", arity := 1, block := t038_s1_block, nkb := t038_s1_nkb, nout := 4096, init := FE.zeroC, step := t038_s1_g.step t038_s1_block, stored := t038_s1_g.stored t038_s1_block }
+def t038_s2_kernel : ReduceKernel :=
+  { name := "t038_s2", arity := 2, block := t038_s2_block, nkb := t038_s2_nkb, nout := 268431360, init := FE.zeroC, step := t038_s2_g.step t038_s2_block, stored := t038_s2_g.stored t038_s2_block }
+def t038_kernel : PipelineKernel :=
+  { name := "t038", arity := 1, n1 := 4096, stage1 := t038_s1_kernel, stage2 := t038_s2_kernel }
+
+-- t039: two-stage pipeline, 1 input(s), 4096-element intermediate at buffer 1
+--   row normalisation over dim 1 of (4096, 65535): outer=4096 K=65535 inner=1, intermediate 4096
+def t039_s1_g : GenRed :=
+  { nout := 4096, K := 65535
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 65535)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 0))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t039_s1_block : Nat := 1024
+def t039_s1_nkb : Nat := 64
+
+theorem t039_s1_wf : t039_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t039_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t039_s1_g.prog t039_s1_block t039_s1_nkb) (t039_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t039_s1_g t039_s1_block t039_s1_nkb t039_s1_wf (by decide) (by decide)
+
+def t039_s2_g : GenRed :=
+  { nout := 268431360, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.divi (IE.pid 0) (IE.lit 65535)))]
+  , inRange := BE.tt
+  , body := (SE.bin .div (SE.inp 0) (SE.un .sqrt (SE.inp 1)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t039_s2_block : Nat := 1
+def t039_s2_nkb : Nat := 1
+
+theorem t039_s2_wf : t039_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t039_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t039_s2_g.prog t039_s2_block t039_s2_nkb) (t039_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t039_s2_g t039_s2_block t039_s2_nkb t039_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t039_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t039_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t039_s2_g.spec (α := α)).outSize →
+        (t039_s2_g.spec (α := α)).out (subst bufs 1 u) q
+          = (t039_s2_g.spec (α := α)).out (subst bufs 1 v) q :=
+  GenRed.spec_locality t039_s2_g 1 4096
+    (fun q k hq hk => (bound_div (a := 4096) (d := 65535) hq))
+    (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+/-- Correctness certificate for t039: the composed pipeline. -/
+theorem t039_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t039_s2_g.spec (α := α)).outSize →
+      runTwo (t039_s1_g.prog t039_s1_block t039_s1_nkb)
+             (t039_s2_g.prog t039_s2_block t039_s2_nkb) 1 bufs m1 m2 q
+        = (t039_s2_g.spec (α := α)).out
+            (subst bufs 1 (fun i => (t039_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t039_s1_impl t039_s2_impl t039_loc
+
+def t039_s1_kernel : ReduceKernel :=
+  { name := "t039_s1", arity := 1, block := t039_s1_block, nkb := t039_s1_nkb, nout := 4096, init := FE.zeroC, step := t039_s1_g.step t039_s1_block, stored := t039_s1_g.stored t039_s1_block }
+def t039_s2_kernel : ReduceKernel :=
+  { name := "t039_s2", arity := 2, block := t039_s2_block, nkb := t039_s2_nkb, nout := 268431360, init := FE.zeroC, step := t039_s2_g.step t039_s2_block, stored := t039_s2_g.stored t039_s2_block }
+def t039_kernel : PipelineKernel :=
+  { name := "t039", arity := 1, n1 := 4096, stage1 := t039_s1_kernel, stage2 := t039_s2_kernel }
+
+-- t040: three-stage normalisation, 3 input buffer(s), intermediates 16 and 16 at buffers 3 and 4
+--   LayerNorm on (16, 64, 256, 256): 16 statistics over 4194304 elements, eps=1e-05, affine
+def t040_s1_g : GenRed :=
+  { nout := 16, K := 4194304
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 4194304)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t040_s1_block : Nat := 1024
+def t040_s1_nkb : Nat := 4096
+
+theorem t040_s1_wf : t040_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t040_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t040_s1_g.prog t040_s1_block t040_s1_nkb) (t040_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t040_s1_g t040_s1_block t040_s1_nkb t040_s1_wf (by decide) (by decide)
+
+def t040_s2_g : GenRed :=
+  { nout := 16, K := 4194304
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 4194304)) IE.rk)), (3, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 4194304))) (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 4194304))))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t040_s2_block : Nat := 1024
+def t040_s2_nkb : Nat := 4096
+
+theorem t040_s2_wf : t040_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t040_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t040_s2_g.prog t040_s2_block t040_s2_nkb) (t040_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t040_s2_g t040_s2_block t040_s2_nkb t040_s2_wf (by decide) (by decide)
+
+def t040_s3_g : GenRed :=
+  { nout := 67108864, K := 1
+  , offs := IE.sparse [(0, (IE.pid 0)), (1, (IE.modi (IE.pid 0) (IE.lit 4194304))), (2, (IE.modi (IE.pid 0) (IE.lit 4194304))), (3, (IE.divi (IE.pid 0) (IE.lit 4194304))), (4, (IE.divi (IE.pid 0) (IE.lit 4194304)))]
+  , inRange := BE.tt
+  , body := (SE.bin .add (SE.bin .mul (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.bin .mul (SE.inp 3) (SE.lit false 1 4194304))) (SE.recip (SE.un .sqrt (SE.bin .add (SE.bin .mul (SE.inp 4) (SE.lit false 1 4194304)) (SE.lit false 1 100000))))) (SE.inp 1)) (SE.inp 2))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 5, idxSlot := 1048576 }
+def t040_s3_block : Nat := 1
+def t040_s3_nkb : Nat := 1
+
+theorem t040_s3_wf : t040_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t040_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t040_s3_g.prog t040_s3_block t040_s3_nkb) (t040_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t040_s3_g t040_s3_block t040_s3_nkb t040_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t040_l2 {α : Type} [ExactScalar α] :
+    Loc (t040_s2_g.spec (α := α)) 3 16 :=
+  GenRed.loc t040_s2_g 3 16 (fun q _ hq _ => hq) (fun _ _ => (by decide : (0 : Nat) < 16))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t040_l3a {α : Type} [ExactScalar α] :
+    Loc (t040_s3_g.spec (α := α)) 3 16 :=
+  GenRed.loc t040_s3_g 3 16 (fun q k hq hk => (bound_div (a := 16) (d := 4194304) hq)) (fun _ _ => (by decide : (0 : Nat) < 16))
+
+theorem t040_l3b {α : Type} [ExactScalar α] :
+    Loc (t040_s3_g.spec (α := α)) 4 16 :=
+  GenRed.loc t040_s3_g 4 16 (fun q k hq hk => (bound_div (a := 16) (d := 4194304) hq)) (fun _ _ => (by decide : (0 : Nat) < 16))
+
+/-- Correctness certificate for t040: the composed three-stage pipeline. -/
+theorem t040_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t040_s3_g.spec (α := α)).outSize →
+      runThree (t040_s1_g.prog t040_s1_block t040_s1_nkb)
+               (t040_s2_g.prog t040_s2_block t040_s2_nkb)
+               (t040_s3_g.prog t040_s3_block t040_s3_nkb) 3 4 bufs m1 m2 m3 q
+        = compose3 (t040_s1_g.spec (α := α)) (t040_s2_g.spec (α := α))
+            (t040_s3_g.spec (α := α)) 3 4 bufs q :=
+  three_stage (by decide) t040_s1_impl t040_s2_impl t040_s3_impl t040_l2 t040_l3a t040_l3b
+
+def t040_s1_kernel : ReduceKernel :=
+  { name := "t040_s1", arity := 1, block := t040_s1_block, nkb := t040_s1_nkb, nout := 16, init := FE.zeroC, step := t040_s1_g.step t040_s1_block, stored := t040_s1_g.stored t040_s1_block }
+def t040_s2_kernel : ReduceKernel :=
+  { name := "t040_s2", arity := 4, block := t040_s2_block, nkb := t040_s2_nkb, nout := 16, init := FE.zeroC, step := t040_s2_g.step t040_s2_block, stored := t040_s2_g.stored t040_s2_block }
+def t040_s3_kernel : ReduceKernel :=
+  { name := "t040_s3", arity := 5, block := t040_s3_block, nkb := t040_s3_nkb, nout := 67108864, init := FE.zeroC, step := t040_s3_g.step t040_s3_block, stored := t040_s3_g.stored t040_s3_block }
+def t040_kernel : PipelineKernel3 :=
+  { name := "t040", arity := 3, n1 := 16, n2 := 16, stage1 := t040_s1_kernel, stage2 := t040_s2_kernel, stage3 := t040_s3_kernel }
+
+-- t041: max reduction, 1 input(s), 201286656 outputs, extent 8
+--   maxpool1d: N=16 C=192 k=(8,) stride=(1,) pad=(4,) dil=(3,); coordinates clamped rather than masked
+def t041_g : MaxRed :=
+  { nout := 201286656, K := 8
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 12580416)) (IE.lit 192)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 65523)) (IE.lit 192))) (IE.lit 65536)) (IE.sub (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 65523)) (IE.mul (IE.sub (IE.add IE.rk (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 4) (IE.modi (IE.pid 0) (IE.lit 65523))) (IE.lit 2)) (IE.lit 3)) IE.rk)) (IE.sub (IE.add IE.rk (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 4) (IE.modi (IE.pid 0) (IE.lit 65523))) (IE.lit 2)) (IE.lit 3)) IE.rk)) (IE.divi (IE.sub (IE.lit 65539) (IE.modi (IE.pid 0) (IE.lit 65523))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 4)) (IE.sub (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 65523)) (IE.mul (IE.sub (IE.add IE.rk (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 4) (IE.modi (IE.pid 0) (IE.lit 65523))) (IE.lit 2)) (IE.lit 3)) IE.rk)) (IE.sub (IE.add IE.rk (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 4) (IE.modi (IE.pid 0) (IE.lit 65523))) (IE.lit 2)) (IE.lit 3)) IE.rk)) (IE.divi (IE.sub (IE.lit 65539) (IE.modi (IE.pid 0) (IE.lit 65523))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 4)) (IE.lit 65535)))))]
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 1 }
+def t041_block : Nat := 8
+def t041_nkb : Nat := 1
+
+theorem t041_wf : t041_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+/-- Correctness certificate for t041. -/
+theorem t041_correct {α : Type} [ExactScalar α] :
+    Implements (t041_g.prog t041_block t041_nkb) (t041_g.spec (α := α)) :=
+  MaxRed.prog_implements t041_g t041_block t041_nkb t041_wf (by decide) (by decide) (by decide)
+
+def t041_kernel : ReduceKernel :=
+  { name := "t041", arity := 1, block := t041_block
+  , nkb := t041_nkb, nout := 201286656
+  , init := t041_g.seed
+  , step := t041_g.step t041_block
+  , stored := t041_g.stored t041_block }
+
+-- t042: max reduction, 1 input(s), 267387904 outputs, extent 16
+--   maxpool2d: N=16 C=64 k=(4, 4) stride=(1, 1) pad=(1, 1) dil=(1, 1); coordinates clamped rather than masked
+def t042_g : MaxRed :=
+  { nout := 267387904, K := 16
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16711744)) (IE.lit 64)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 261121)) (IE.lit 64))) (IE.lit 512)) (IE.sub (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511))) (IE.divi IE.rk (IE.lit 4)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511))) (IE.divi IE.rk (IE.lit 4)))) (IE.sub (IE.lit 512) (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511)))))) (IE.lit 1)) (IE.sub (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511)) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511))) (IE.divi IE.rk (IE.lit 4)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511))) (IE.divi IE.rk (IE.lit 4)))) (IE.sub (IE.lit 512) (IE.modi (IE.divi (IE.pid 0) (IE.lit 511)) (IE.lit 511)))))) (IE.lit 1)) (IE.lit 511)))) (IE.lit 512)) (IE.sub (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 511)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.pid 0) (IE.lit 511))) (IE.modi IE.rk (IE.lit 4)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.pid 0) (IE.lit 511))) (IE.modi IE.rk (IE.lit 4)))) (IE.sub (IE.lit 512) (IE.modi (IE.pid 0) (IE.lit 511)))))) (IE.lit 1)) (IE.sub (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 511)) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.pid 0) (IE.lit 511))) (IE.modi IE.rk (IE.lit 4)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 4)) (IE.sub (IE.sub (IE.lit 1) (IE.modi (IE.pid 0) (IE.lit 511))) (IE.modi IE.rk (IE.lit 4)))) (IE.sub (IE.lit 512) (IE.modi (IE.pid 0) (IE.lit 511)))))) (IE.lit 1)) (IE.lit 511)))))]
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 1 }
+def t042_block : Nat := 16
+def t042_nkb : Nat := 1
+
+theorem t042_wf : t042_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+/-- Correctness certificate for t042. -/
+theorem t042_correct {α : Type} [ExactScalar α] :
+    Implements (t042_g.prog t042_block t042_nkb) (t042_g.spec (α := α)) :=
+  MaxRed.prog_implements t042_g t042_block t042_nkb t042_wf (by decide) (by decide) (by decide)
+
+def t042_kernel : ReduceKernel :=
+  { name := "t042", arity := 1, block := t042_block
+  , nkb := t042_nkb, nout := 267387904
+  , init := t042_g.seed
+  , step := t042_g.step t042_block
+  , stored := t042_g.stored t042_block }
+
+-- t043: max reduction, 1 input(s), 122023936 outputs, extent 27
+--   maxpool3d: N=16 C=32 k=(3, 3, 3) stride=(2, 2, 2) pad=(1, 1, 1) dil=(3, 3, 3); coordinates clamped rather than masked
+def t043_g : MaxRed :=
+  { nout := 122023936, K := 27
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 7626496)) (IE.lit 32)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 238328)) (IE.lit 32))) (IE.lit 128)) (IE.sub (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2)) (IE.mul (IE.sub (IE.add (IE.divi IE.rk (IE.lit 9)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 9)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 9)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 9)))) (IE.divi (IE.sub (IE.lit 128) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 1)) (IE.sub (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2)) (IE.mul (IE.sub (IE.add (IE.divi IE.rk (IE.lit 9)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 9)))) (IE.sub (IE.add (IE.divi IE.rk (IE.lit 9)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 9)))) (IE.divi (IE.sub (IE.lit 128) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.lit 2))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 1)) (IE.lit 127)))) (IE.lit 128)) (IE.sub (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2)) (IE.mul (IE.sub (IE.add (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.sub (IE.add (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.divi (IE.sub (IE.lit 128) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 1)) (IE.sub (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2)) (IE.mul (IE.sub (IE.add (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.sub (IE.add (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.divi (IE.sub (IE.lit 128) (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.lit 2))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 1)) (IE.lit 127)))) (IE.lit 128)) (IE.sub (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2)) (IE.mul (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3)))) (IE.divi (IE.sub (IE.lit 128) (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 1)) (IE.sub (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2)) (IE.mul (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3)))) (IE.sub (IE.add (IE.modi IE.rk (IE.lit 3)) (IE.sub (IE.divi (IE.add (IE.sub (IE.lit 1) (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2))) (IE.lit 2)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3)))) (IE.divi (IE.sub (IE.lit 128) (IE.mul (IE.modi (IE.pid 0) (IE.lit 62)) (IE.lit 2))) (IE.lit 3)))) (IE.lit 3))) (IE.lit 1)) (IE.lit 127)))))]
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 1 }
+def t043_block : Nat := 16
+def t043_nkb : Nat := 2
+
+theorem t043_wf : t043_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+/-- Correctness certificate for t043. -/
+theorem t043_correct {α : Type} [ExactScalar α] :
+    Implements (t043_g.prog t043_block t043_nkb) (t043_g.spec (α := α)) :=
+  MaxRed.prog_implements t043_g t043_block t043_nkb t043_wf (by decide) (by decide) (by decide)
+
+def t043_kernel : ReduceKernel :=
+  { name := "t043", arity := 1, block := t043_block
+  , nkb := t043_nkb, nout := 122023936
+  , init := t043_g.seed
+  , step := t043_g.step t043_block
+  , stored := t043_g.stored t043_block }
+
+-- t044: reducing family, 1 inputs, 268439552 outputs, reduced extent 8
+--   avgpool1d: N=32 C=128 k=(8,) stride=(1,) pad=(4,) window=8
+def t044_g : GenRed :=
+  { nout := 268439552, K := 8
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8388736)) (IE.lit 128)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 65537)) (IE.lit 128))) (IE.lit 65536)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 65537)) IE.rk) (IE.lit 4))))]
+  , inRange := (BE.and (BE.cmp .le (IE.lit 4) (IE.add (IE.modi (IE.pid 0) (IE.lit 65537)) IE.rk)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 65537)) IE.rk) (IE.lit 65540)))
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 8))
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t044_block : Nat := 8
+def t044_nkb : Nat := 1
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t044_wf : t044_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t044. -/
+theorem t044_correct {α : Type} [ExactScalar α] :
+    Implements (t044_g.prog t044_block t044_nkb) (t044_g.spec (α := α)) :=
+  GenRed.prog_implements t044_g t044_block t044_nkb t044_wf (by decide) (by decide)
+
+def t044_kernel : ReduceKernel :=
+  { name := "t044", arity := 1, block := t044_block
+  , nkb := t044_nkb, nout := 268439552
+  , init := FE.zeroC
+  , step := t044_g.step t044_block
+  , stored := t044_g.stored t044_block }
+
+-- t045: reducing family, 1 inputs, 8856576 outputs, reduced extent 121
+--   avgpool2d: N=4 C=64 k=(11, 11) stride=(11, 11) pad=(0, 0) window=121
+def t045_g : GenRed :=
+  { nout := 8856576, K := 121
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2214144)) (IE.lit 64)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 34596)) (IE.lit 64))) (IE.lit 2048)) (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 186)) (IE.lit 186)) (IE.lit 11)) (IE.divi IE.rk (IE.lit 11)))) (IE.lit 2048)) (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 186)) (IE.lit 11)) (IE.modi IE.rk (IE.lit 11)))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 0) (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 186)) (IE.lit 186)) (IE.lit 11)) (IE.divi IE.rk (IE.lit 11)))) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 186)) (IE.lit 186)) (IE.lit 11)) (IE.divi IE.rk (IE.lit 11))) (IE.lit 2048))) (BE.cmp .le (IE.lit 0) (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 186)) (IE.lit 11)) (IE.modi IE.rk (IE.lit 11))))) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 186)) (IE.lit 11)) (IE.modi IE.rk (IE.lit 11))) (IE.lit 2048)))
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 121))
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t045_block : Nat := 64
+def t045_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t045_wf : t045_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t045. -/
+theorem t045_correct {α : Type} [ExactScalar α] :
+    Implements (t045_g.prog t045_block t045_nkb) (t045_g.spec (α := α)) :=
+  GenRed.prog_implements t045_g t045_block t045_nkb t045_wf (by decide) (by decide)
+
+def t045_kernel : ReduceKernel :=
+  { name := "t045", arity := 1, block := t045_block
+  , nkb := t045_nkb, nout := 8856576
+  , init := FE.zeroC
+  , step := t045_g.step t045_block
+  , stored := t045_g.stored t045_block }
+
+-- t046: reducing family, 1 inputs, 134217728 outputs, reduced extent 27
+--   avgpool3d: N=8 C=32 k=(3, 3, 3) stride=(2, 2, 2) pad=(1, 1, 1) window=27
+def t046_g : GenRed :=
+  { nout := 134217728, K := 27
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16777216)) (IE.lit 32)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 524288)) (IE.lit 32))) (IE.lit 128)) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 8192)) (IE.lit 64)) (IE.lit 2)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 1))) (IE.lit 128)) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 64)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1))) (IE.lit 256)) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 8192)) (IE.lit 64)) (IE.lit 2)) (IE.divi IE.rk (IE.lit 9)))) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 8192)) (IE.lit 64)) (IE.lit 2)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 129))) (BE.cmp .le (IE.lit 1) (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 64)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 64)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 129))) (BE.cmp .le (IE.lit 1) (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 257)))
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 27))
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t046_block : Nat := 16
+def t046_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t046_wf : t046_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t046. -/
+theorem t046_correct {α : Type} [ExactScalar α] :
+    Implements (t046_g.prog t046_block t046_nkb) (t046_g.spec (α := α)) :=
+  GenRed.prog_implements t046_g t046_block t046_nkb t046_wf (by decide) (by decide)
+
+def t046_kernel : ReduceKernel :=
+  { name := "t046", arity := 1, block := t046_block
+  , nkb := t046_nkb, nout := 134217728
+  , init := FE.zeroC
+  , step := t046_g.step t046_block
+  , stored := t046_g.stored t046_block }
+
+-- t047: reducing family, 1 inputs, 262080 outputs, reduced extent 4096
+--   reduce over dim 1 of (64, 4096, 4095) (inputs [(64, 4096, 4095)]): outer=64 K=4096 inner=4095
+def t047_g : GenRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t047_block : Nat := 1024
+def t047_nkb : Nat := 4
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t047_wf : t047_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t047. -/
+theorem t047_correct {α : Type} [ExactScalar α] :
+    Implements (t047_g.prog t047_block t047_nkb) (t047_g.spec (α := α)) :=
+  GenRed.prog_implements t047_g t047_block t047_nkb t047_wf (by decide) (by decide)
+
+def t047_kernel : ReduceKernel :=
+  { name := "t047", arity := 1, block := t047_block
+  , nkb := t047_nkb, nout := 262080
+  , init := FE.zeroC
+  , step := t047_g.step t047_block
+  , stored := t047_g.stored t047_block }
+
+-- t048: reducing family, 1 inputs, 262080 outputs, reduced extent 4096
+--   reduce over dim 1 of (64, 4096, 4095) (inputs [(64, 4096, 4095)]): outer=64 K=4096 inner=4095
+def t048_g : GenRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 4096))
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t048_block : Nat := 1024
+def t048_nkb : Nat := 4
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t048_wf : t048_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t048. -/
+theorem t048_correct {α : Type} [ExactScalar α] :
+    Implements (t048_g.prog t048_block t048_nkb) (t048_g.spec (α := α)) :=
+  GenRed.prog_implements t048_g t048_block t048_nkb t048_wf (by decide) (by decide)
+
+def t048_kernel : ReduceKernel :=
+  { name := "t048", arity := 1, block := t048_block
+  , nkb := t048_nkb, nout := 262080
+  , init := FE.zeroC
+  , step := t048_g.step t048_block
+  , stored := t048_g.stored t048_block }
+
+-- t049: max reduction, 1 input(s), 262080 outputs, extent 4096
+--   max over dim 1 of (64, 4096, 4095): outer=64 K=4096 inner=4095
+def t049_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))))]
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 1 }
+def t049_block : Nat := 1024
+def t049_nkb : Nat := 4
+
+theorem t049_wf : t049_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+/-- Correctness certificate for t049. -/
+theorem t049_correct {α : Type} [ExactScalar α] :
+    Implements (t049_g.prog t049_block t049_nkb) (t049_g.spec (α := α)) :=
+  MaxRed.prog_implements t049_g t049_block t049_nkb t049_wf (by decide) (by decide) (by decide)
+
+def t049_kernel : ReduceKernel :=
+  { name := "t049", arity := 1, block := t049_block
+  , nkb := t049_nkb, nout := 262080
+  , init := t049_g.seed
+  , step := t049_g.step t049_block
+  , stored := t049_g.stored t049_block }
+
+-- t050: reducing family, 3 inputs, 74342400 outputs, reduced extent 363
+--   conv2d: N=256 Cin=3 Cout=96 groups=1 k=(11, 11) stride=(4, 4) pad=(2, 2) dil=(1, 1) K=363 +bias
+def t050_g : GenRed :=
+  { nout := 74342400, K := 363
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 290400)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 121))) (IE.lit 224)) (IE.sub (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 55)) (IE.lit 55)) (IE.lit 4)) (IE.modi (IE.divi IE.rk (IE.lit 11)) (IE.lit 11))) (IE.lit 2))) (IE.lit 224)) (IE.sub (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 55)) (IE.lit 4)) (IE.modi IE.rk (IE.lit 11))) (IE.lit 2)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 3025)) (IE.lit 96)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 121))) (IE.lit 11)) (IE.modi (IE.divi IE.rk (IE.lit 11)) (IE.lit 11))) (IE.lit 11)) (IE.modi IE.rk (IE.lit 11))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 2) (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 55)) (IE.lit 55)) (IE.lit 4)) (IE.modi (IE.divi IE.rk (IE.lit 11)) (IE.lit 11)))) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 55)) (IE.lit 55)) (IE.lit 4)) (IE.modi (IE.divi IE.rk (IE.lit 11)) (IE.lit 11))) (IE.lit 226))) (BE.cmp .le (IE.lit 2) (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 55)) (IE.lit 4)) (IE.modi IE.rk (IE.lit 11))))) (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 55)) (IE.lit 4)) (IE.modi IE.rk (IE.lit 11))) (IE.lit 226)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse [(2, (IE.modi (IE.divi (IE.pid 0) (IE.lit 3025)) (IE.lit 96)))]
+  , post := (SE.bin .add (SE.inp 0) (SE.inp 3))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t050_block : Nat := 256
+def t050_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t050_wf : t050_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t050. -/
+theorem t050_correct {α : Type} [ExactScalar α] :
+    Implements (t050_g.prog t050_block t050_nkb) (t050_g.spec (α := α)) :=
+  GenRed.prog_implements t050_g t050_block t050_nkb t050_wf (by decide) (by decide)
+
+def t050_kernel : ReduceKernel :=
+  { name := "t050", arity := 3, block := t050_block
+  , nkb := t050_nkb, nout := 74342400
+  , init := FE.zeroC
+  , step := t050_g.step t050_block
+  , stored := t050_g.stored t050_block }
+
+-- t051: composed max reductions, intermediate of 262080 at buffer 1
+--   argmax over dim 1 of (64, 4096, 4095): outer=64 K=4096 inner=4095
+def t051_s1_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))))]
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , nInp := 1, idxSlot := 2 }
+def t051_s1_block : Nat := 1024
+def t051_s1_nkb : Nat := 4
+
+theorem t051_s1_wf : t051_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+theorem t051_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t051_s1_g.prog t051_s1_block t051_s1_nkb) (t051_s1_g.spec (α := α)) :=
+  MaxRed.prog_implements t051_s1_g t051_s1_block t051_s1_nkb t051_s1_wf (by decide) (by decide) (by decide)
+
+def t051_s1_kernel : ReduceKernel :=
+  { name := "t051_s1", arity := 1, block := t051_s1_block, nkb := t051_s1_nkb, nout := 262080, init := t051_s1_g.seed, step := t051_s1_g.step t051_s1_block, stored := t051_s1_g.stored t051_s1_block }
+
+def t051_s2_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095)))), (1, (IE.pid 0))]
+  , body := (SE.bin .sub (SE.lit false 0 1) (SE.selLe (SE.inp 0) (SE.inp 1) (SE.selLe (SE.inp 1) (SE.inp 0) (SE.inp 2) (SE.lit false 4096 1)) (SE.lit false 4096 1)))
+  , postOffs := IE.sparse []
+  , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , nInp := 2, idxSlot := 2 }
+def t051_s2_block : Nat := 1024
+def t051_s2_nkb : Nat := 4
+
+theorem t051_s2_wf : t051_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+theorem t051_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t051_s2_g.prog t051_s2_block t051_s2_nkb) (t051_s2_g.spec (α := α)) :=
+  MaxRed.prog_implements t051_s2_g t051_s2_block t051_s2_nkb t051_s2_wf (by decide) (by decide) (by decide)
+
+def t051_s2_kernel : ReduceKernel :=
+  { name := "t051_s2", arity := 2, block := t051_s2_block, nkb := t051_s2_nkb, nout := 262080, init := t051_s2_g.seed, step := t051_s2_g.step t051_s2_block, stored := t051_s2_g.stored t051_s2_block }
+
+/-- Stage 2 reads the maxima only where stage 1 wrote them. -/
+theorem t051_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t051_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t051_s2_g.spec (α := α)).outSize →
+        (t051_s2_g.spec (α := α)).out (subst bufs 1 u) q
+          = (t051_s2_g.spec (α := α)).out (subst bufs 1 v) q :=
+  MaxRed.spec_locality t051_s2_g 1 262080 (by decide) (by decide)
+    (fun q _ hq _ => hq)
+    (fun _ _ => (by decide : (0 : Nat) < 262080))
+
+/-- Correctness certificate for t051. -/
+theorem t051_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t051_s2_g.spec (α := α)).outSize →
+      runTwo (t051_s1_g.prog t051_s1_block t051_s1_nkb)
+             (t051_s2_g.prog t051_s2_block t051_s2_nkb) 1 bufs m1 m2 q
+        = (t051_s2_g.spec (α := α)).out
+            (subst bufs 1 (fun i => (t051_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t051_s1_impl t051_s2_impl t051_loc
+
+def t051_kernel : PipelineKernel :=
+  { name := "t051", arity := 1, n1 := 262080, stage1 := t051_s1_kernel, stage2 := t051_s2_kernel }
+
+-- t052: composed max reductions, intermediate of 262080 at buffer 1
+--   argmin over dim 1 of (64, 4096, 4095): outer=64 K=4096 inner=4095
+def t052_s1_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))))]
+  , body := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , postOffs := IE.sparse []
+  , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , nInp := 1, idxSlot := 2 }
+def t052_s1_block : Nat := 1024
+def t052_s1_nkb : Nat := 4
+
+theorem t052_s1_wf : t052_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+theorem t052_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t052_s1_g.prog t052_s1_block t052_s1_nkb) (t052_s1_g.spec (α := α)) :=
+  MaxRed.prog_implements t052_s1_g t052_s1_block t052_s1_nkb t052_s1_wf (by decide) (by decide) (by decide)
+
+def t052_s1_kernel : ReduceKernel :=
+  { name := "t052_s1", arity := 1, block := t052_s1_block, nkb := t052_s1_nkb, nout := 262080, init := t052_s1_g.seed, step := t052_s1_g.step t052_s1_block, stored := t052_s1_g.stored t052_s1_block }
+
+def t052_s2_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095)))), (1, (IE.pid 0))]
+  , body := (SE.bin .sub (SE.lit false 0 1) (SE.selLe (SE.inp 0) (SE.inp 1) (SE.selLe (SE.inp 1) (SE.inp 0) (SE.inp 2) (SE.lit false 4096 1)) (SE.lit false 4096 1)))
+  , postOffs := IE.sparse []
+  , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , nInp := 2, idxSlot := 2 }
+def t052_s2_block : Nat := 1024
+def t052_s2_nkb : Nat := 4
+
+theorem t052_s2_wf : t052_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+theorem t052_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t052_s2_g.prog t052_s2_block t052_s2_nkb) (t052_s2_g.spec (α := α)) :=
+  MaxRed.prog_implements t052_s2_g t052_s2_block t052_s2_nkb t052_s2_wf (by decide) (by decide) (by decide)
+
+def t052_s2_kernel : ReduceKernel :=
+  { name := "t052_s2", arity := 2, block := t052_s2_block, nkb := t052_s2_nkb, nout := 262080, init := t052_s2_g.seed, step := t052_s2_g.step t052_s2_block, stored := t052_s2_g.stored t052_s2_block }
+
+/-- Stage 2 reads the maxima only where stage 1 wrote them. -/
+theorem t052_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t052_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t052_s2_g.spec (α := α)).outSize →
+        (t052_s2_g.spec (α := α)).out (subst bufs 1 u) q
+          = (t052_s2_g.spec (α := α)).out (subst bufs 1 v) q :=
+  MaxRed.spec_locality t052_s2_g 1 262080 (by decide) (by decide)
+    (fun q _ hq _ => hq)
+    (fun _ _ => (by decide : (0 : Nat) < 262080))
+
+/-- Correctness certificate for t052. -/
+theorem t052_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t052_s2_g.spec (α := α)).outSize →
+      runTwo (t052_s1_g.prog t052_s1_block t052_s1_nkb)
+             (t052_s2_g.prog t052_s2_block t052_s2_nkb) 1 bufs m1 m2 q
+        = (t052_s2_g.spec (α := α)).out
+            (subst bufs 1 (fun i => (t052_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t052_s1_impl t052_s2_impl t052_loc
+
+def t052_kernel : PipelineKernel :=
+  { name := "t052", arity := 1, n1 := 262080, stage1 := t052_s1_kernel, stage2 := t052_s2_kernel }
+
+-- t053: max reduction, 1 input(s), 262080 outputs, extent 4096
+--   min over dim 1 of (64, 4096, 4095): outer=64 K=4096 inner=4095, via -max(-x)
+def t053_g : MaxRed :=
+  { nout := 262080, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4095)) (IE.lit 4096)) IE.rk) (IE.lit 4095)) (IE.modi (IE.pid 0) (IE.lit 4095))))]
+  , body := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , postOffs := IE.sparse []
+  , post := (SE.bin .sub (SE.lit false 0 1) (SE.inp 0))
+  , nInp := 1, idxSlot := 1 }
+def t053_block : Nat := 1024
+def t053_nkb : Nat := 4
+
+theorem t053_wf : t053_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide) }
+
+/-- Correctness certificate for t053. -/
+theorem t053_correct {α : Type} [ExactScalar α] :
+    Implements (t053_g.prog t053_block t053_nkb) (t053_g.spec (α := α)) :=
+  MaxRed.prog_implements t053_g t053_block t053_nkb t053_wf (by decide) (by decide) (by decide)
+
+def t053_kernel : ReduceKernel :=
+  { name := "t053", arity := 1, block := t053_block
+  , nkb := t053_nkb, nout := 262080
+  , init := t053_g.seed
+  , step := t053_g.step t053_block
+  , stored := t053_g.stored t053_block }
+
+-- t054: reducing family, 2 inputs, 244047872 outputs, reduced extent 81
+--   conv3d: N=16 Cin=3 Cout=64 groups=1 k=(3, 3, 3) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=81
+def t054_g : GenRed :=
+  { nout := 244047872, K := 81
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 15252992)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 27))) (IE.lit 64)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)))) (IE.lit 64)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 64)) (IE.add (IE.modi (IE.pid 0) (IE.lit 62)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 238328)) (IE.lit 64)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 27))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 3844)) (IE.lit 62)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 64)) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 62)) (IE.lit 62)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 62)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 64)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t054_block : Nat := 64
+def t054_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t054_wf : t054_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t054. -/
+theorem t054_correct {α : Type} [ExactScalar α] :
+    Implements (t054_g.prog t054_block t054_nkb) (t054_g.spec (α := α)) :=
+  GenRed.prog_implements t054_g t054_block t054_nkb t054_wf (by decide) (by decide)
+
+def t054_kernel : ReduceKernel :=
+  { name := "t054", arity := 2, block := t054_block
+  , nkb := t054_nkb, nout := 244047872
+  , init := FE.zeroC
+  , step := t054_g.step t054_block
+  , stored := t054_g.stored t054_block }
+
+-- t055: reducing family, 2 inputs, 266864640 outputs, reduced extent 576
+--   conv2d: N=4 Cin=64 Cout=128 groups=1 k=(3, 3) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=576
+def t055_g : GenRed :=
+  { nout := 266864640, K := 576
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 66716160)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 512)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 1022)) (IE.lit 510)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 1024)) (IE.add (IE.modi (IE.pid 0) (IE.lit 1022)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 521220)) (IE.lit 128)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 1022)) (IE.lit 510)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 512)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 1022)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1024)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t055_block : Nat := 512
+def t055_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t055_wf : t055_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t055. -/
+theorem t055_correct {α : Type} [ExactScalar α] :
+    Implements (t055_g.prog t055_block t055_nkb) (t055_g.spec (α := α)) :=
+  GenRed.prog_implements t055_g t055_block t055_nkb t055_wf (by decide) (by decide)
+
+def t055_kernel : ReduceKernel :=
+  { name := "t055", arity := 2, block := t055_block
+  , nkb := t055_nkb, nout := 266864640
+  , init := FE.zeroC
+  , step := t055_g.step t055_block
+  , stored := t055_g.stored t055_block }
+
+-- t056: reducing family, 2 inputs, 130048000 outputs, reduced extent 2240
+--   conv2d: N=8 Cin=64 Cout=128 groups=1 k=(5, 7) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=2240
+def t056_g : GenRed :=
+  { nout := 130048000, K := 2240
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16256000)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 35))) (IE.lit 512)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 250)) (IE.lit 508)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5)))) (IE.lit 256)) (IE.add (IE.modi (IE.pid 0) (IE.lit 250)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 127000)) (IE.lit 128)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 35))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 250)) (IE.lit 508)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 512)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 250)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 256)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t056_block : Nat := 1024
+def t056_nkb : Nat := 3
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t056_wf : t056_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t056. -/
+theorem t056_correct {α : Type} [ExactScalar α] :
+    Implements (t056_g.prog t056_block t056_nkb) (t056_g.spec (α := α)) :=
+  GenRed.prog_implements t056_g t056_block t056_nkb t056_wf (by decide) (by decide)
+
+def t056_kernel : ReduceKernel :=
+  { name := "t056", arity := 2, block := t056_block
+  , nkb := t056_nkb, nout := 130048000
+  , init := FE.zeroC
+  , step := t056_g.step t056_block
+  , stored := t056_g.stored t056_block }
+
+-- t057: reducing family, 2 inputs, 269485056 outputs, reduced extent 576
+--   transposed conv2d: N=4 Cin=64 Cout=64 groups=1 k=(3, 3) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=576
+def t057_g : GenRed :=
+  { nout := 269485056, K := 576
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 67371264)) (IE.lit 64)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 1052676)) (IE.lit 64)) (IE.lit 64)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9)))) (IE.lit 1024)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 1026)) (IE.lit 1026)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 1024)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 1026)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 1052676)) (IE.lit 64)) (IE.lit 64)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 64)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 1052676)) (IE.lit 64)) (IE.lit 64))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 1026)) (IE.lit 1026))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 1026)) (IE.lit 1026)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1024))) (BE.cmp .le (IE.modi IE.rk (IE.lit 3)) (IE.modi (IE.pid 0) (IE.lit 1026)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 1026)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1024)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t057_block : Nat := 512
+def t057_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t057_wf : t057_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t057. -/
+theorem t057_correct {α : Type} [ExactScalar α] :
+    Implements (t057_g.prog t057_block t057_nkb) (t057_g.spec (α := α)) :=
+  GenRed.prog_implements t057_g t057_block t057_nkb t057_wf (by decide) (by decide)
+
+def t057_kernel : ReduceKernel :=
+  { name := "t057", arity := 2, block := t057_block
+  , nkb := t057_nkb, nout := 269485056
+  , init := FE.zeroC
+  , step := t057_g.step t057_block
+  , stored := t057_g.stored t057_block }
+
+-- t058: reducing family, 2 inputs, 11612160 outputs, reduced extent 3360
+--   transposed conv3d: N=16 Cin=32 Cout=16 groups=1 k=(3, 5, 7) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=3360
+def t058_g : GenRed :=
+  { nout := 11612160, K := 3360
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 725760)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 45360)) (IE.lit 16)) (IE.lit 16)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 105)))) (IE.lit 16)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 2520)) (IE.lit 18)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3)))) (IE.lit 32)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 70)) (IE.lit 36)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5)))) (IE.lit 64)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 70)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 45360)) (IE.lit 16)) (IE.lit 16)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 105))) (IE.lit 16)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 45360)) (IE.lit 16)) (IE.lit 16))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 2520)) (IE.lit 18))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 2520)) (IE.lit 18)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 16))) (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 70)) (IE.lit 36)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 70)) (IE.lit 36)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 32))) (BE.cmp .le (IE.modi IE.rk (IE.lit 7)) (IE.modi (IE.pid 0) (IE.lit 70)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 70)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 64)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t058_block : Nat := 1024
+def t058_nkb : Nat := 4
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t058_wf : t058_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t058. -/
+theorem t058_correct {α : Type} [ExactScalar α] :
+    Implements (t058_g.prog t058_block t058_nkb) (t058_g.spec (α := α)) :=
+  GenRed.prog_implements t058_g t058_block t058_nkb t058_wf (by decide) (by decide)
+
+def t058_kernel : ReduceKernel :=
+  { name := "t058", arity := 2, block := t058_block
+  , nkb := t058_nkb, nout := 11612160
+  , init := FE.zeroC
+  , step := t058_g.step t058_block
+  , stored := t058_g.stored t058_block }
+
+-- t059: reducing family, 2 inputs, 330321920 outputs, reduced extent 27
+--   conv3d: N=8 Cin=3 Cout=64 groups=1 k=(3, 3, 1) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=27
+def t059_g : GenRed :=
+  { nout := 330321920, K := 27
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 41290240)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 256)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 2540)) (IE.lit 254)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 256)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 10)) (IE.lit 254)) (IE.modi IE.rk (IE.lit 3)))) (IE.lit 10)) (IE.modi (IE.pid 0) (IE.lit 10)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 645160)) (IE.lit 64)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 2540)) (IE.lit 254)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 256)) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 10)) (IE.lit 254)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 256))) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 10)) (IE.lit 10)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t059_block : Nat := 16
+def t059_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t059_wf : t059_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t059. -/
+theorem t059_correct {α : Type} [ExactScalar α] :
+    Implements (t059_g.prog t059_block t059_nkb) (t059_g.spec (α := α)) :=
+  GenRed.prog_implements t059_g t059_block t059_nkb t059_wf (by decide) (by decide)
+
+def t059_kernel : ReduceKernel :=
+  { name := "t059", arity := 2, block := t059_block
+  , nkb := t059_nkb, nout := 330321920
+  , init := FE.zeroC
+  , step := t059_g.step t059_block
+  , stored := t059_g.stored t059_block }
+
+-- t060: reducing family, 2 inputs, 220938240 outputs, reduced extent 315
+--   conv3d: N=16 Cin=3 Cout=64 groups=1 k=(3, 5, 7) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=315
+def t060_g : GenRed :=
+  { nout := 220938240, K := 315
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 13808640)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 105))) (IE.lit 64)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 3480)) (IE.lit 62)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3)))) (IE.lit 64)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 58)) (IE.lit 60)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5)))) (IE.lit 64)) (IE.add (IE.modi (IE.pid 0) (IE.lit 58)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 215760)) (IE.lit 64)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 105))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 3480)) (IE.lit 62)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 64)) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 58)) (IE.lit 60)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 64))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 58)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 64)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t060_block : Nat := 256
+def t060_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t060_wf : t060_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t060. -/
+theorem t060_correct {α : Type} [ExactScalar α] :
+    Implements (t060_g.prog t060_block t060_nkb) (t060_g.spec (α := α)) :=
+  GenRed.prog_implements t060_g t060_block t060_nkb t060_wf (by decide) (by decide)
+
+def t060_kernel : ReduceKernel :=
+  { name := "t060", arity := 2, block := t060_block
+  , nkb := t060_nkb, nout := 220938240
+  , init := FE.zeroC
+  , step := t060_g.step t060_block
+  , stored := t060_g.stored t060_block }
+
+-- t061: reducing family, 2 inputs, 110398464 outputs, reduced extent 1296
+--   transposed conv3d: N=8 Cin=48 Cout=48 groups=1 k=(3, 3, 3) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=1296
+def t061_g : GenRed :=
+  { nout := 110398464, K := 1296
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 13799808)) (IE.lit 48)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 287496)) (IE.lit 48)) (IE.lit 48)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 27)))) (IE.lit 64)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 4356)) (IE.lit 66)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)))) (IE.lit 64)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 66)) (IE.lit 66)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 64)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 66)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 287496)) (IE.lit 48)) (IE.lit 48)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 27))) (IE.lit 48)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 287496)) (IE.lit 48)) (IE.lit 48))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 4356)) (IE.lit 66))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 4356)) (IE.lit 66)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 66)) (IE.lit 66)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 66)) (IE.lit 66)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .le (IE.modi IE.rk (IE.lit 3)) (IE.modi (IE.pid 0) (IE.lit 66)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 66)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 64)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t061_block : Nat := 1024
+def t061_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t061_wf : t061_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t061. -/
+theorem t061_correct {α : Type} [ExactScalar α] :
+    Implements (t061_g.prog t061_block t061_nkb) (t061_g.spec (α := α)) :=
+  GenRed.prog_implements t061_g t061_block t061_nkb t061_wf (by decide) (by decide)
+
+def t061_kernel : ReduceKernel :=
+  { name := "t061", arity := 2, block := t061_block
+  , nkb := t061_nkb, nout := 110398464
+  , init := FE.zeroC
+  , step := t061_g.step t061_block
+  , stored := t061_g.stored t061_block }
+
+-- t062: reducing family, 2 inputs, 131088384 outputs, reduced extent 1440
+--   conv2d: N=8 Cin=32 Cout=64 groups=1 k=(5, 9) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=1440
+def t062_g : GenRed :=
+  { nout := 131088384, K := 1440
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16386048)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 45))) (IE.lit 512)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 504)) (IE.lit 508)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 5)))) (IE.lit 512)) (IE.add (IE.modi (IE.pid 0) (IE.lit 504)) (IE.modi IE.rk (IE.lit 9))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 256032)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 45))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 5))) (IE.lit 9)) (IE.modi IE.rk (IE.lit 9))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 504)) (IE.lit 508)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 5))) (IE.lit 512)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 504)) (IE.modi IE.rk (IE.lit 9))) (IE.lit 512)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t062_block : Nat := 1024
+def t062_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t062_wf : t062_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t062. -/
+theorem t062_correct {α : Type} [ExactScalar α] :
+    Implements (t062_g.prog t062_block t062_nkb) (t062_g.spec (α := α)) :=
+  GenRed.prog_implements t062_g t062_block t062_nkb t062_wf (by decide) (by decide)
+
+def t062_kernel : ReduceKernel :=
+  { name := "t062", arity := 2, block := t062_block
+  , nkb := t062_nkb, nout := 131088384
+  , init := FE.zeroC
+  , step := t062_g.step t062_block
+  , stored := t062_g.stored t062_block }
+
+-- t063: reducing family, 2 inputs, 267387904 outputs, reduced extent 144
+--   conv2d: N=2 Cin=16 Cout=128 groups=1 k=(3, 3) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=144
+def t063_g : GenRed :=
+  { nout := 267387904, K := 144
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 133693952)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 1024)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 1022)) (IE.lit 1022)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 1024)) (IE.add (IE.modi (IE.pid 0) (IE.lit 1022)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 1044484)) (IE.lit 128)) (IE.lit 16)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 1022)) (IE.lit 1022)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 1024)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 1022)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1024)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t063_block : Nat := 128
+def t063_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t063_wf : t063_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t063. -/
+theorem t063_correct {α : Type} [ExactScalar α] :
+    Implements (t063_g.prog t063_block t063_nkb) (t063_g.spec (α := α)) :=
+  GenRed.prog_implements t063_g t063_block t063_nkb t063_wf (by decide) (by decide)
+
+def t063_kernel : ReduceKernel :=
+  { name := "t063", arity := 2, block := t063_block
+  , nkb := t063_nkb, nout := 267387904
+  , init := FE.zeroC
+  , step := t063_g.step t063_block
+  , stored := t063_g.stored t063_block }
+
+-- t064: reducing family, 2 inputs, 268443648 outputs, reduced extent 384
+--   transposed conv1d: N=32 Cin=128 Cout=128 groups=1 k=(3,) stride=(1,) pad=(0,) dil=(1,) K=384
+def t064_g : GenRed :=
+  { nout := 268443648, K := 384
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8388864)) (IE.lit 128)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 65538)) (IE.lit 128)) (IE.lit 128)) (IE.lit 128)) (IE.divi IE.rk (IE.lit 3)))) (IE.lit 65536)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 65538)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 65538)) (IE.lit 128)) (IE.lit 128)) (IE.lit 128)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 128)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 65538)) (IE.lit 128)) (IE.lit 128))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.cmp .le (IE.modi IE.rk (IE.lit 3)) (IE.modi (IE.pid 0) (IE.lit 65538))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 65538)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 65536)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t064_block : Nat := 256
+def t064_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t064_wf : t064_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t064. -/
+theorem t064_correct {α : Type} [ExactScalar α] :
+    Implements (t064_g.prog t064_block t064_nkb) (t064_g.spec (α := α)) :=
+  GenRed.prog_implements t064_g t064_block t064_nkb t064_wf (by decide) (by decide)
+
+def t064_kernel : ReduceKernel :=
+  { name := "t064", arity := 2, block := t064_block
+  , nkb := t064_nkb, nout := 268443648
+  , init := FE.zeroC
+  , step := t064_g.step t064_block
+  , stored := t064_g.stored t064_block }
+
+-- t065: reducing family, 2 inputs, 136321024 outputs, reduced extent 1344
+--   transposed conv2d: N=8 Cin=64 Cout=64 groups=1 k=(3, 7) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=1344
+def t065_g : GenRed :=
+  { nout := 136321024, K := 1344
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 17040128)) (IE.lit 64)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 266252)) (IE.lit 64)) (IE.lit 64)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 21)))) (IE.lit 512)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 518)) (IE.lit 514)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3)))) (IE.lit 512)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 518)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 266252)) (IE.lit 64)) (IE.lit 64)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 21))) (IE.lit 64)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 266252)) (IE.lit 64)) (IE.lit 64))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 518)) (IE.lit 514))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 518)) (IE.lit 514)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3))) (IE.lit 512))) (BE.cmp .le (IE.modi IE.rk (IE.lit 7)) (IE.modi (IE.pid 0) (IE.lit 518)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 518)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 512)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t065_block : Nat := 1024
+def t065_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t065_wf : t065_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t065. -/
+theorem t065_correct {α : Type} [ExactScalar α] :
+    Implements (t065_g.prog t065_block t065_nkb) (t065_g.spec (α := α)) :=
+  GenRed.prog_implements t065_g t065_block t065_nkb t065_wf (by decide) (by decide)
+
+def t065_kernel : ReduceKernel :=
+  { name := "t065", arity := 2, block := t065_block
+  , nkb := t065_nkb, nout := 136321024
+  , init := FE.zeroC
+  , step := t065_g.step t065_block
+  , stored := t065_g.stored t065_block }
+
+-- t066: reducing family, 2 inputs, 108437504 outputs, reduced extent 315
+--   conv3d: N=8 Cin=3 Cout=64 groups=1 k=(3, 5, 7) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=315
+def t066_g : GenRed :=
+  { nout := 108437504, K := 315
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 13554688)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 105))) (IE.lit 16)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 15128)) (IE.lit 14)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3)))) (IE.lit 128)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 122)) (IE.lit 124)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5)))) (IE.lit 128)) (IE.add (IE.modi (IE.pid 0) (IE.lit 122)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 211792)) (IE.lit 64)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 105))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 15128)) (IE.lit 14)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 16)) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 122)) (IE.lit 124)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 128))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 122)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 128)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t066_block : Nat := 256
+def t066_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t066_wf : t066_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t066. -/
+theorem t066_correct {α : Type} [ExactScalar α] :
+    Implements (t066_g.prog t066_block t066_nkb) (t066_g.spec (α := α)) :=
+  GenRed.prog_implements t066_g t066_block t066_nkb t066_wf (by decide) (by decide)
+
+def t066_kernel : ReduceKernel :=
+  { name := "t066", arity := 2, block := t066_block
+  , nkb := t066_nkb, nout := 108437504
+  , init := FE.zeroC
+  , step := t066_g.step t066_block
+  , stored := t066_g.stored t066_block }
+
+-- t067: reducing family, 2 inputs, 268431360 outputs, reduced extent 192
+--   conv1d: N=16 Cin=64 Cout=128 groups=1 k=(3,) stride=(1,) pad=(0,) dil=(1,) K=192
+def t067_g : GenRed :=
+  { nout := 268431360, K := 192
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16776960)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 131072)) (IE.add (IE.modi (IE.pid 0) (IE.lit 131070)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 131070)) (IE.lit 128)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 131070)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 131072))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t067_block : Nat := 128
+def t067_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t067_wf : t067_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t067. -/
+theorem t067_correct {α : Type} [ExactScalar α] :
+    Implements (t067_g.prog t067_block t067_nkb) (t067_g.spec (α := α)) :=
+  GenRed.prog_implements t067_g t067_block t067_nkb t067_wf (by decide) (by decide)
+
+def t067_kernel : ReduceKernel :=
+  { name := "t067", arity := 2, block := t067_block
+  , nkb := t067_nkb, nout := 268431360
+  , init := FE.zeroC
+  , step := t067_g.step t067_block
+  , stored := t067_g.stored t067_block }
+
+-- t068: reducing family, 2 inputs, 312508416 outputs, reduced extent 2400
+--   transposed conv3d: N=16 Cin=32 Cout=64 groups=1 k=(3, 5, 5) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=2400
+def t068_g : GenRed :=
+  { nout := 312508416, K := 2400
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 19531776)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 305184)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 75)))) (IE.lit 64)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 4624)) (IE.lit 66)) (IE.modi (IE.divi IE.rk (IE.lit 25)) (IE.lit 3)))) (IE.lit 64)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 68)) (IE.lit 68)) (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 5)))) (IE.lit 64)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 68)) (IE.modi IE.rk (IE.lit 5))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 305184)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 75))) (IE.lit 64)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 305184)) (IE.lit 64)) (IE.lit 64))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 25)) (IE.lit 3))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 5))) (IE.lit 5)) (IE.modi IE.rk (IE.lit 5))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 25)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 4624)) (IE.lit 66))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 4624)) (IE.lit 66)) (IE.modi (IE.divi IE.rk (IE.lit 25)) (IE.lit 3))) (IE.lit 64))) (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 5)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 68)) (IE.lit 68)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 68)) (IE.lit 68)) (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 5))) (IE.lit 64))) (BE.cmp .le (IE.modi IE.rk (IE.lit 5)) (IE.modi (IE.pid 0) (IE.lit 68)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 68)) (IE.modi IE.rk (IE.lit 5))) (IE.lit 64)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t068_block : Nat := 1024
+def t068_nkb : Nat := 3
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t068_wf : t068_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t068. -/
+theorem t068_correct {α : Type} [ExactScalar α] :
+    Implements (t068_g.prog t068_block t068_nkb) (t068_g.spec (α := α)) :=
+  GenRed.prog_implements t068_g t068_block t068_nkb t068_wf (by decide) (by decide)
+
+def t068_kernel : ReduceKernel :=
+  { name := "t068", arity := 2, block := t068_block
+  , nkb := t068_nkb, nout := 312508416
+  , init := FE.zeroC
+  , step := t068_g.step t068_block
+  , stored := t068_g.stored t068_block }
+
+-- t069: reducing family, 2 inputs, 276889600 outputs, reduced extent 960
+--   transposed conv2d: N=64 Cin=64 Cout=128 groups=1 k=(3, 5) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=960
+def t069_g : GenRed :=
+  { nout := 276889600, K := 960
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4326400)) (IE.lit 64)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 33800)) (IE.lit 128)) (IE.lit 128)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 15)))) (IE.lit 128)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 260)) (IE.lit 130)) (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3)))) (IE.lit 256)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 260)) (IE.modi IE.rk (IE.lit 5))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 33800)) (IE.lit 128)) (IE.lit 128)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 15))) (IE.lit 128)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 33800)) (IE.lit 128)) (IE.lit 128))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3))) (IE.lit 5)) (IE.modi IE.rk (IE.lit 5))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 260)) (IE.lit 130))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 260)) (IE.lit 130)) (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3))) (IE.lit 128))) (BE.cmp .le (IE.modi IE.rk (IE.lit 5)) (IE.modi (IE.pid 0) (IE.lit 260)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 260)) (IE.modi IE.rk (IE.lit 5))) (IE.lit 256)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t069_block : Nat := 512
+def t069_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t069_wf : t069_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t069. -/
+theorem t069_correct {α : Type} [ExactScalar α] :
+    Implements (t069_g.prog t069_block t069_nkb) (t069_g.spec (α := α)) :=
+  GenRed.prog_implements t069_g t069_block t069_nkb t069_wf (by decide) (by decide)
+
+def t069_kernel : ReduceKernel :=
+  { name := "t069", arity := 2, block := t069_block
+  , nkb := t069_nkb, nout := 276889600
+  , init := FE.zeroC
+  , step := t069_g.step t069_block
+  , stored := t069_g.stored t069_block }
+
+-- t070: reducing family, 2 inputs, 180708864 outputs, reduced extent 1296
+--   transposed conv3d: N=8 Cin=48 Cout=24 groups=1 k=(3, 3, 3) stride=(1, 1, 1) pad=(0, 0, 0) dil=(1, 1, 1) K=1296
+def t070_g : GenRed :=
+  { nout := 180708864, K := 1296
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 22588608)) (IE.lit 48)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 941192)) (IE.lit 24)) (IE.lit 24)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 27)))) (IE.lit 96)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 9604)) (IE.lit 98)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)))) (IE.lit 96)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 98)) (IE.lit 98)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 96)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 98)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 941192)) (IE.lit 24)) (IE.lit 24)) (IE.lit 48)) (IE.divi IE.rk (IE.lit 27))) (IE.lit 24)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 941192)) (IE.lit 24)) (IE.lit 24))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 9604)) (IE.lit 98))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 9604)) (IE.lit 98)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 96))) (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 98)) (IE.lit 98)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 98)) (IE.lit 98)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 96))) (BE.cmp .le (IE.modi IE.rk (IE.lit 3)) (IE.modi (IE.pid 0) (IE.lit 98)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 98)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 96)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t070_block : Nat := 1024
+def t070_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t070_wf : t070_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t070. -/
+theorem t070_correct {α : Type} [ExactScalar α] :
+    Implements (t070_g.prog t070_block t070_nkb) (t070_g.spec (α := α)) :=
+  GenRed.prog_implements t070_g t070_block t070_nkb t070_wf (by decide) (by decide)
+
+def t070_kernel : ReduceKernel :=
+  { name := "t070", arity := 2, block := t070_block
+  , nkb := t070_nkb, nout := 180708864
+  , init := FE.zeroC
+  , step := t070_g.step t070_block
+  , stored := t070_g.stored t070_block }
+
+-- t071: reducing family, 2 inputs, 135005184 outputs, reduced extent 288
+--   transposed conv2d: N=8 Cin=32 Cout=32 groups=1 k=(3, 3) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=288
+def t071_g : GenRed :=
+  { nout := 135005184, K := 288
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16875648)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 527364)) (IE.lit 32)) (IE.lit 32)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9)))) (IE.lit 512)) (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 1026)) (IE.lit 514)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 1024)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 1026)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 527364)) (IE.lit 32)) (IE.lit 32)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 32)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 527364)) (IE.lit 32)) (IE.lit 32))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 1026)) (IE.lit 514))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.divi (IE.pid 0) (IE.lit 1026)) (IE.lit 514)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 512))) (BE.cmp .le (IE.modi IE.rk (IE.lit 3)) (IE.modi (IE.pid 0) (IE.lit 1026)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 1026)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1024)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t071_block : Nat := 256
+def t071_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t071_wf : t071_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t071. -/
+theorem t071_correct {α : Type} [ExactScalar α] :
+    Implements (t071_g.prog t071_block t071_nkb) (t071_g.spec (α := α)) :=
+  GenRed.prog_implements t071_g t071_block t071_nkb t071_wf (by decide) (by decide)
+
+def t071_kernel : ReduceKernel :=
+  { name := "t071", arity := 2, block := t071_block
+  , nkb := t071_nkb, nout := 135005184
+  , init := FE.zeroC
+  , step := t071_g.step t071_block
+  , stored := t071_g.stored t071_block }
+
+-- t072: reducing family, 2 inputs, 28311552 outputs, reduced extent 840
+--   transposed conv3d: N=8 Cin=32 Cout=32 groups=4 k=(3, 5, 7) stride=(2, 2, 2) pad=(1, 2, 3) dil=(1, 1, 1) K=840
+def t072_g : GenRed :=
+  { nout := 28311552, K := 840
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 3538944)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 110592)) (IE.lit 32)) (IE.lit 8)) (IE.lit 8)) (IE.divi IE.rk (IE.lit 105)))) (IE.lit 12)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4608)) (IE.lit 24)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 2))) (IE.lit 24)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 96)) (IE.lit 48)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 2))) (IE.lit 48)) (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 96)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 2)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 110592)) (IE.lit 32)) (IE.lit 8)) (IE.lit 8)) (IE.divi IE.rk (IE.lit 105))) (IE.lit 8)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 110592)) (IE.lit 32)) (IE.lit 8))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4608)) (IE.lit 24)) (IE.lit 1))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4608)) (IE.lit 24)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4608)) (IE.lit 24)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 35)) (IE.lit 3))) (IE.lit 2)) (IE.lit 12))) (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 96)) (IE.lit 48)) (IE.lit 2)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 96)) (IE.lit 48)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 96)) (IE.lit 48)) (IE.lit 2)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 5))) (IE.lit 2)) (IE.lit 24))) (BE.cmp .le (IE.modi IE.rk (IE.lit 7)) (IE.add (IE.modi (IE.pid 0) (IE.lit 96)) (IE.lit 3)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 96)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 96)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 2)) (IE.lit 48)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t072_block : Nat := 512
+def t072_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t072_wf : t072_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t072. -/
+theorem t072_correct {α : Type} [ExactScalar α] :
+    Implements (t072_g.prog t072_block t072_nkb) (t072_g.spec (α := α)) :=
+  GenRed.prog_implements t072_g t072_block t072_nkb t072_wf (by decide) (by decide)
+
+def t072_kernel : ReduceKernel :=
+  { name := "t072", arity := 2, block := t072_block
+  , nkb := t072_nkb, nout := 28311552
+  , init := FE.zeroC
+  , step := t072_g.step t072_block
+  , stored := t072_g.stored t072_block }
+
+-- t073: reducing family, 2 inputs, 261152640 outputs, reduced extent 864
+--   transposed conv3d: N=4 Cin=32 Cout=32 groups=1 k=(3, 3, 3) stride=(2, 2, 2) pad=(1, 1, 1) dil=(1, 1, 1) K=864
+def t073_g : GenRed :=
+  { nout := 261152640, K := 864
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 65288160)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 2040255)) (IE.lit 32)) (IE.lit 32)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 27)))) (IE.lit 32)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 32385)) (IE.lit 63)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 2))) (IE.lit 64)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 255)) (IE.lit 127)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 2))) (IE.lit 128)) (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 255)) (IE.lit 1)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 2)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 2040255)) (IE.lit 32)) (IE.lit 32)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 27))) (IE.lit 32)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 2040255)) (IE.lit 32)) (IE.lit 32))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 32385)) (IE.lit 63)) (IE.lit 1))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 32385)) (IE.lit 63)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 32385)) (IE.lit 63)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 2)) (IE.lit 32))) (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 255)) (IE.lit 127)) (IE.lit 1)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 255)) (IE.lit 127)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 255)) (IE.lit 127)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 2)) (IE.lit 64))) (BE.cmp .le (IE.modi IE.rk (IE.lit 3)) (IE.add (IE.modi (IE.pid 0) (IE.lit 255)) (IE.lit 1)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 255)) (IE.lit 1)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 255)) (IE.lit 1)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 2)) (IE.lit 128)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t073_block : Nat := 512
+def t073_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t073_wf : t073_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t073. -/
+theorem t073_correct {α : Type} [ExactScalar α] :
+    Implements (t073_g.prog t073_block t073_nkb) (t073_g.spec (α := α)) :=
+  GenRed.prog_implements t073_g t073_block t073_nkb t073_wf (by decide) (by decide)
+
+def t073_kernel : ReduceKernel :=
+  { name := "t073", arity := 2, block := t073_block
+  , nkb := t073_nkb, nout := 261152640
+  , init := FE.zeroC
+  , step := t073_g.step t073_block
+  , stored := t073_g.stored t073_block }
+
+-- t074: reducing family, 2 inputs, 268460032 outputs, reduced extent 160
+--   transposed conv1d: N=32 Cin=32 Cout=64 groups=1 k=(5,) stride=(1,) pad=(0,) dil=(3,) K=160
+def t074_g : GenRed :=
+  { nout := 268460032, K := 160
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8389376)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 131084)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 5)))) (IE.lit 131072)) (IE.sub (IE.modi (IE.pid 0) (IE.lit 131084)) (IE.mul (IE.modi IE.rk (IE.lit 5)) (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 131084)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 5))) (IE.lit 64)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 131084)) (IE.lit 64)) (IE.lit 64))) (IE.lit 5)) (IE.modi IE.rk (IE.lit 5))))]
+  , inRange := (BE.and (BE.and (BE.cmp .le (IE.mul (IE.modi IE.rk (IE.lit 5)) (IE.lit 3)) (IE.modi (IE.pid 0) (IE.lit 131084))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.modi (IE.pid 0) (IE.lit 131084)) (IE.mul (IE.modi IE.rk (IE.lit 5)) (IE.lit 3))) (IE.lit 131072)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t074_block : Nat := 128
+def t074_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t074_wf : t074_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t074. -/
+theorem t074_correct {α : Type} [ExactScalar α] :
+    Implements (t074_g.prog t074_block t074_nkb) (t074_g.spec (α := α)) :=
+  GenRed.prog_implements t074_g t074_block t074_nkb t074_wf (by decide) (by decide)
+
+def t074_kernel : ReduceKernel :=
+  { name := "t074", arity := 2, block := t074_block
+  , nkb := t074_nkb, nout := 268460032
+  , init := FE.zeroC
+  , step := t074_g.step t074_block
+  , stored := t074_g.stored t074_block }
+
+-- t075: reducing family, 2 inputs, 201586688 outputs, reduced extent 120
+--   transposed conv2d: N=16 Cin=32 Cout=64 groups=4 k=(3, 5) stride=(2, 3) pad=(1, 2) dil=(2, 1) K=120
+def t075_g : GenRed :=
+  { nout := 201586688, K := 120
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 12599168)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 196862)) (IE.lit 64)) (IE.lit 16)) (IE.lit 8)) (IE.divi IE.rk (IE.lit 15)))) (IE.lit 128)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 766)) (IE.lit 257)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2))) (IE.lit 256)) (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 766)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 5))) (IE.lit 3)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 196862)) (IE.lit 64)) (IE.lit 16)) (IE.lit 8)) (IE.divi IE.rk (IE.lit 15))) (IE.lit 16)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 196862)) (IE.lit 64)) (IE.lit 16))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3))) (IE.lit 5)) (IE.modi IE.rk (IE.lit 5))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3)) (IE.lit 2)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 766)) (IE.lit 257)) (IE.lit 1))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 766)) (IE.lit 257)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 766)) (IE.lit 257)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 5)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 128))) (BE.cmp .le (IE.modi IE.rk (IE.lit 5)) (IE.add (IE.modi (IE.pid 0) (IE.lit 766)) (IE.lit 2)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 766)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 5))) (IE.lit 3)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 766)) (IE.lit 2)) (IE.modi IE.rk (IE.lit 5))) (IE.lit 3)) (IE.lit 256)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t075_block : Nat := 64
+def t075_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t075_wf : t075_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t075. -/
+theorem t075_correct {α : Type} [ExactScalar α] :
+    Implements (t075_g.prog t075_block t075_nkb) (t075_g.spec (α := α)) :=
+  GenRed.prog_implements t075_g t075_block t075_nkb t075_wf (by decide) (by decide)
+
+def t075_kernel : ReduceKernel :=
+  { name := "t075", arity := 2, block := t075_block
+  , nkb := t075_nkb, nout := 201586688
+  , init := FE.zeroC
+  , step := t075_g.step t075_block
+  , stored := t075_g.stored t075_block }
+
+-- t076: reducing family, 2 inputs, 178952192 outputs, reduced extent 192
+--   conv1d: N=8 Cin=64 Cout=128 groups=1 k=(3,) stride=(3,) pad=(0,) dil=(4,) K=192
+def t076_g : GenRed :=
+  { nout := 178952192, K := 192
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 22369024)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 524280)) (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 174758)) (IE.lit 3)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 4))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 174758)) (IE.lit 128)) (IE.lit 64)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.cmp .lt (IE.add (IE.mul (IE.modi (IE.pid 0) (IE.lit 174758)) (IE.lit 3)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 4))) (IE.lit 524280))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t076_block : Nat := 128
+def t076_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t076_wf : t076_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t076. -/
+theorem t076_correct {α : Type} [ExactScalar α] :
+    Implements (t076_g.prog t076_block t076_nkb) (t076_g.spec (α := α)) :=
+  GenRed.prog_implements t076_g t076_block t076_nkb t076_wf (by decide) (by decide)
+
+def t076_kernel : ReduceKernel :=
+  { name := "t076", arity := 2, block := t076_block
+  , nkb := t076_nkb, nout := 178952192
+  , init := FE.zeroC
+  , step := t076_g.step t076_block
+  , stored := t076_g.stored t076_block }
+
+-- t077: reducing family, 2 inputs, 142771200 outputs, reduced extent 864
+--   transposed conv3d: N=16 Cin=32 Cout=64 groups=1 k=(3, 3, 3) stride=(2, 2, 2) pad=(1, 1, 1) dil=(2, 2, 2) K=864
+def t077_g : GenRed :=
+  { nout := 142771200, K := 864
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 8923200)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 139425)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 27)))) (IE.lit 16)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4225)) (IE.lit 33)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2))) (IE.lit 32)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 65)) (IE.lit 65)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2))) (IE.lit 32)) (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 65)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 2)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 139425)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 27))) (IE.lit 64)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 139425)) (IE.lit 64)) (IE.lit 64))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)) (IE.lit 2)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4225)) (IE.lit 33)) (IE.lit 1))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4225)) (IE.lit 33)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 4225)) (IE.lit 33)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 16))) (BE.cmp .le (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 65)) (IE.lit 65)) (IE.lit 1)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 65)) (IE.lit 65)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 65)) (IE.lit 65)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 32))) (BE.cmp .le (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2)) (IE.add (IE.modi (IE.pid 0) (IE.lit 65)) (IE.lit 1)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 65)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 65)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 32)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t077_block : Nat := 512
+def t077_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t077_wf : t077_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t077. -/
+theorem t077_correct {α : Type} [ExactScalar α] :
+    Implements (t077_g.prog t077_block t077_nkb) (t077_g.spec (α := α)) :=
+  GenRed.prog_implements t077_g t077_block t077_nkb t077_wf (by decide) (by decide)
+
+def t077_kernel : ReduceKernel :=
+  { name := "t077", arity := 2, block := t077_block
+  , nkb := t077_nkb, nout := 142771200
+  , init := FE.zeroC
+  , step := t077_g.step t077_block
+  , stored := t077_g.stored t077_block }
+
+-- t078: reducing family, 2 inputs, 134217728 outputs, reduced extent 672
+--   transposed conv2d: N=8 Cin=32 Cout=32 groups=1 k=(3, 7) stride=(1, 1) pad=(1, 3) dil=(1, 1) K=672
+def t078_g : GenRed :=
+  { nout := 134217728, K := 672
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16777216)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 524288)) (IE.lit 32)) (IE.lit 32)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 21)))) (IE.lit 512)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 1024)) (IE.lit 512)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3)))) (IE.lit 1024)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 1024)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 524288)) (IE.lit 32)) (IE.lit 32)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 21))) (IE.lit 32)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 524288)) (IE.lit 32)) (IE.lit 32))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 1024)) (IE.lit 512)) (IE.lit 1))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 1024)) (IE.lit 512)) (IE.lit 1)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3))) (IE.lit 512))) (BE.cmp .le (IE.modi IE.rk (IE.lit 7)) (IE.add (IE.modi (IE.pid 0) (IE.lit 1024)) (IE.lit 3)))) (BE.cmp .eq (IE.lit 0) (IE.lit 0))) (BE.cmp .lt (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 1024)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 1024)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t078_block : Nat := 512
+def t078_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t078_wf : t078_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t078. -/
+theorem t078_correct {α : Type} [ExactScalar α] :
+    Implements (t078_g.prog t078_block t078_nkb) (t078_g.spec (α := α)) :=
+  GenRed.prog_implements t078_g t078_block t078_nkb t078_wf (by decide) (by decide)
+
+def t078_kernel : ReduceKernel :=
+  { name := "t078", arity := 2, block := t078_block
+  , nkb := t078_nkb, nout := 134217728
+  , init := FE.zeroC
+  , step := t078_g.step t078_block
+  , stored := t078_g.stored t078_block }
+
+-- t079: reducing family, 2 inputs, 268436480 outputs, reduced extent 96
+--   transposed conv1d: N=16 Cin=32 Cout=64 groups=1 k=(3,) stride=(2,) pad=(1,) dil=(2,) K=96
+def t079_g : GenRed :=
+  { nout := 268436480, K := 96
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16777280)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 262145)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 3)))) (IE.lit 131072)) (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 262145)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 2)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 262145)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 64)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 262145)) (IE.lit 64)) (IE.lit 64))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.cmp .le (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2)) (IE.add (IE.modi (IE.pid 0) (IE.lit 262145)) (IE.lit 1))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 262145)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 262145)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 2)) (IE.lit 131072)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t079_block : Nat := 64
+def t079_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t079_wf : t079_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t079. -/
+theorem t079_correct {α : Type} [ExactScalar α] :
+    Implements (t079_g.prog t079_block t079_nkb) (t079_g.spec (α := α)) :=
+  GenRed.prog_implements t079_g t079_block t079_nkb t079_wf (by decide) (by decide)
+
+def t079_kernel : ReduceKernel :=
+  { name := "t079", arity := 2, block := t079_block
+  , nkb := t079_nkb, nout := 268436480
+  , init := FE.zeroC
+  , step := t079_g.step t079_block
+  , stored := t079_g.stored t079_block }
+
+-- t080: reducing family, 2 inputs, 129007616 outputs, reduced extent 1440
+--   conv2d: N=8 Cin=32 Cout=64 groups=1 k=(5, 9) stride=(1, 1) pad=(2, 4) dil=(2, 3) K=1440
+def t080_g : GenRed :=
+  { nout := 129007616, K := 1440
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16125952)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 45))) (IE.lit 512)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 496)) (IE.lit 508)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 5)) (IE.lit 2))) (IE.lit 2))) (IE.lit 512)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 496)) (IE.mul (IE.modi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 4)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 251968)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 45))) (IE.lit 5)) (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 5))) (IE.lit 9)) (IE.modi IE.rk (IE.lit 9))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 2) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 496)) (IE.lit 508)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 5)) (IE.lit 2)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 496)) (IE.lit 508)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 9)) (IE.lit 5)) (IE.lit 2))) (IE.lit 514))) (BE.cmp .le (IE.lit 4) (IE.add (IE.modi (IE.pid 0) (IE.lit 496)) (IE.mul (IE.modi IE.rk (IE.lit 9)) (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 496)) (IE.mul (IE.modi IE.rk (IE.lit 9)) (IE.lit 3))) (IE.lit 516)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t080_block : Nat := 1024
+def t080_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t080_wf : t080_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t080. -/
+theorem t080_correct {α : Type} [ExactScalar α] :
+    Implements (t080_g.prog t080_block t080_nkb) (t080_g.spec (α := α)) :=
+  GenRed.prog_implements t080_g t080_block t080_nkb t080_wf (by decide) (by decide)
+
+def t080_kernel : ReduceKernel :=
+  { name := "t080", arity := 2, block := t080_block
+  , nkb := t080_nkb, nout := 129007616
+  , init := FE.zeroC
+  , step := t080_g.step t080_block
+  , stored := t080_g.stored t080_block }
+
+-- t081: reducing family, 2 inputs, 207753216 outputs, reduced extent 288
+--   transposed conv2d: N=16 Cin=32 Cout=64 groups=1 k=(3, 3) stride=(5, 5) pad=(1, 1) dil=(2, 2) K=288
+def t081_g : GenRed :=
+  { nout := 207753216, K := 288
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 12984576)) (IE.lit 32)) (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 202884)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9)))) (IE.lit 64)) (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 638)) (IE.lit 318)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2))) (IE.lit 5))) (IE.lit 128)) (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 638)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 5)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.modi (IE.divi (IE.pid 0) (IE.lit 202884)) (IE.lit 64)) (IE.lit 64)) (IE.lit 32)) (IE.divi IE.rk (IE.lit 9))) (IE.lit 64)) (IE.modi (IE.modi (IE.divi (IE.pid 0) (IE.lit 202884)) (IE.lit 64)) (IE.lit 64))) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.and (BE.and (BE.cmp .le (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 638)) (IE.lit 318)) (IE.lit 1))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 638)) (IE.lit 318)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2))) (IE.lit 5)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 638)) (IE.lit 318)) (IE.lit 1)) (IE.mul (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)) (IE.lit 2))) (IE.lit 5)) (IE.lit 64))) (BE.cmp .le (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2)) (IE.add (IE.modi (IE.pid 0) (IE.lit 638)) (IE.lit 1)))) (BE.cmp .eq (IE.modi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 638)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 5)) (IE.lit 0))) (BE.cmp .lt (IE.divi (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 638)) (IE.lit 1)) (IE.mul (IE.modi IE.rk (IE.lit 3)) (IE.lit 2))) (IE.lit 5)) (IE.lit 128)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t081_block : Nat := 256
+def t081_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t081_wf : t081_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t081. -/
+theorem t081_correct {α : Type} [ExactScalar α] :
+    Implements (t081_g.prog t081_block t081_nkb) (t081_g.spec (α := α)) :=
+  GenRed.prog_implements t081_g t081_block t081_nkb t081_wf (by decide) (by decide)
+
+def t081_kernel : ReduceKernel :=
+  { name := "t081", arity := 2, block := t081_block
+  , nkb := t081_nkb, nout := 207753216
+  , init := FE.zeroC
+  , step := t081_g.step t081_block
+  , stored := t081_g.stored t081_block }
+
+-- t082: reducing family, 2 inputs, 266342400 outputs, reduced extent 9
+--   conv2d: N=16 Cin=64 Cout=64 groups=64 k=(3, 3) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=9
+def t082_g : GenRed :=
+  { nout := 266342400, K := 9
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16646400)) (IE.lit 64)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 260100)) (IE.lit 64))) (IE.lit 512)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 510)) (IE.lit 510)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 512)) (IE.add (IE.modi (IE.pid 0) (IE.lit 510)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 260100)) (IE.lit 64)) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 510)) (IE.lit 510)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 512)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 510)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 512)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t082_block : Nat := 8
+def t082_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t082_wf : t082_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t082. -/
+theorem t082_correct {α : Type} [ExactScalar α] :
+    Implements (t082_g.prog t082_block t082_nkb) (t082_g.spec (α := α)) :=
+  GenRed.prog_implements t082_g t082_block t082_nkb t082_wf (by decide) (by decide)
+
+def t082_kernel : ReduceKernel :=
+  { name := "t082", arity := 2, block := t082_block
+  , nkb := t082_nkb, nout := 266342400
+  , init := FE.zeroC
+  , step := t082_g.step t082_block
+  , stored := t082_g.stored t082_block }
+
+-- t083: reducing family, 2 inputs, 133693440 outputs, reduced extent 3
+--   conv2d: N=64 Cin=8 Cout=8 groups=8 k=(3, 1) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=3
+def t083_g : GenRed :=
+  { nout := 133693440, K := 3
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 2088960)) (IE.lit 8)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 261120)) (IE.lit 8))) (IE.lit 512)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 512)) (IE.lit 510)) (IE.modi IE.rk (IE.lit 3)))) (IE.lit 512)) (IE.modi (IE.pid 0) (IE.lit 512)))), (1, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 261120)) (IE.lit 8)) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 512)) (IE.lit 510)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 512)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 512)) (IE.lit 512)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t083_block : Nat := 2
+def t083_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t083_wf : t083_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t083. -/
+theorem t083_correct {α : Type} [ExactScalar α] :
+    Implements (t083_g.prog t083_block t083_nkb) (t083_g.spec (α := α)) :=
+  GenRed.prog_implements t083_g t083_block t083_nkb t083_wf (by decide) (by decide)
+
+def t083_kernel : ReduceKernel :=
+  { name := "t083", arity := 2, block := t083_block
+  , nkb := t083_nkb, nout := 133693440
+  , init := FE.zeroC
+  , step := t083_g.step t083_block
+  , stored := t083_g.stored t083_block }
+
+-- t084: reducing family, 2 inputs, 265297920 outputs, reduced extent 9
+--   conv2d: N=16 Cin=128 Cout=128 groups=128 k=(3, 3) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=9
+def t084_g : GenRed :=
+  { nout := 265297920, K := 9
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16581120)) (IE.lit 128)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 129540)) (IE.lit 128))) (IE.lit 256)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 510)) (IE.lit 254)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3)))) (IE.lit 512)) (IE.add (IE.modi (IE.pid 0) (IE.lit 510)) (IE.modi IE.rk (IE.lit 3))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 129540)) (IE.lit 128)) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 510)) (IE.lit 254)) (IE.modi (IE.divi IE.rk (IE.lit 3)) (IE.lit 3))) (IE.lit 256)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 510)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 512)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t084_block : Nat := 8
+def t084_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t084_wf : t084_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t084. -/
+theorem t084_correct {α : Type} [ExactScalar α] :
+    Implements (t084_g.prog t084_block t084_nkb) (t084_g.spec (α := α)) :=
+  GenRed.prog_implements t084_g t084_block t084_nkb t084_wf (by decide) (by decide)
+
+def t084_kernel : ReduceKernel :=
+  { name := "t084", arity := 2, block := t084_block
+  , nkb := t084_nkb, nout := 265297920
+  , init := FE.zeroC
+  , step := t084_g.step t084_block
+  , stored := t084_g.stored t084_block }
+
+-- t085: reducing family, 2 inputs, 129024000 outputs, reduced extent 21
+--   conv2d: N=32 Cin=128 Cout=128 groups=128 k=(3, 7) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=21
+def t085_g : GenRed :=
+  { nout := 129024000, K := 21
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 4032000)) (IE.lit 128)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 31500)) (IE.lit 128))) (IE.lit 128)) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 250)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3)))) (IE.lit 256)) (IE.add (IE.modi (IE.pid 0) (IE.lit 250)) (IE.modi IE.rk (IE.lit 7))))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 31500)) (IE.lit 128)) (IE.lit 3)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3))) (IE.lit 7)) (IE.modi IE.rk (IE.lit 7))))]
+  , inRange := (BE.and (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 250)) (IE.lit 126)) (IE.modi (IE.divi IE.rk (IE.lit 7)) (IE.lit 3))) (IE.lit 128)) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 250)) (IE.modi IE.rk (IE.lit 7))) (IE.lit 256)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t085_block : Nat := 16
+def t085_nkb : Nat := 2
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t085_wf : t085_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t085. -/
+theorem t085_correct {α : Type} [ExactScalar α] :
+    Implements (t085_g.prog t085_block t085_nkb) (t085_g.spec (α := α)) :=
+  GenRed.prog_implements t085_g t085_block t085_nkb t085_wf (by decide) (by decide)
+
+def t085_kernel : ReduceKernel :=
+  { name := "t085", arity := 2, block := t085_block
+  , nkb := t085_nkb, nout := 129024000
+  , init := FE.zeroC
+  , step := t085_g.step t085_block
+  , stored := t085_g.stored t085_block }
+
+-- t086: two-stage pipeline, 3 input(s), 134217728-element intermediate at buffer 3
+--   depthwise-separable conv: 8x64x512x512 -> 8x64x512x512 -> (8, 128, 512, 512)
+def t086_s1_g : GenRed :=
+  { nout := 134217728, K := 9
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 16777216)) (IE.lit 64)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64))) (IE.lit 512)) (IE.sub (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 512)) (IE.lit 512)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 1))) (IE.lit 512)) (IE.sub (IE.add (IE.modi (IE.pid 0) (IE.lit 512)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 1)))), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 64)) (IE.lit 3)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 3)) (IE.modi IE.rk (IE.lit 3))))]
+  , inRange := (BE.and (BE.and (BE.and (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 512)) (IE.lit 512)) (IE.divi IE.rk (IE.lit 3)))) (BE.cmp .lt (IE.add (IE.modi (IE.divi (IE.pid 0) (IE.lit 512)) (IE.lit 512)) (IE.divi IE.rk (IE.lit 3))) (IE.lit 513))) (BE.cmp .le (IE.lit 1) (IE.add (IE.modi (IE.pid 0) (IE.lit 512)) (IE.modi IE.rk (IE.lit 3))))) (BE.cmp .lt (IE.add (IE.modi (IE.pid 0) (IE.lit 512)) (IE.modi IE.rk (IE.lit 3))) (IE.lit 513)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t086_s1_block : Nat := 8
+def t086_s1_nkb : Nat := 2
+
+theorem t086_s1_wf : t086_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t086_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t086_s1_g.prog t086_s1_block t086_s1_nkb) (t086_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t086_s1_g t086_s1_block t086_s1_nkb t086_s1_wf (by decide) (by decide)
+
+def t086_s2_g : GenRed :=
+  { nout := 268435456, K := 64
+  , offs := IE.sparse [(2, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 128)) (IE.lit 64)) IE.rk)), (3, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 33554432)) (IE.lit 64)) IE.rk) (IE.lit 512)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 512)) (IE.lit 512))) (IE.lit 512)) (IE.modi (IE.pid 0) (IE.lit 512))))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 3) (SE.inp 2))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t086_s2_block : Nat := 64
+def t086_s2_nkb : Nat := 1
+
+theorem t086_s2_wf : t086_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t086_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t086_s2_g.prog t086_s2_block t086_s2_nkb) (t086_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t086_s2_g t086_s2_block t086_s2_nkb t086_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t086_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t086_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t086_s2_g.spec (α := α)).outSize →
+        (t086_s2_g.spec (α := α)).out (subst bufs 3 u) q
+          = (t086_s2_g.spec (α := α)).out (subst bufs 3 v) q :=
+  GenRed.spec_locality t086_s2_g 3 134217728
+    (fun q k hq hk => (bound_pack (A := 262144) (B := 512) (bound_pack (A := 512) (B := 512) (bound_pack (A := 8) (B := 64) (bound_div (a := 8) (d := 33554432) hq) hk) (bound_mod (c := 512) (by decide : (0 : Nat) < 512))) (bound_mod (c := 512) (by decide : (0 : Nat) < 512))))
+    (fun _ _ => (by decide : (0 : Nat) < 134217728))
+
+/-- Correctness certificate for t086: the composed pipeline. -/
+theorem t086_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t086_s2_g.spec (α := α)).outSize →
+      runTwo (t086_s1_g.prog t086_s1_block t086_s1_nkb)
+             (t086_s2_g.prog t086_s2_block t086_s2_nkb) 3 bufs m1 m2 q
+        = (t086_s2_g.spec (α := α)).out
+            (subst bufs 3 (fun i => (t086_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t086_s1_impl t086_s2_impl t086_loc
+
+def t086_s1_kernel : ReduceKernel :=
+  { name := "t086_s1", arity := 2, block := t086_s1_block, nkb := t086_s1_nkb, nout := 134217728, init := FE.zeroC, step := t086_s1_g.step t086_s1_block, stored := t086_s1_g.stored t086_s1_block }
+def t086_s2_kernel : ReduceKernel :=
+  { name := "t086_s2", arity := 4, block := t086_s2_block, nkb := t086_s2_nkb, nout := 268435456, init := FE.zeroC, step := t086_s2_g.step t086_s2_block, stored := t086_s2_g.stored t086_s2_block }
+def t086_kernel : PipelineKernel :=
+  { name := "t086", arity := 3, n1 := 134217728, stage1 := t086_s1_kernel, stage2 := t086_s2_kernel }
+
+-- t087: reducing family, 2 inputs, 268435456 outputs, reduced extent 64
+--   conv2d: N=2 Cin=64 Cout=128 groups=1 k=(1, 1) stride=(1, 1) pad=(0, 0) dil=(1, 1) K=64
+def t087_g : GenRed :=
+  { nout := 268435456, K := 64
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 134217728)) (IE.lit 64)) IE.rk) (IE.lit 1024)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 1024)) (IE.lit 1024))) (IE.lit 1024)) (IE.modi (IE.pid 0) (IE.lit 1024)))), (1, (IE.add (IE.mul (IE.modi (IE.divi (IE.pid 0) (IE.lit 1048576)) (IE.lit 128)) (IE.lit 64)) IE.rk))]
+  , inRange := (BE.and (BE.cmp .lt (IE.modi (IE.divi (IE.pid 0) (IE.lit 1024)) (IE.lit 1024)) (IE.lit 1024)) (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 1024)) (IE.lit 1024)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t087_block : Nat := 64
+def t087_nkb : Nat := 1
+
+/-- Index maps mention only the output and reduction indices. -/
+theorem t087_wf : t087_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+/-- Correctness certificate for t087. -/
+theorem t087_correct {α : Type} [ExactScalar α] :
+    Implements (t087_g.prog t087_block t087_nkb) (t087_g.spec (α := α)) :=
+  GenRed.prog_implements t087_g t087_block t087_nkb t087_wf (by decide) (by decide)
+
+def t087_kernel : ReduceKernel :=
+  { name := "t087", arity := 2, block := t087_block
+  , nkb := t087_nkb, nout := 268435456
+  , init := FE.zeroC
+  , step := t087_g.step t087_block
+  , stored := t087_g.stored t087_block }
+
+-- t088: pointwise, arity 1, 67108864 outputs
+def t088_se : SE := (SE.bin .mul (SE.bin .mul (SE.lit false 1 2) (SE.inp 0)) (SE.bin .add (SE.lit false 1 1) (SE.un .tanh (SE.bin .mul (SE.lit false 354576841927535 444396168752463) (SE.bin .add (SE.inp 0) (SE.bin .mul (SE.lit false 8943 200000) (SE.bin .mul (SE.bin .mul (SE.inp 0) (SE.inp 0)) (SE.inp 0))))))))
+def t088_block : Nat := 1024
+def t088_n : Nat := 67108864
+def t088_nblocks : Nat := 65536
+def t088_kernel : FlatKernel :=
+  { name := "t088", arity := 1, block := t088_block
+  , n := t088_n, nblocks := t088_nblocks
+  , val := SE.toFE t088_block t088_n t088_se }
+
+/-- Correctness certificate for t088. -/
+theorem t088_correct {α : Type} [ExactScalar α] :
+    Implements (Prog.flat1d t088_nblocks t088_block t088_n
+                 (SE.toFE t088_block t088_n t088_se))
+               (SE.spec (α := α) t088_se 1 t088_n) :=
+  SE.flat_correct 1 t088_se (by decide) (by decide)
+
+-- t089: three-stage normalisation, 1 input buffer(s), intermediates 1048576 and 1048576 at buffers 1 and 2
+--   inclusive scan over dim 1 of (8192, 32768): 8192 rows, 128 blocks of 256
+def t089_s1_g : GenRed :=
+  { nout := 1048576, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 32768)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 256))) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t089_s1_block : Nat := 256
+def t089_s1_nkb : Nat := 1
+
+theorem t089_s1_wf : t089_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t089_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t089_s1_g.prog t089_s1_block t089_s1_nkb) (t089_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t089_s1_g t089_s1_block t089_s1_nkb t089_s1_wf (by decide) (by decide)
+
+def t089_s2_g : GenRed :=
+  { nout := 1048576, K := 128
+  , offs := IE.sparse [(1, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 128)) IE.rk))]
+  , inRange := (BE.cmp .lt IE.rk (IE.modi (IE.pid 0) (IE.lit 128)))
+  , body := (SE.inp 1)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t089_s2_block : Nat := 128
+def t089_s2_nkb : Nat := 1
+
+theorem t089_s2_wf : t089_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t089_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t089_s2_g.prog t089_s2_block t089_s2_nkb) (t089_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t089_s2_g t089_s2_block t089_s2_nkb t089_s2_wf (by decide) (by decide)
+
+def t089_s3_g : GenRed :=
+  { nout := 268435456, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 32768)) (IE.mul (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256)) (IE.lit 256))) IE.rk))]
+  , inRange := (BE.cmp .le IE.rk (IE.modi (IE.pid 0) (IE.lit 256)))
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse [(2, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 128)) (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256))))]
+  , post := (SE.bin .add (SE.inp 0) (SE.inp 3))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t089_s3_block : Nat := 256
+def t089_s3_nkb : Nat := 1
+
+theorem t089_s3_wf : t089_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t089_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t089_s3_g.prog t089_s3_block t089_s3_nkb) (t089_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t089_s3_g t089_s3_block t089_s3_nkb t089_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t089_l2 {α : Type} [ExactScalar α] :
+    Loc (t089_s2_g.spec (α := α)) 1 1048576 :=
+  GenRed.loc t089_s2_g 1 1048576 (fun q k hq hk => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 128) hq) hk)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t089_l3a {α : Type} [ExactScalar α] :
+    Loc (t089_s3_g.spec (α := α)) 1 1048576 :=
+  GenRed.loc t089_s3_g 1 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+theorem t089_l3b {α : Type} [ExactScalar α] :
+    Loc (t089_s3_g.spec (α := α)) 2 1048576 :=
+  GenRed.loc t089_s3_g 2 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun q hq => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 32768) hq) (bound_group (C := 32768) (CG := 256) (G := 128) (x := q) (by decide) (by decide) (by decide))))
+
+/-- Correctness certificate for t089: the composed three-stage pipeline. -/
+theorem t089_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t089_s3_g.spec (α := α)).outSize →
+      runThree (t089_s1_g.prog t089_s1_block t089_s1_nkb)
+               (t089_s2_g.prog t089_s2_block t089_s2_nkb)
+               (t089_s3_g.prog t089_s3_block t089_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t089_s1_g.spec (α := α)) (t089_s2_g.spec (α := α))
+            (t089_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t089_s1_impl t089_s2_impl t089_s3_impl t089_l2 t089_l3a t089_l3b
+
+def t089_s1_kernel : ReduceKernel :=
+  { name := "t089_s1", arity := 1, block := t089_s1_block, nkb := t089_s1_nkb, nout := 1048576, init := FE.zeroC, step := t089_s1_g.step t089_s1_block, stored := t089_s1_g.stored t089_s1_block }
+def t089_s2_kernel : ReduceKernel :=
+  { name := "t089_s2", arity := 2, block := t089_s2_block, nkb := t089_s2_nkb, nout := 1048576, init := FE.zeroC, step := t089_s2_g.step t089_s2_block, stored := t089_s2_g.stored t089_s2_block }
+def t089_s3_kernel : ReduceKernel :=
+  { name := "t089_s3", arity := 3, block := t089_s3_block, nkb := t089_s3_nkb, nout := 268435456, init := FE.zeroC, step := t089_s3_g.step t089_s3_block, stored := t089_s3_g.stored t089_s3_block }
+def t089_kernel : PipelineKernel3 :=
+  { name := "t089", arity := 1, n1 := 1048576, n2 := 1048576, stage1 := t089_s1_kernel, stage2 := t089_s2_kernel, stage3 := t089_s3_kernel }
+
+-- t090: three-stage normalisation, 1 input buffer(s), intermediates 1048576 and 1048576 at buffers 1 and 2
+--   inclusive product scan over dim 1 of (8192, 32768): 8192 rows, 128 blocks of 256
+def t090_s1_g : ProdRed :=
+  { nout := 1048576, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 32768)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 256))) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t090_s1_block : Nat := 256
+def t090_s1_nkb : Nat := 1
+
+theorem t090_s1_wf : t090_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t090_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t090_s1_g.prog t090_s1_block t090_s1_nkb) (t090_s1_g.spec (α := α)) :=
+  ProdRed.prog_implements t090_s1_g t090_s1_block t090_s1_nkb t090_s1_wf (by decide) (by decide)
+
+def t090_s2_g : ProdRed :=
+  { nout := 1048576, K := 128
+  , offs := IE.sparse [(1, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 128)) IE.rk))]
+  , inRange := (BE.cmp .lt IE.rk (IE.modi (IE.pid 0) (IE.lit 128)))
+  , body := (SE.inp 1)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t090_s2_block : Nat := 128
+def t090_s2_nkb : Nat := 1
+
+theorem t090_s2_wf : t090_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t090_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t090_s2_g.prog t090_s2_block t090_s2_nkb) (t090_s2_g.spec (α := α)) :=
+  ProdRed.prog_implements t090_s2_g t090_s2_block t090_s2_nkb t090_s2_wf (by decide) (by decide)
+
+def t090_s3_g : ProdRed :=
+  { nout := 268435456, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 32768)) (IE.mul (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256)) (IE.lit 256))) IE.rk))]
+  , inRange := (BE.cmp .le IE.rk (IE.modi (IE.pid 0) (IE.lit 256)))
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse [(2, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 128)) (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256))))]
+  , post := (SE.bin .mul (SE.inp 0) (SE.inp 3))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t090_s3_block : Nat := 256
+def t090_s3_nkb : Nat := 1
+
+theorem t090_s3_wf : t090_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t090_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t090_s3_g.prog t090_s3_block t090_s3_nkb) (t090_s3_g.spec (α := α)) :=
+  ProdRed.prog_implements t090_s3_g t090_s3_block t090_s3_nkb t090_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t090_l2 {α : Type} [ExactScalar α] :
+    Loc (t090_s2_g.spec (α := α)) 1 1048576 :=
+  ProdRed.loc t090_s2_g 1 1048576 (fun q k hq hk => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 128) hq) hk)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t090_l3a {α : Type} [ExactScalar α] :
+    Loc (t090_s3_g.spec (α := α)) 1 1048576 :=
+  ProdRed.loc t090_s3_g 1 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+theorem t090_l3b {α : Type} [ExactScalar α] :
+    Loc (t090_s3_g.spec (α := α)) 2 1048576 :=
+  ProdRed.loc t090_s3_g 2 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun q hq => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 32768) hq) (bound_group (C := 32768) (CG := 256) (G := 128) (x := q) (by decide) (by decide) (by decide))))
+
+/-- Correctness certificate for t090: the composed three-stage pipeline. -/
+theorem t090_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t090_s3_g.spec (α := α)).outSize →
+      runThree (t090_s1_g.prog t090_s1_block t090_s1_nkb)
+               (t090_s2_g.prog t090_s2_block t090_s2_nkb)
+               (t090_s3_g.prog t090_s3_block t090_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t090_s1_g.spec (α := α)) (t090_s2_g.spec (α := α))
+            (t090_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t090_s1_impl t090_s2_impl t090_s3_impl t090_l2 t090_l3a t090_l3b
+
+def t090_s1_kernel : ReduceKernel :=
+  { name := "t090_s1", arity := 1, block := t090_s1_block, nkb := t090_s1_nkb, nout := 1048576, init := FE.oneC, step := t090_s1_g.step t090_s1_block, stored := t090_s1_g.stored t090_s1_block }
+def t090_s2_kernel : ReduceKernel :=
+  { name := "t090_s2", arity := 2, block := t090_s2_block, nkb := t090_s2_nkb, nout := 1048576, init := FE.oneC, step := t090_s2_g.step t090_s2_block, stored := t090_s2_g.stored t090_s2_block }
+def t090_s3_kernel : ReduceKernel :=
+  { name := "t090_s3", arity := 3, block := t090_s3_block, nkb := t090_s3_nkb, nout := 268435456, init := FE.oneC, step := t090_s3_g.step t090_s3_block, stored := t090_s3_g.stored t090_s3_block }
+def t090_kernel : PipelineKernel3 :=
+  { name := "t090", arity := 1, n1 := 1048576, n2 := 1048576, stage1 := t090_s1_kernel, stage2 := t090_s2_kernel, stage3 := t090_s3_kernel }
+
+-- t091: three-stage normalisation, 1 input buffer(s), intermediates 1048576 and 1048576 at buffers 1 and 2
+--   reverse scan over dim 1 of (8192, 32768): 8192 rows, 128 blocks of 256
+def t091_s1_g : GenRed :=
+  { nout := 1048576, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 32768)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 256))) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t091_s1_block : Nat := 256
+def t091_s1_nkb : Nat := 1
+
+theorem t091_s1_wf : t091_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t091_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t091_s1_g.prog t091_s1_block t091_s1_nkb) (t091_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t091_s1_g t091_s1_block t091_s1_nkb t091_s1_wf (by decide) (by decide)
+
+def t091_s2_g : GenRed :=
+  { nout := 1048576, K := 128
+  , offs := IE.sparse [(1, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 128)) IE.rk))]
+  , inRange := (BE.cmp .lt (IE.modi (IE.pid 0) (IE.lit 128)) IE.rk)
+  , body := (SE.inp 1)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t091_s2_block : Nat := 128
+def t091_s2_nkb : Nat := 1
+
+theorem t091_s2_wf : t091_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t091_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t091_s2_g.prog t091_s2_block t091_s2_nkb) (t091_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t091_s2_g t091_s2_block t091_s2_nkb t091_s2_wf (by decide) (by decide)
+
+def t091_s3_g : GenRed :=
+  { nout := 268435456, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 32768)) (IE.mul (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256)) (IE.lit 256))) IE.rk))]
+  , inRange := (BE.cmp .le (IE.modi (IE.pid 0) (IE.lit 256)) IE.rk)
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse [(2, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 128)) (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256))))]
+  , post := (SE.bin .add (SE.inp 0) (SE.inp 3))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t091_s3_block : Nat := 256
+def t091_s3_nkb : Nat := 1
+
+theorem t091_s3_wf : t091_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t091_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t091_s3_g.prog t091_s3_block t091_s3_nkb) (t091_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t091_s3_g t091_s3_block t091_s3_nkb t091_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t091_l2 {α : Type} [ExactScalar α] :
+    Loc (t091_s2_g.spec (α := α)) 1 1048576 :=
+  GenRed.loc t091_s2_g 1 1048576 (fun q k hq hk => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 128) hq) hk)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t091_l3a {α : Type} [ExactScalar α] :
+    Loc (t091_s3_g.spec (α := α)) 1 1048576 :=
+  GenRed.loc t091_s3_g 1 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+theorem t091_l3b {α : Type} [ExactScalar α] :
+    Loc (t091_s3_g.spec (α := α)) 2 1048576 :=
+  GenRed.loc t091_s3_g 2 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun q hq => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 32768) hq) (bound_group (C := 32768) (CG := 256) (G := 128) (x := q) (by decide) (by decide) (by decide))))
+
+/-- Correctness certificate for t091: the composed three-stage pipeline. -/
+theorem t091_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t091_s3_g.spec (α := α)).outSize →
+      runThree (t091_s1_g.prog t091_s1_block t091_s1_nkb)
+               (t091_s2_g.prog t091_s2_block t091_s2_nkb)
+               (t091_s3_g.prog t091_s3_block t091_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t091_s1_g.spec (α := α)) (t091_s2_g.spec (α := α))
+            (t091_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t091_s1_impl t091_s2_impl t091_s3_impl t091_l2 t091_l3a t091_l3b
+
+def t091_s1_kernel : ReduceKernel :=
+  { name := "t091_s1", arity := 1, block := t091_s1_block, nkb := t091_s1_nkb, nout := 1048576, init := FE.zeroC, step := t091_s1_g.step t091_s1_block, stored := t091_s1_g.stored t091_s1_block }
+def t091_s2_kernel : ReduceKernel :=
+  { name := "t091_s2", arity := 2, block := t091_s2_block, nkb := t091_s2_nkb, nout := 1048576, init := FE.zeroC, step := t091_s2_g.step t091_s2_block, stored := t091_s2_g.stored t091_s2_block }
+def t091_s3_kernel : ReduceKernel :=
+  { name := "t091_s3", arity := 3, block := t091_s3_block, nkb := t091_s3_nkb, nout := 268435456, init := FE.zeroC, step := t091_s3_g.step t091_s3_block, stored := t091_s3_g.stored t091_s3_block }
+def t091_kernel : PipelineKernel3 :=
+  { name := "t091", arity := 1, n1 := 1048576, n2 := 1048576, stage1 := t091_s1_kernel, stage2 := t091_s2_kernel, stage3 := t091_s3_kernel }
+
+-- t092: three-stage normalisation, 1 input buffer(s), intermediates 1048576 and 1048576 at buffers 1 and 2
+--   exclusive scan over dim 1 of (8192, 32768): 8192 rows, 128 blocks of 256
+def t092_s1_g : GenRed :=
+  { nout := 1048576, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 32768)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 256))) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t092_s1_block : Nat := 256
+def t092_s1_nkb : Nat := 1
+
+theorem t092_s1_wf : t092_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t092_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t092_s1_g.prog t092_s1_block t092_s1_nkb) (t092_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t092_s1_g t092_s1_block t092_s1_nkb t092_s1_wf (by decide) (by decide)
+
+def t092_s2_g : GenRed :=
+  { nout := 1048576, K := 128
+  , offs := IE.sparse [(1, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 128)) IE.rk))]
+  , inRange := (BE.cmp .lt IE.rk (IE.modi (IE.pid 0) (IE.lit 128)))
+  , body := (SE.inp 1)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t092_s2_block : Nat := 128
+def t092_s2_nkb : Nat := 1
+
+theorem t092_s2_wf : t092_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t092_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t092_s2_g.prog t092_s2_block t092_s2_nkb) (t092_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t092_s2_g t092_s2_block t092_s2_nkb t092_s2_wf (by decide) (by decide)
+
+def t092_s3_g : GenRed :=
+  { nout := 268435456, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 32768)) (IE.mul (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256)) (IE.lit 256))) IE.rk))]
+  , inRange := (BE.cmp .lt IE.rk (IE.modi (IE.pid 0) (IE.lit 256)))
+  , body := (SE.inp 0)
+  , postOffs := IE.sparse [(2, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 128)) (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256))))]
+  , post := (SE.bin .add (SE.inp 0) (SE.inp 3))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t092_s3_block : Nat := 256
+def t092_s3_nkb : Nat := 1
+
+theorem t092_s3_wf : t092_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t092_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t092_s3_g.prog t092_s3_block t092_s3_nkb) (t092_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t092_s3_g t092_s3_block t092_s3_nkb t092_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t092_l2 {α : Type} [ExactScalar α] :
+    Loc (t092_s2_g.spec (α := α)) 1 1048576 :=
+  GenRed.loc t092_s2_g 1 1048576 (fun q k hq hk => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 128) hq) hk)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t092_l3a {α : Type} [ExactScalar α] :
+    Loc (t092_s3_g.spec (α := α)) 1 1048576 :=
+  GenRed.loc t092_s3_g 1 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+theorem t092_l3b {α : Type} [ExactScalar α] :
+    Loc (t092_s3_g.spec (α := α)) 2 1048576 :=
+  GenRed.loc t092_s3_g 2 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun q hq => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 32768) hq) (bound_group (C := 32768) (CG := 256) (G := 128) (x := q) (by decide) (by decide) (by decide))))
+
+/-- Correctness certificate for t092: the composed three-stage pipeline. -/
+theorem t092_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t092_s3_g.spec (α := α)).outSize →
+      runThree (t092_s1_g.prog t092_s1_block t092_s1_nkb)
+               (t092_s2_g.prog t092_s2_block t092_s2_nkb)
+               (t092_s3_g.prog t092_s3_block t092_s3_nkb) 1 2 bufs m1 m2 m3 q
+        = compose3 (t092_s1_g.spec (α := α)) (t092_s2_g.spec (α := α))
+            (t092_s3_g.spec (α := α)) 1 2 bufs q :=
+  three_stage (by decide) t092_s1_impl t092_s2_impl t092_s3_impl t092_l2 t092_l3a t092_l3b
+
+def t092_s1_kernel : ReduceKernel :=
+  { name := "t092_s1", arity := 1, block := t092_s1_block, nkb := t092_s1_nkb, nout := 1048576, init := FE.zeroC, step := t092_s1_g.step t092_s1_block, stored := t092_s1_g.stored t092_s1_block }
+def t092_s2_kernel : ReduceKernel :=
+  { name := "t092_s2", arity := 2, block := t092_s2_block, nkb := t092_s2_nkb, nout := 1048576, init := FE.zeroC, step := t092_s2_g.step t092_s2_block, stored := t092_s2_g.stored t092_s2_block }
+def t092_s3_kernel : ReduceKernel :=
+  { name := "t092_s3", arity := 3, block := t092_s3_block, nkb := t092_s3_nkb, nout := 268435456, init := FE.zeroC, step := t092_s3_g.step t092_s3_block, stored := t092_s3_g.stored t092_s3_block }
+def t092_kernel : PipelineKernel3 :=
+  { name := "t092", arity := 1, n1 := 1048576, n2 := 1048576, stage1 := t092_s1_kernel, stage2 := t092_s2_kernel, stage3 := t092_s3_kernel }
+
+-- t093: three-stage normalisation, 2 input buffer(s), intermediates 1048576 and 1048576 at buffers 2 and 3
+--   inclusive scan over dim 1 of (8192, 32768): 8192 rows, 128 blocks of 256, masked
+def t093_s1_g : GenRed :=
+  { nout := 1048576, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 32768)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 256))) IE.rk)), (1, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 32768)) (IE.mul (IE.modi (IE.pid 0) (IE.lit 128)) (IE.lit 256))) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t093_s1_block : Nat := 256
+def t093_s1_nkb : Nat := 1
+
+theorem t093_s1_wf : t093_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t093_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t093_s1_g.prog t093_s1_block t093_s1_nkb) (t093_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t093_s1_g t093_s1_block t093_s1_nkb t093_s1_wf (by decide) (by decide)
+
+def t093_s2_g : GenRed :=
+  { nout := 1048576, K := 128
+  , offs := IE.sparse [(2, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 128)) (IE.lit 128)) IE.rk))]
+  , inRange := (BE.cmp .lt IE.rk (IE.modi (IE.pid 0) (IE.lit 128)))
+  , body := (SE.inp 2)
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t093_s2_block : Nat := 128
+def t093_s2_nkb : Nat := 1
+
+theorem t093_s2_wf : t093_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t093_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t093_s2_g.prog t093_s2_block t093_s2_nkb) (t093_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t093_s2_g t093_s2_block t093_s2_nkb t093_s2_wf (by decide) (by decide)
+
+def t093_s3_g : GenRed :=
+  { nout := 268435456, K := 256
+  , offs := IE.sparse [(0, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 32768)) (IE.mul (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256)) (IE.lit 256))) IE.rk)), (1, (IE.add (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 32768)) (IE.mul (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256)) (IE.lit 256))) IE.rk))]
+  , inRange := (BE.cmp .le IE.rk (IE.modi (IE.pid 0) (IE.lit 256)))
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse [(3, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 32768)) (IE.lit 128)) (IE.divi (IE.modi (IE.pid 0) (IE.lit 32768)) (IE.lit 256))))]
+  , post := (SE.bin .add (SE.inp 0) (SE.inp 4))
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t093_s3_block : Nat := 256
+def t093_s3_nkb : Nat := 1
+
+theorem t093_s3_wf : t093_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t093_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t093_s3_g.prog t093_s3_block t093_s3_nkb) (t093_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t093_s3_g t093_s3_block t093_s3_nkb t093_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t093_l2 {α : Type} [ExactScalar α] :
+    Loc (t093_s2_g.spec (α := α)) 2 1048576 :=
+  GenRed.loc t093_s2_g 2 1048576 (fun q k hq hk => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 128) hq) hk)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t093_l3a {α : Type} [ExactScalar α] :
+    Loc (t093_s3_g.spec (α := α)) 2 1048576 :=
+  GenRed.loc t093_s3_g 2 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun _ _ => (by decide : (0 : Nat) < 1048576))
+
+theorem t093_l3b {α : Type} [ExactScalar α] :
+    Loc (t093_s3_g.spec (α := α)) 3 1048576 :=
+  GenRed.loc t093_s3_g 3 1048576 (fun _ _ _ _ => (by decide : (0 : Nat) < 1048576)) (fun q hq => (bound_pack (A := 8192) (B := 128) (bound_div (a := 8192) (d := 32768) hq) (bound_group (C := 32768) (CG := 256) (G := 128) (x := q) (by decide) (by decide) (by decide))))
+
+/-- Correctness certificate for t093: the composed three-stage pipeline. -/
+theorem t093_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t093_s3_g.spec (α := α)).outSize →
+      runThree (t093_s1_g.prog t093_s1_block t093_s1_nkb)
+               (t093_s2_g.prog t093_s2_block t093_s2_nkb)
+               (t093_s3_g.prog t093_s3_block t093_s3_nkb) 2 3 bufs m1 m2 m3 q
+        = compose3 (t093_s1_g.spec (α := α)) (t093_s2_g.spec (α := α))
+            (t093_s3_g.spec (α := α)) 2 3 bufs q :=
+  three_stage (by decide) t093_s1_impl t093_s2_impl t093_s3_impl t093_l2 t093_l3a t093_l3b
+
+def t093_s1_kernel : ReduceKernel :=
+  { name := "t093_s1", arity := 2, block := t093_s1_block, nkb := t093_s1_nkb, nout := 1048576, init := FE.zeroC, step := t093_s1_g.step t093_s1_block, stored := t093_s1_g.stored t093_s1_block }
+def t093_s2_kernel : ReduceKernel :=
+  { name := "t093_s2", arity := 3, block := t093_s2_block, nkb := t093_s2_nkb, nout := 1048576, init := FE.zeroC, step := t093_s2_g.step t093_s2_block, stored := t093_s2_g.stored t093_s2_block }
+def t093_s3_kernel : ReduceKernel :=
+  { name := "t093_s3", arity := 4, block := t093_s3_block, nkb := t093_s3_nkb, nout := 268435456, init := FE.zeroC, step := t093_s3_g.step t093_s3_block, stored := t093_s3_g.stored t093_s3_block }
+def t093_kernel : PipelineKernel3 :=
+  { name := "t093", arity := 2, n1 := 1048576, n2 := 1048576, stage1 := t093_s1_kernel, stage2 := t093_s2_kernel, stage3 := t093_s3_kernel }
+
+-- t094: two-stage pipeline, 2 input(s), 4096-element intermediate at buffer 2
+--   reduce over dim None of (16384, 32768) (inputs [(16384, 32768), (16384, 32768)]): outer=1 K=536870912 inner=1; tree reduction: 536870912 elements -> 4096 partials
+def t094_s1_g : GenRed :=
+  { nout := 4096, K := 131072
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.divi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768)) (IE.lit 32768)) (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768)))), (1, (IE.add (IE.mul (IE.divi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768)) (IE.lit 32768)) (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768))))]
+  , inRange := (BE.cmp .lt (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 536870912))
+  , body := (SE.bin .mul (SE.bin .sub (SE.inp 0) (SE.inp 1)) (SE.bin .sub (SE.inp 0) (SE.inp 1)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t094_s1_block : Nat := 1024
+def t094_s1_nkb : Nat := 128
+
+theorem t094_s1_wf : t094_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t094_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t094_s1_g.prog t094_s1_block t094_s1_nkb) (t094_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t094_s1_g t094_s1_block t094_s1_nkb t094_s1_wf (by decide) (by decide)
+
+def t094_s2_g : GenRed :=
+  { nout := 1, K := 4096
+  , offs := IE.sparse [(2, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.inp 2)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 536870912))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t094_s2_block : Nat := 1024
+def t094_s2_nkb : Nat := 4
+
+theorem t094_s2_wf : t094_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t094_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t094_s2_g.prog t094_s2_block t094_s2_nkb) (t094_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t094_s2_g t094_s2_block t094_s2_nkb t094_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t094_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t094_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t094_s2_g.spec (α := α)).outSize →
+        (t094_s2_g.spec (α := α)).out (subst bufs 2 u) q
+          = (t094_s2_g.spec (α := α)).out (subst bufs 2 v) q :=
+  GenRed.spec_locality t094_s2_g 2 4096
+    (fun _ k _ hk => hk)
+    (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+/-- Correctness certificate for t094: the composed pipeline. -/
+theorem t094_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t094_s2_g.spec (α := α)).outSize →
+      runTwo (t094_s1_g.prog t094_s1_block t094_s1_nkb)
+             (t094_s2_g.prog t094_s2_block t094_s2_nkb) 2 bufs m1 m2 q
+        = (t094_s2_g.spec (α := α)).out
+            (subst bufs 2 (fun i => (t094_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t094_s1_impl t094_s2_impl t094_loc
+
+def t094_s1_kernel : ReduceKernel :=
+  { name := "t094_s1", arity := 2, block := t094_s1_block, nkb := t094_s1_nkb, nout := 4096, init := FE.zeroC, step := t094_s1_g.step t094_s1_block, stored := t094_s1_g.stored t094_s1_block }
+def t094_s2_kernel : ReduceKernel :=
+  { name := "t094_s2", arity := 3, block := t094_s2_block, nkb := t094_s2_nkb, nout := 1, init := FE.zeroC, step := t094_s2_g.step t094_s2_block, stored := t094_s2_g.stored t094_s2_block }
+def t094_kernel : PipelineKernel :=
+  { name := "t094", arity := 2, n1 := 4096, stage1 := t094_s1_kernel, stage2 := t094_s2_kernel }
+
+-- t095: three-stage normalisation, 2 input buffer(s), intermediates 32768 and 32768 at buffers 2 and 3
+--   cross entropy: batch 32768, 4096 classes
+def t095_s1_g : GenRed :=
+  { nout := 32768, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 4096)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.un .exp (SE.inp 0))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 1, idxSlot := 1048576 }
+def t095_s1_block : Nat := 1024
+def t095_s1_nkb : Nat := 4
+
+theorem t095_s1_wf : t095_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t095_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t095_s1_g.prog t095_s1_block t095_s1_nkb) (t095_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t095_s1_g t095_s1_block t095_s1_nkb t095_s1_wf (by decide) (by decide)
+
+def t095_s2_g : GenRed :=
+  { nout := 32768, K := 4096
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 4096)) IE.rk)), (1, (IE.pid 0))]
+  , inRange := BE.tt
+  , body := (SE.selLe (SE.inp 1) (SE.inp 4) (SE.selLe (SE.inp 4) (SE.inp 1) (SE.inp 0) (SE.lit false 0 1)) (SE.lit false 0 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 4 }
+def t095_s2_block : Nat := 1024
+def t095_s2_nkb : Nat := 4
+
+theorem t095_s2_wf : t095_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t095_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t095_s2_g.prog t095_s2_block t095_s2_nkb) (t095_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t095_s2_g t095_s2_block t095_s2_nkb t095_s2_wf (by decide) (by decide)
+
+def t095_s3_g : GenRed :=
+  { nout := 1, K := 32768
+  , offs := IE.sparse [(2, IE.rk), (3, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.bin .sub (SE.un .log (SE.inp 2)) (SE.inp 3))
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 32768))
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t095_s3_block : Nat := 1024
+def t095_s3_nkb : Nat := 32
+
+theorem t095_s3_wf : t095_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t095_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t095_s3_g.prog t095_s3_block t095_s3_nkb) (t095_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t095_s3_g t095_s3_block t095_s3_nkb t095_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t095_l2 {α : Type} [ExactScalar α] :
+    Loc (t095_s2_g.spec (α := α)) 2 32768 :=
+  GenRed.loc t095_s2_g 2 32768 (fun _ _ _ _ => (by decide : (0 : Nat) < 32768)) (fun _ _ => (by decide : (0 : Nat) < 32768))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t095_l3a {α : Type} [ExactScalar α] :
+    Loc (t095_s3_g.spec (α := α)) 2 32768 :=
+  GenRed.loc t095_s3_g 2 32768 (fun _ k _ hk => hk) (fun _ _ => (by decide : (0 : Nat) < 32768))
+
+theorem t095_l3b {α : Type} [ExactScalar α] :
+    Loc (t095_s3_g.spec (α := α)) 3 32768 :=
+  GenRed.loc t095_s3_g 3 32768 (fun _ k _ hk => hk) (fun _ _ => (by decide : (0 : Nat) < 32768))
+
+/-- Correctness certificate for t095: the composed three-stage pipeline. -/
+theorem t095_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t095_s3_g.spec (α := α)).outSize →
+      runThree (t095_s1_g.prog t095_s1_block t095_s1_nkb)
+               (t095_s2_g.prog t095_s2_block t095_s2_nkb)
+               (t095_s3_g.prog t095_s3_block t095_s3_nkb) 2 3 bufs m1 m2 m3 q
+        = compose3 (t095_s1_g.spec (α := α)) (t095_s2_g.spec (α := α))
+            (t095_s3_g.spec (α := α)) 2 3 bufs q :=
+  three_stage (by decide) t095_s1_impl t095_s2_impl t095_s3_impl t095_l2 t095_l3a t095_l3b
+
+def t095_s1_kernel : ReduceKernel :=
+  { name := "t095_s1", arity := 1, block := t095_s1_block, nkb := t095_s1_nkb, nout := 32768, init := FE.zeroC, step := t095_s1_g.step t095_s1_block, stored := t095_s1_g.stored t095_s1_block }
+def t095_s2_kernel : ReduceKernel :=
+  { name := "t095_s2", arity := 2, block := t095_s2_block, nkb := t095_s2_nkb, nout := 32768, init := FE.zeroC, step := t095_s2_g.step t095_s2_block, stored := t095_s2_g.stored t095_s2_block }
+def t095_s3_kernel : ReduceKernel :=
+  { name := "t095_s3", arity := 4, block := t095_s3_block, nkb := t095_s3_nkb, nout := 1, init := FE.zeroC, step := t095_s3_g.step t095_s3_block, stored := t095_s3_g.stored t095_s3_block }
+def t095_kernel : PipelineKernel3 :=
+  { name := "t095", arity := 2, n1 := 32768, n2 := 32768, stage1 := t095_s1_kernel, stage2 := t095_s2_kernel, stage3 := t095_s3_kernel }
+
+-- t096: two-stage pipeline, 2 input(s), 4096-element intermediate at buffer 2
+--   reduce over dim None of (16384, 32768) (inputs [(16384, 32768), (16384, 32768)]): outer=1 K=536870912 inner=1; tree reduction: 536870912 elements -> 4096 partials
+def t096_s1_g : GenRed :=
+  { nout := 4096, K := 131072
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.divi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768)) (IE.lit 32768)) (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768)))), (1, (IE.add (IE.mul (IE.divi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768)) (IE.lit 32768)) (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 32768))))]
+  , inRange := (BE.cmp .lt (IE.add (IE.mul (IE.pid 0) (IE.lit 131072)) IE.rk) (IE.lit 536870912))
+  , body := (SE.selLe (SE.un .abs (SE.bin .sub (SE.inp 0) (SE.inp 1))) (SE.lit false 1 1) (SE.bin .div (SE.bin .mul (SE.bin .mul (SE.lit false 1 2) (SE.un .abs (SE.bin .sub (SE.inp 0) (SE.inp 1)))) (SE.un .abs (SE.bin .sub (SE.inp 0) (SE.inp 1)))) (SE.lit false 1 1)) (SE.bin .sub (SE.un .abs (SE.bin .sub (SE.inp 0) (SE.inp 1))) (SE.lit false 1 2)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t096_s1_block : Nat := 1024
+def t096_s1_nkb : Nat := 128
+
+theorem t096_s1_wf : t096_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t096_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t096_s1_g.prog t096_s1_block t096_s1_nkb) (t096_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t096_s1_g t096_s1_block t096_s1_nkb t096_s1_wf (by decide) (by decide)
+
+def t096_s2_g : GenRed :=
+  { nout := 1, K := 4096
+  , offs := IE.sparse [(2, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.inp 2)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 536870912))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t096_s2_block : Nat := 1024
+def t096_s2_nkb : Nat := 4
+
+theorem t096_s2_wf : t096_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t096_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t096_s2_g.prog t096_s2_block t096_s2_nkb) (t096_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t096_s2_g t096_s2_block t096_s2_nkb t096_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t096_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t096_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t096_s2_g.spec (α := α)).outSize →
+        (t096_s2_g.spec (α := α)).out (subst bufs 2 u) q
+          = (t096_s2_g.spec (α := α)).out (subst bufs 2 v) q :=
+  GenRed.spec_locality t096_s2_g 2 4096
+    (fun _ k _ hk => hk)
+    (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+/-- Correctness certificate for t096: the composed pipeline. -/
+theorem t096_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t096_s2_g.spec (α := α)).outSize →
+      runTwo (t096_s1_g.prog t096_s1_block t096_s1_nkb)
+             (t096_s2_g.prog t096_s2_block t096_s2_nkb) 2 bufs m1 m2 q
+        = (t096_s2_g.spec (α := α)).out
+            (subst bufs 2 (fun i => (t096_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t096_s1_impl t096_s2_impl t096_loc
+
+def t096_s1_kernel : ReduceKernel :=
+  { name := "t096_s1", arity := 2, block := t096_s1_block, nkb := t096_s1_nkb, nout := 4096, init := FE.zeroC, step := t096_s1_g.step t096_s1_block, stored := t096_s1_g.stored t096_s1_block }
+def t096_s2_kernel : ReduceKernel :=
+  { name := "t096_s2", arity := 3, block := t096_s2_block, nkb := t096_s2_nkb, nout := 1, init := FE.zeroC, step := t096_s2_g.step t096_s2_block, stored := t096_s2_g.stored t096_s2_block }
+def t096_kernel : PipelineKernel :=
+  { name := "t096", arity := 2, n1 := 4096, stage1 := t096_s1_kernel, stage2 := t096_s2_kernel }
+
+-- t097: three-stage normalisation, 3 input buffer(s), intermediates 67108864 and 131072 at buffers 3 and 4
+--   attention: batch 8, 32 heads, 512 positions, embedding 1024
+def t097_s1_g : GenRed :=
+  { nout := 67108864, K := 1024
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 512)) (IE.modi (IE.divi (IE.pid 0) (IE.lit 512)) (IE.lit 512))) (IE.lit 1024)) IE.rk)), (1, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 262144)) (IE.lit 512)) (IE.modi (IE.pid 0) (IE.lit 512))) (IE.lit 1024)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.inp 0) (SE.inp 1))
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.recip (SE.un .sqrt (SE.lit false 1024 1))))
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t097_s1_block : Nat := 1024
+def t097_s1_nkb : Nat := 1
+
+theorem t097_s1_wf : t097_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t097_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t097_s1_g.prog t097_s1_block t097_s1_nkb) (t097_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t097_s1_g t097_s1_block t097_s1_nkb t097_s1_wf (by decide) (by decide)
+
+def t097_s2_g : GenRed :=
+  { nout := 131072, K := 512
+  , offs := IE.sparse [(3, (IE.add (IE.mul (IE.pid 0) (IE.lit 512)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.un .exp (SE.inp 3))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t097_s2_block : Nat := 512
+def t097_s2_nkb : Nat := 1
+
+theorem t097_s2_wf : t097_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t097_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t097_s2_g.prog t097_s2_block t097_s2_nkb) (t097_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t097_s2_g t097_s2_block t097_s2_nkb t097_s2_wf (by decide) (by decide)
+
+def t097_s3_g : GenRed :=
+  { nout := 134217728, K := 512
+  , offs := IE.sparse [(2, (IE.add (IE.mul (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 524288)) (IE.lit 512)) IE.rk) (IE.lit 1024)) (IE.modi (IE.pid 0) (IE.lit 1024)))), (3, (IE.add (IE.mul (IE.divi (IE.pid 0) (IE.lit 1024)) (IE.lit 512)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.un .exp (SE.inp 3)) (SE.inp 2))
+  , postOffs := IE.sparse [(4, (IE.divi (IE.pid 0) (IE.lit 1024)))]
+  , post := (SE.bin .mul (SE.inp 0) (SE.recip (SE.inp 5)))
+  , outGuard := BE.tt
+  , nInp := 5, idxSlot := 1048576 }
+def t097_s3_block : Nat := 512
+def t097_s3_nkb : Nat := 1
+
+theorem t097_s3_wf : t097_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t097_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t097_s3_g.prog t097_s3_block t097_s3_nkb) (t097_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t097_s3_g t097_s3_block t097_s3_nkb t097_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t097_l2 {α : Type} [ExactScalar α] :
+    Loc (t097_s2_g.spec (α := α)) 3 67108864 :=
+  GenRed.loc t097_s2_g 3 67108864 (fun q k hq hk => (bound_pack (A := 131072) (B := 512) hq hk)) (fun _ _ => (by decide : (0 : Nat) < 67108864))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t097_l3a {α : Type} [ExactScalar α] :
+    Loc (t097_s3_g.spec (α := α)) 3 67108864 :=
+  GenRed.loc t097_s3_g 3 67108864 (fun q k hq hk => (bound_pack (A := 131072) (B := 512) (bound_div (a := 131072) (d := 1024) hq) hk)) (fun _ _ => (by decide : (0 : Nat) < 67108864))
+
+theorem t097_l3b {α : Type} [ExactScalar α] :
+    Loc (t097_s3_g.spec (α := α)) 4 131072 :=
+  GenRed.loc t097_s3_g 4 131072 (fun _ _ _ _ => (by decide : (0 : Nat) < 131072)) (fun q hq => (bound_div (a := 131072) (d := 1024) hq))
+
+/-- Correctness certificate for t097: the composed three-stage pipeline. -/
+theorem t097_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t097_s3_g.spec (α := α)).outSize →
+      runThree (t097_s1_g.prog t097_s1_block t097_s1_nkb)
+               (t097_s2_g.prog t097_s2_block t097_s2_nkb)
+               (t097_s3_g.prog t097_s3_block t097_s3_nkb) 3 4 bufs m1 m2 m3 q
+        = compose3 (t097_s1_g.spec (α := α)) (t097_s2_g.spec (α := α))
+            (t097_s3_g.spec (α := α)) 3 4 bufs q :=
+  three_stage (by decide) t097_s1_impl t097_s2_impl t097_s3_impl t097_l2 t097_l3a t097_l3b
+
+def t097_s1_kernel : ReduceKernel :=
+  { name := "t097_s1", arity := 2, block := t097_s1_block, nkb := t097_s1_nkb, nout := 67108864, init := FE.zeroC, step := t097_s1_g.step t097_s1_block, stored := t097_s1_g.stored t097_s1_block }
+def t097_s2_kernel : ReduceKernel :=
+  { name := "t097_s2", arity := 4, block := t097_s2_block, nkb := t097_s2_nkb, nout := 131072, init := FE.zeroC, step := t097_s2_g.step t097_s2_block, stored := t097_s2_g.stored t097_s2_block }
+def t097_s3_kernel : ReduceKernel :=
+  { name := "t097_s3", arity := 5, block := t097_s3_block, nkb := t097_s3_nkb, nout := 134217728, init := FE.zeroC, step := t097_s3_g.step t097_s3_block, stored := t097_s3_g.stored t097_s3_block }
+def t097_kernel : PipelineKernel3 :=
+  { name := "t097", arity := 3, n1 := 67108864, n2 := 131072, stage1 := t097_s1_kernel, stage2 := t097_s2_kernel, stage3 := t097_s3_kernel }
+
+-- t098: two-stage pipeline, 2 input(s), 4096-element intermediate at buffer 2
+--   reduce over dim None of (16384, 16384) (inputs [(16384, 16384), (16384, 16384)]): outer=1 K=268435456 inner=1; tree reduction: 268435456 elements -> 4096 partials
+def t098_s1_g : GenRed :=
+  { nout := 4096, K := 65536
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.divi (IE.add (IE.mul (IE.pid 0) (IE.lit 65536)) IE.rk) (IE.lit 16384)) (IE.lit 16384)) (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 65536)) IE.rk) (IE.lit 16384)))), (1, (IE.add (IE.mul (IE.divi (IE.add (IE.mul (IE.pid 0) (IE.lit 65536)) IE.rk) (IE.lit 16384)) (IE.lit 16384)) (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 65536)) IE.rk) (IE.lit 16384))))]
+  , inRange := (BE.cmp .lt (IE.add (IE.mul (IE.pid 0) (IE.lit 65536)) IE.rk) (IE.lit 268435456))
+  , body := (SE.bin .mul (SE.inp 1) (SE.bin .sub (SE.un .log (SE.inp 1)) (SE.un .log (SE.inp 0))))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t098_s1_block : Nat := 1024
+def t098_s1_nkb : Nat := 64
+
+theorem t098_s1_wf : t098_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t098_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t098_s1_g.prog t098_s1_block t098_s1_nkb) (t098_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t098_s1_g t098_s1_block t098_s1_nkb t098_s1_wf (by decide) (by decide)
+
+def t098_s2_g : GenRed :=
+  { nout := 1, K := 4096
+  , offs := IE.sparse [(2, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.inp 2)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 16384))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t098_s2_block : Nat := 1024
+def t098_s2_nkb : Nat := 4
+
+theorem t098_s2_wf : t098_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t098_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t098_s2_g.prog t098_s2_block t098_s2_nkb) (t098_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t098_s2_g t098_s2_block t098_s2_nkb t098_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t098_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t098_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t098_s2_g.spec (α := α)).outSize →
+        (t098_s2_g.spec (α := α)).out (subst bufs 2 u) q
+          = (t098_s2_g.spec (α := α)).out (subst bufs 2 v) q :=
+  GenRed.spec_locality t098_s2_g 2 4096
+    (fun _ k _ hk => hk)
+    (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+/-- Correctness certificate for t098: the composed pipeline. -/
+theorem t098_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t098_s2_g.spec (α := α)).outSize →
+      runTwo (t098_s1_g.prog t098_s1_block t098_s1_nkb)
+             (t098_s2_g.prog t098_s2_block t098_s2_nkb) 2 bufs m1 m2 q
+        = (t098_s2_g.spec (α := α)).out
+            (subst bufs 2 (fun i => (t098_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t098_s1_impl t098_s2_impl t098_loc
+
+def t098_s1_kernel : ReduceKernel :=
+  { name := "t098_s1", arity := 2, block := t098_s1_block, nkb := t098_s1_nkb, nout := 4096, init := FE.zeroC, step := t098_s1_g.step t098_s1_block, stored := t098_s1_g.stored t098_s1_block }
+def t098_s2_kernel : ReduceKernel :=
+  { name := "t098_s2", arity := 3, block := t098_s2_block, nkb := t098_s2_nkb, nout := 1, init := FE.zeroC, step := t098_s2_g.step t098_s2_block, stored := t098_s2_g.stored t098_s2_block }
+def t098_kernel : PipelineKernel :=
+  { name := "t098", arity := 2, n1 := 4096, stage1 := t098_s1_kernel, stage2 := t098_s2_kernel }
+
+-- t099: three-stage normalisation, 3 input buffer(s), intermediates 32768 and 32768 at buffers 3 and 4
+--   triplet margin loss: batch 32768, 8192 features, margin=1.0, eps=1e-06
+def t099_s1_g : GenRed :=
+  { nout := 32768, K := 8192
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 8192)) IE.rk)), (1, (IE.add (IE.mul (IE.pid 0) (IE.lit 8192)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.bin .add (SE.bin .sub (SE.inp 0) (SE.inp 1)) (SE.lit false 1 1000000)) (SE.bin .add (SE.bin .sub (SE.inp 0) (SE.inp 1)) (SE.lit false 1 1000000)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t099_s1_block : Nat := 1024
+def t099_s1_nkb : Nat := 8
+
+theorem t099_s1_wf : t099_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t099_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t099_s1_g.prog t099_s1_block t099_s1_nkb) (t099_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t099_s1_g t099_s1_block t099_s1_nkb t099_s1_wf (by decide) (by decide)
+
+def t099_s2_g : GenRed :=
+  { nout := 32768, K := 8192
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.pid 0) (IE.lit 8192)) IE.rk)), (2, (IE.add (IE.mul (IE.pid 0) (IE.lit 8192)) IE.rk))]
+  , inRange := BE.tt
+  , body := (SE.bin .mul (SE.bin .add (SE.bin .sub (SE.inp 0) (SE.inp 2)) (SE.lit false 1 1000000)) (SE.bin .add (SE.bin .sub (SE.inp 0) (SE.inp 2)) (SE.lit false 1 1000000)))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 4, idxSlot := 1048576 }
+def t099_s2_block : Nat := 1024
+def t099_s2_nkb : Nat := 8
+
+theorem t099_s2_wf : t099_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t099_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t099_s2_g.prog t099_s2_block t099_s2_nkb) (t099_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t099_s2_g t099_s2_block t099_s2_nkb t099_s2_wf (by decide) (by decide)
+
+def t099_s3_g : GenRed :=
+  { nout := 1, K := 32768
+  , offs := IE.sparse [(3, IE.rk), (4, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.bin .max (SE.bin .add (SE.bin .sub (SE.un .sqrt (SE.inp 3)) (SE.un .sqrt (SE.inp 4))) (SE.lit false 1 1)) (SE.lit false 0 1))
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 32768))
+  , outGuard := BE.tt
+  , nInp := 5, idxSlot := 1048576 }
+def t099_s3_block : Nat := 1024
+def t099_s3_nkb : Nat := 32
+
+theorem t099_s3_wf : t099_s3_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t099_s3_impl {α : Type} [ExactScalar α] :
+    Implements (t099_s3_g.prog t099_s3_block t099_s3_nkb) (t099_s3_g.spec (α := α)) :=
+  GenRed.prog_implements t099_s3_g t099_s3_block t099_s3_nkb t099_s3_wf (by decide) (by decide)
+
+/-- Stage 2 reads the first intermediate only where stage 1 wrote it. -/
+theorem t099_l2 {α : Type} [ExactScalar α] :
+    Loc (t099_s2_g.spec (α := α)) 3 32768 :=
+  GenRed.loc t099_s2_g 3 32768 (fun _ _ _ _ => (by decide : (0 : Nat) < 32768)) (fun _ _ => (by decide : (0 : Nat) < 32768))
+
+/-- Stage 3 reads each intermediate only where its stage wrote it. -/
+theorem t099_l3a {α : Type} [ExactScalar α] :
+    Loc (t099_s3_g.spec (α := α)) 3 32768 :=
+  GenRed.loc t099_s3_g 3 32768 (fun _ k _ hk => hk) (fun _ _ => (by decide : (0 : Nat) < 32768))
+
+theorem t099_l3b {α : Type} [ExactScalar α] :
+    Loc (t099_s3_g.spec (α := α)) 4 32768 :=
+  GenRed.loc t099_s3_g 4 32768 (fun _ k _ hk => hk) (fun _ _ => (by decide : (0 : Nat) < 32768))
+
+/-- Correctness certificate for t099: the composed three-stage pipeline. -/
+theorem t099_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 m3 : Mem α) (q : Nat),
+      q < (t099_s3_g.spec (α := α)).outSize →
+      runThree (t099_s1_g.prog t099_s1_block t099_s1_nkb)
+               (t099_s2_g.prog t099_s2_block t099_s2_nkb)
+               (t099_s3_g.prog t099_s3_block t099_s3_nkb) 3 4 bufs m1 m2 m3 q
+        = compose3 (t099_s1_g.spec (α := α)) (t099_s2_g.spec (α := α))
+            (t099_s3_g.spec (α := α)) 3 4 bufs q :=
+  three_stage (by decide) t099_s1_impl t099_s2_impl t099_s3_impl t099_l2 t099_l3a t099_l3b
+
+def t099_s1_kernel : ReduceKernel :=
+  { name := "t099_s1", arity := 3, block := t099_s1_block, nkb := t099_s1_nkb, nout := 32768, init := FE.zeroC, step := t099_s1_g.step t099_s1_block, stored := t099_s1_g.stored t099_s1_block }
+def t099_s2_kernel : ReduceKernel :=
+  { name := "t099_s2", arity := 4, block := t099_s2_block, nkb := t099_s2_nkb, nout := 32768, init := FE.zeroC, step := t099_s2_g.step t099_s2_block, stored := t099_s2_g.stored t099_s2_block }
+def t099_s3_kernel : ReduceKernel :=
+  { name := "t099_s3", arity := 5, block := t099_s3_block, nkb := t099_s3_nkb, nout := 1, init := FE.zeroC, step := t099_s3_g.step t099_s3_block, stored := t099_s3_g.stored t099_s3_block }
+def t099_kernel : PipelineKernel3 :=
+  { name := "t099", arity := 3, n1 := 32768, n2 := 32768, stage1 := t099_s1_kernel, stage2 := t099_s2_kernel, stage3 := t099_s3_kernel }
+
+-- t100: two-stage pipeline, 2 input(s), 4096-element intermediate at buffer 2
+--   reduce over dim None of (32768, 32768) (inputs [(32768, 32768), (32768,)]): outer=1 K=1073741824 inner=1; tree reduction: 1073741824 elements -> 4096 partials
+def t100_s1_g : GenRed :=
+  { nout := 4096, K := 262144
+  , offs := IE.sparse [(0, (IE.add (IE.mul (IE.divi (IE.add (IE.mul (IE.pid 0) (IE.lit 262144)) IE.rk) (IE.lit 32768)) (IE.lit 32768)) (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 262144)) IE.rk) (IE.lit 32768)))), (1, (IE.modi (IE.add (IE.mul (IE.pid 0) (IE.lit 262144)) IE.rk) (IE.lit 32768)))]
+  , inRange := (BE.cmp .lt (IE.add (IE.mul (IE.pid 0) (IE.lit 262144)) IE.rk) (IE.lit 1073741824))
+  , body := (SE.bin .max (SE.bin .sub (SE.lit false 1 1) (SE.bin .mul (SE.inp 0) (SE.inp 1))) (SE.lit false 0 1))
+  , postOffs := IE.sparse []
+  , post := (SE.inp 0)
+  , outGuard := BE.tt
+  , nInp := 2, idxSlot := 1048576 }
+def t100_s1_block : Nat := 1024
+def t100_s1_nkb : Nat := 256
+
+theorem t100_s1_wf : t100_s1_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t100_s1_impl {α : Type} [ExactScalar α] :
+    Implements (t100_s1_g.prog t100_s1_block t100_s1_nkb) (t100_s1_g.spec (α := α)) :=
+  GenRed.prog_implements t100_s1_g t100_s1_block t100_s1_nkb t100_s1_wf (by decide) (by decide)
+
+def t100_s2_g : GenRed :=
+  { nout := 1, K := 4096
+  , offs := IE.sparse [(2, IE.rk)]
+  , inRange := BE.tt
+  , body := (SE.inp 2)
+  , postOffs := IE.sparse []
+  , post := (SE.bin .mul (SE.inp 0) (SE.lit false 1 1073741824))
+  , outGuard := BE.tt
+  , nInp := 3, idxSlot := 1048576 }
+def t100_s2_block : Nat := 1024
+def t100_s2_nkb : Nat := 4
+
+theorem t100_s2_wf : t100_s2_g.Wf :=
+  { offs_ok := IE.qkOnly_sparse _ (by decide)
+  , post_ok := IE.qkOnly_sparse _ (by decide)
+  , range_ok := by decide
+  , guard_ok := by decide }
+
+theorem t100_s2_impl {α : Type} [ExactScalar α] :
+    Implements (t100_s2_g.prog t100_s2_block t100_s2_nkb) (t100_s2_g.spec (α := α)) :=
+  GenRed.prog_implements t100_s2_g t100_s2_block t100_s2_nkb t100_s2_wf (by decide) (by decide)
+
+/-- Stage 2 reads the intermediate only where stage 1 wrote it. -/
+theorem t100_loc {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (u v : Buf α),
+      (∀ i, i < (t100_s1_g.spec (α := α)).outSize → u i = v i) →
+      ∀ q, q < (t100_s2_g.spec (α := α)).outSize →
+        (t100_s2_g.spec (α := α)).out (subst bufs 2 u) q
+          = (t100_s2_g.spec (α := α)).out (subst bufs 2 v) q :=
+  GenRed.spec_locality t100_s2_g 2 4096
+    (fun _ k _ hk => hk)
+    (fun _ _ => (by decide : (0 : Nat) < 4096))
+
+/-- Correctness certificate for t100: the composed pipeline. -/
+theorem t100_correct {α : Type} [ExactScalar α] :
+    ∀ (bufs : Nat → Buf α) (m1 m2 : Mem α) (q : Nat),
+      q < (t100_s2_g.spec (α := α)).outSize →
+      runTwo (t100_s1_g.prog t100_s1_block t100_s1_nkb)
+             (t100_s2_g.prog t100_s2_block t100_s2_nkb) 2 bufs m1 m2 q
+        = (t100_s2_g.spec (α := α)).out
+            (subst bufs 2 (fun i => (t100_s1_g.spec (α := α)).out bufs i)) q :=
+  two_stage t100_s1_impl t100_s2_impl t100_loc
+
+def t100_s1_kernel : ReduceKernel :=
+  { name := "t100_s1", arity := 2, block := t100_s1_block, nkb := t100_s1_nkb, nout := 4096, init := FE.zeroC, step := t100_s1_g.step t100_s1_block, stored := t100_s1_g.stored t100_s1_block }
+def t100_s2_kernel : ReduceKernel :=
+  { name := "t100_s2", arity := 3, block := t100_s2_block, nkb := t100_s2_nkb, nout := 1, init := FE.zeroC, step := t100_s2_g.step t100_s2_block, stored := t100_s2_g.stored t100_s2_block }
+def t100_kernel : PipelineKernel :=
+  { name := "t100", arity := 2, n1 := 4096, stage1 := t100_s1_kernel, stage2 := t100_s2_kernel }
 
 def main : IO Unit := do
+  IO.FS.writeFile "../generated/t001.py" t001_kernel.render
+  IO.FS.writeFile "../generated/t002.py" t002_kernel.render
+  IO.FS.writeFile "../generated/t003.py" t003_kernel.render
+  IO.FS.writeFile "../generated/t004.py" t004_kernel.render
+  IO.FS.writeFile "../generated/t005.py" t005_kernel.render
+  IO.FS.writeFile "../generated/t006.py" t006_kernel.render
+  IO.FS.writeFile "../generated/t007.py" t007_kernel.render
+  IO.FS.writeFile "../generated/t008.py" t008_kernel.render
+  IO.FS.writeFile "../generated/t009.py" t009_kernel.render
+  IO.FS.writeFile "../generated/t010.py" t010_kernel.render
+  IO.FS.writeFile "../generated/t011.py" t011_kernel.render
+  IO.FS.writeFile "../generated/t012.py" t012_kernel.render
+  IO.FS.writeFile "../generated/t013.py" t013_kernel.render
+  IO.FS.writeFile "../generated/t014.py" t014_kernel.render
+  IO.FS.writeFile "../generated/t015.py" t015_kernel.render
+  IO.FS.writeFile "../generated/t016.py" t016_kernel.render
   IO.FS.writeFile "../generated/t017.py" t017_kernel.render
   IO.FS.writeFile "../generated/t018.py" t018_kernel.render
+  IO.FS.writeFile "../generated/t019.py" t019_kernel.render
+  IO.FS.writeFile "../generated/t020.py" t020_kernel.render
+  IO.FS.writeFile "../generated/t021.py" t021_kernel.render
+  IO.FS.writeFile "../generated/t022.py" t022_kernel.render
+  IO.FS.writeFile "../generated/t023.py" t023_kernel.render
+  IO.FS.writeFile "../generated/t024.py" t024_kernel.render
+  IO.FS.writeFile "../generated/t025.py" t025_kernel.render
+  IO.FS.writeFile "../generated/t026.py" t026_kernel.render
+  IO.FS.writeFile "../generated/t027.py" t027_kernel.render
+  IO.FS.writeFile "../generated/t028.py" t028_kernel.render
+  IO.FS.writeFile "../generated/t029.py" t029_kernel.render
+  IO.FS.writeFile "../generated/t030.py" t030_kernel.render
+  IO.FS.writeFile "../generated/t031.py" t031_kernel.render
+  IO.FS.writeFile "../generated/t032.py" t032_kernel.render
+  IO.FS.writeFile "../generated/t033.py" t033_kernel.render
+  IO.FS.writeFile "../generated/t034.py" t034_kernel.render
+  IO.FS.writeFile "../generated/t035.py" t035_kernel.render
+  IO.FS.writeFile "../generated/t036.py" t036_kernel.render
+  IO.FS.writeFile "../generated/t037.py" t037_kernel.render
+  IO.FS.writeFile "../generated/t038.py" t038_kernel.render
+  IO.FS.writeFile "../generated/t039.py" t039_kernel.render
+  IO.FS.writeFile "../generated/t040.py" t040_kernel.render
+  IO.FS.writeFile "../generated/t041.py" t041_kernel.render
+  IO.FS.writeFile "../generated/t042.py" t042_kernel.render
+  IO.FS.writeFile "../generated/t043.py" t043_kernel.render
+  IO.FS.writeFile "../generated/t044.py" t044_kernel.render
+  IO.FS.writeFile "../generated/t045.py" t045_kernel.render
+  IO.FS.writeFile "../generated/t046.py" t046_kernel.render
+  IO.FS.writeFile "../generated/t047.py" t047_kernel.render
+  IO.FS.writeFile "../generated/t048.py" t048_kernel.render
+  IO.FS.writeFile "../generated/t049.py" t049_kernel.render
+  IO.FS.writeFile "../generated/t050.py" t050_kernel.render
+  IO.FS.writeFile "../generated/t051.py" t051_kernel.render
+  IO.FS.writeFile "../generated/t052.py" t052_kernel.render
+  IO.FS.writeFile "../generated/t053.py" t053_kernel.render
+  IO.FS.writeFile "../generated/t054.py" t054_kernel.render
+  IO.FS.writeFile "../generated/t055.py" t055_kernel.render
+  IO.FS.writeFile "../generated/t056.py" t056_kernel.render
+  IO.FS.writeFile "../generated/t057.py" t057_kernel.render
+  IO.FS.writeFile "../generated/t058.py" t058_kernel.render
+  IO.FS.writeFile "../generated/t059.py" t059_kernel.render
+  IO.FS.writeFile "../generated/t060.py" t060_kernel.render
+  IO.FS.writeFile "../generated/t061.py" t061_kernel.render
+  IO.FS.writeFile "../generated/t062.py" t062_kernel.render
+  IO.FS.writeFile "../generated/t063.py" t063_kernel.render
+  IO.FS.writeFile "../generated/t064.py" t064_kernel.render
+  IO.FS.writeFile "../generated/t065.py" t065_kernel.render
+  IO.FS.writeFile "../generated/t066.py" t066_kernel.render
+  IO.FS.writeFile "../generated/t067.py" t067_kernel.render
+  IO.FS.writeFile "../generated/t068.py" t068_kernel.render
+  IO.FS.writeFile "../generated/t069.py" t069_kernel.render
+  IO.FS.writeFile "../generated/t070.py" t070_kernel.render
+  IO.FS.writeFile "../generated/t071.py" t071_kernel.render
+  IO.FS.writeFile "../generated/t072.py" t072_kernel.render
+  IO.FS.writeFile "../generated/t073.py" t073_kernel.render
+  IO.FS.writeFile "../generated/t074.py" t074_kernel.render
+  IO.FS.writeFile "../generated/t075.py" t075_kernel.render
+  IO.FS.writeFile "../generated/t076.py" t076_kernel.render
+  IO.FS.writeFile "../generated/t077.py" t077_kernel.render
+  IO.FS.writeFile "../generated/t078.py" t078_kernel.render
+  IO.FS.writeFile "../generated/t079.py" t079_kernel.render
+  IO.FS.writeFile "../generated/t080.py" t080_kernel.render
+  IO.FS.writeFile "../generated/t081.py" t081_kernel.render
+  IO.FS.writeFile "../generated/t082.py" t082_kernel.render
+  IO.FS.writeFile "../generated/t083.py" t083_kernel.render
+  IO.FS.writeFile "../generated/t084.py" t084_kernel.render
+  IO.FS.writeFile "../generated/t085.py" t085_kernel.render
+  IO.FS.writeFile "../generated/t086.py" t086_kernel.render
+  IO.FS.writeFile "../generated/t087.py" t087_kernel.render
+  IO.FS.writeFile "../generated/t088.py" t088_kernel.render
+  IO.FS.writeFile "../generated/t089.py" t089_kernel.render
+  IO.FS.writeFile "../generated/t090.py" t090_kernel.render
+  IO.FS.writeFile "../generated/t091.py" t091_kernel.render
+  IO.FS.writeFile "../generated/t092.py" t092_kernel.render
+  IO.FS.writeFile "../generated/t093.py" t093_kernel.render
+  IO.FS.writeFile "../generated/t094.py" t094_kernel.render
+  IO.FS.writeFile "../generated/t095.py" t095_kernel.render
+  IO.FS.writeFile "../generated/t096.py" t096_kernel.render
+  IO.FS.writeFile "../generated/t097.py" t097_kernel.render
+  IO.FS.writeFile "../generated/t098.py" t098_kernel.render
+  IO.FS.writeFile "../generated/t099.py" t099_kernel.render
+  IO.FS.writeFile "../generated/t100.py" t100_kernel.render

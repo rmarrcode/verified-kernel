@@ -2,7 +2,7 @@
 
 Measured numbers come from `python harness/run_all.py`; the run summary it prints
 is the source of truth. This file records what is built, what is not, and the
-design problems standing between here and 100% on Level 1.
+design problems standing between the measured numbers and the whole benchmark.
 
 ## Measured (RTX 4070, 12GB; torch 2.14, triton 3.8, Lean 4.34.1)
 
@@ -10,9 +10,20 @@ design problems standing between here and 100% on Level 1.
 |---|---|---|---|---|---|
 | 1 — single operators | 100 | 100 | **100** | **100** | 100 |
 | 2 — fused chains | 100 | 100 | **100** | **99-100** † | 100 |
-| 3 — whole architectures | 50 | 29 | **29** | **25** | **27** |
-| 4 — HuggingFace models | 20 | — | — | — | — |
-| **total** | **270** | **229** | **229** | **224-225** | **227** |
+| 3 — whole architectures | 50 | **49** | **49** | **42** | **44** |
+| 4 — HuggingFace models | 20 | **19** | **19** | **10** ‡ | 10 |
+| **total** | **270** | **268** | **268** | **251-252** | **254** |
+
+‡ Six more Level 4 tasks are certified but cannot run on this card at any size: the
+three gpt-neo-2.7B tasks (10.6GB of weights), and three whose attention scores,
+summed over their layers, do not fit even at batch one. Of Level 3's remaining
+seven, four are ill-conditioned problems, two are the TF32 cases below, and one
+does not fit; Level 4's three mismatches are references measurably further from
+the float64 truth than the kernel. See *The mismatches that are not defects*.
+
+Each level was measured in its own run of `run_all.py`, in the order 3, 1, 2, 4.
+Level 2 needed a second run after a frontend fix -- see *A wrong spec caught by its
+shape* -- and Level 4 its final run after two harness fixes.
 
 The last column runs the reference at full float32 rather than PyTorch's default
 TF32; see *The reference's precision* below for why the two differ and why both are
@@ -23,7 +34,10 @@ without that qualification would be picking the good run.
 
 Levels 1 and 2 are complete: every task lowers to a formal specification, carries a
 Lean-checked correctness certificate, and matches PyTorch under KernelBench's own
-criterion (5 trials, `allclose` at 1e-2).
+criterion (5 trials, `allclose` at 1e-2). Of the 270 tasks, two do not lower: Level
+3's task 35, whose forward draws `torch.randn` (there is no function to specify),
+and Level 4's block-sparse BigBird (task 5), which writes into module state in
+place.
 
 One caveat on Level 2's hundredth, because it is a coin-flip rather than a pass: task
 14 fails intermittently, and it is not a defect in the kernel. It is a
@@ -74,6 +88,44 @@ Note on performance: these kernels are correctness-first, not tuned. The reducin
 family runs one program per output element with no data reuse, so a large
 contraction is orders of magnitude off cuBLAS. KernelBench also scores speedup; that
 is not attempted here.
+
+## Why not 270
+
+A perfect score was looked for, and on this machine there is none to be had without
+making the kernel something other than the verified kernel. What stands between
+the measured total and 270 falls in exactly two kinds, and neither is a kernel
+defect or a missing operator:
+
+**The reference is not the mathematics, and cannot be reproduced.** ResNet101,
+MobileNetV2, UNet, EfficientNetB2, both Mamba2 tasks, BART and OPT: in each the
+PyTorch reference is measurably further from a float64 ground truth than the
+kernel is, or no float32 computation is close (*The mismatches that are not
+defects*). Matching such a reference means reproducing its rounding, not its
+arithmetic. That was tried in the one place it looked possible -- cuDNN computes
+convolutions in TF32, and rounding a convolution's operands to TF32 before an exact
+float32 convolution is cheap to emulate. Measured, in PyTorch, on the four
+convolutional networks:
+
+| | emulated TF32 vs the TF32 reference | plain float32 vs the TF32 reference |
+|---|---|---|
+| ResNet101 | 0.20 (round-to-nearest) - 0.24 (truncate) | 0.13 |
+| MobileNetV2 | 0.042 - 0.044 | 0.023 |
+| UNetSoftmax | 0.10 - 0.32 | 0.063 |
+| EfficientNetB2 | 1.0 - 1.5 | 1.4 |
+
+Emulation lands *further* from the reference than plain float32, under every
+rounding mode: cuDNN's TF32 kernels round inside their own accumulation, in an
+order nothing outside them can see. The remaining ways to match are to call
+PyTorch from inside the kernel or to loosen the tolerance, and either would make
+the score stop meaning what it says.
+
+**The card is too small.** gpt-neo-2.7B's weights are 10.6GB in float32 -- the
+reference alone does not fit in the ~10GB this 12GB card has free, before any
+kernel runs.
+
+Everything else that was blocking has been fixed (*Getting to the ceiling*, below),
+which puts the ceiling on this machine at 100 + 100 + 44 + 11 = 255, with Level 2's
+task 14 a coin-flip on the same terms as above.
 
 ## The reference's precision
 
@@ -150,11 +202,11 @@ error text says and is much less useful:
 | `torch.cat` | 7 as the sole blocker | **done**, and without touching the IR |
 | `transpose` / `permute` / `.T` | 3 | **done**, frontend only |
 | `ReLU6` | 4 | **done**, one table entry |
-| `nn.LSTM` / `nn.GRU` / `nn.RNN` | 8 | out of reach -- cuDNN-fused, `fx` does not trace in |
-| dynamic slicing on traced shapes | 3 | open |
-| data-dependent control flow | 2 | out of reach -- `fx` cannot trace it |
-| `unfold`, `expand`, `TransformerEncoder` | 1 (task 28) | open |
-| `einsum` | 2 | open |
+| `nn.LSTM` / `nn.GRU` / `nn.RNN` | 8 | **done** since: a proved loop (*Recurrences*, below) |
+| dynamic slicing on traced shapes | 3 | **done** since (*Level 3: what else it took*) |
+| data-dependent control flow | 2 | **done** since: it was Swin's constructor, not its forward |
+| `unfold`, `expand`, `TransformerEncoder` | 1 (task 28) | **done** since |
+| `einsum` | 2 | **done** since: any number of operands is one contraction |
 
 Three of these looked like they needed the IR extended and did not, which is the
 pattern worth recording:
@@ -176,13 +228,167 @@ is loaded and thrown away, which the shared mask makes unavoidable and which is
 harmless: those reads are clamped into their own buffer. It is `GenRed` at the same
 theorem as a convolution, and `GenRed.prog_implements` was not reopened.
 
-The eight recurrent tasks are the hard floor.
+The eight recurrent tasks looked like the hard floor, and were not; see below.
+
+## Recurrences: one body, proved once
+
+The eight recurrent tasks were the hard floor, and the reason was scale rather than
+expressiveness: an LSTM step is four reductions and a pointwise update, all in the
+reducing family, but unrolled over 512 steps and six layers it is thousands of
+stages, each its own kernel and its own certificate. `Recur.lean` proves the loop
+instead.
+
+  * `GStage` generalises a stage from "a kernel" to "anything that computes one
+    buffer", and `gstages_correct` is `stages_correct` over it -- the same
+    induction. An ordinary stage is one (`GStage.ofStage`).
+  * A `Recur` runs a body chain `T` times. Step `t` sees the state in one buffer
+    and, in each view buffer, the window `src[t*stride ..]` of an outer buffer -- the
+    step's slice of a precomputed input projection. The body's last stage writes
+    the next state; the loop's output is the history, state `t` at offset `t*S`.
+  * `Recur.impl`: the loop implements its specification, by induction on the step,
+    from the body's own chain certificate. `Recur.spec_local`: it reads no outer
+    buffer past what was written, so it sits in an outer chain like any stage.
+    Every per-task side condition is decidable or `rfl`, and the certificates
+    depend only on `propext`, `Classical.choice` and `Quot.sound`.
+
+Per layer and direction the frontend (`vk/rnn.py`) emits a projection stage over the
+whole sequence (the input's share of every gate, which does not depend on the
+state), an initial-state stage, and the loop. A reverse direction is a forward loop
+over the reversed projection, read back reversed. The body is shaped by one fact
+about the family -- a stage reads each buffer at one index map -- so the gates are
+separate reductions, each applying its activation and adding its slice of the
+projection in `post`, and a last stage combines them. An LSTM's state is `[h ; c]`,
+written by one stage through the same `concat` device as `torch.cat`.
+
+What this adds to the trusted base is the launcher's loop (`Render3.lean`,
+`ChainItem.call`): it runs the body's kernels `T` times, passing a *slice* of a
+flat tensor for the state and for each view. That a slice at offset `o` reads
+element `o + i` as its `i` is exactly `Recur.envAt`'s view.
+
+One Lean detail cost a debugging round and is worth recording: the history's size is
+a field, `H`, with `H = T * S + S` a side condition checked by `decide`. Stated as
+the product, the certificate's `rfl` for the outer size map made Lean unfold the
+multiplication one unit at a time -- it does not multiply `r.T * r.S` as numerals
+even though each reduces to one -- and a state of 5120 elements overflowed the
+kernel's recursion limit where GRU's 2560 had not.
+
+## Level 3: what else it took
+
+Surveyed per blocking *node*, as before:
+
+| Was missing | Tasks | How |
+|---|---|---|
+| `nn.LSTM` / `nn.GRU` | 36-42 | **done**: `Recur`, above |
+| Python loop over time, `torch.stack` | 34 | **done**: unrolled (1033 stages); `stack` is `cat` of unit axes |
+| stateful `self.hidden` (`copy_`) | 33 | **done**: later reads redirected to the copied value |
+| `nn.MultiheadAttention`, `TransformerEncoder(Layer)` | 28, 31, 32 | **done**: rewritten as their arithmetic, sharing the original parameters |
+| `masked_fill(-inf)` before softmax / relu / exp | 43, 44, 48, 49, 50 | **done**: folded into the consumer (`rewrite_neg_inf`) |
+| `unfold`, `expand`, `pad`, `roll`, `index` by a tensor | 28, 29, 30 | **done**: index maps; a gather is a masked sum |
+| `einsum` (any operands), einops `rearrange` | 48, 49 | **done**: one contraction; `rearrange` traced as reshape/permute |
+| constructor that calls `.item()` | 29, 30 | **done**: module built for real on the CPU, inputs fake |
+| weights larger than the memory budget | 2 | **done**: weights are exact and shared, so they need no margin |
+| `torch.randn` inside `forward` | 35 | **refused**: the reference is random, so there is no function to specify |
+
+Two frontend rules introduced here deserve naming, since the frontend is where a
+wrong lowering would go unnoticed by the proof:
+
+**`-inf` is never a value.** The field the specs are stated over has no `-inf`, and
+`masked_fill(x, m, -inf)` appears only as a device to make the *next* operator
+ignore entries. It is folded into that operator: `relu` and `exp` of it become a
+`where` with 0, and a softmax becomes `e / sum(e)` with `e = where(m, 0, exp(x -
+c))`. The shift `c` cancels in exact arithmetic; it is chosen for the floats, as the
+maximum over the *unmasked* entries (`max(where(m, rowmin, x))`), which is what
+PyTorch uses. Any other consumer of a `-inf` fill is refused.
+
+**Randomness is refused, not sampled.** A `torch.randn` inside a forward runs
+eagerly during a trace with constant shapes, and the draw would have become a
+constant of the spec -- a deterministic function the reference is not. Every
+random factory now raises during tracing.
+
+### The mismatches that are not defects
+
+Three Level 3 tasks fail KernelBench's criterion for the same reason Level 2's task
+14 does: the reference is further from the mathematics than the kernel, or no
+float32 computation is close to it. Measured against a float64 ground truth:
+
+| | ours vs float64 | PyTorch fp32 vs float64 | PyTorch default (TF32) vs float64 |
+|---|---|---|---|
+| EfficientNetB2 | 0.18 - 1.5 | 1.07 - 1.24 | 1.11 - 1.47 |
+| UNetSoftmax | 7e-5 - 1.1e-2 | 3e-4 - 3.3e-2 | 0.08 - 0.98 |
+| Mamba2ReturnY (outputs up to 1e22) | ~1.2% relative at the worst element | ~1-2% | 3e18 absolute |
+
+EfficientNetB2 is ill-conditioned by construction: after its first block every
+tensor is 1x1 spatial, so each train-mode BatchNorm normalises over the *two*
+values of the batch, `(a - b) / sqrt((a - b)^2/4 + eps)`, which flips sign with the
+rounding of `a - b`. Mamba2's outputs are exponentials of cumulative sums of
+`randn` parameters. UNet is the TF32 case in its sharpest form: our kernel is closer
+to float64 than PyTorch at full float32 on every trial.
 
 ## Level 4
 
-Not reachable on this machine: `transformers` is not installed, and the 20 tasks are
-traced HuggingFace models, which need `transformers.utils.fx` rather than plain
-symbolic tracing.
+`transformers` 5.18, with the checkpoints fetched from the HuggingFace hub. The same
+compiler as Level 3, traced through the HuggingFace modules with the shape-aware
+tracer; what Level 4 added was operators, not machinery:
+
+| Needed | Models | How |
+|---|---|---|
+| `nn.Embedding`, `F.embedding`, `torch.gather`, `index_select` | all | a gather is a masked sum, with the index read as a value |
+| `scaled_dot_product_attention` (causal, or with a mask) | gpt2, OPT, BART | rewritten as its definition; the causal mask becomes a `-inf` fill folded into the softmax |
+| `addmm` | gpt2's `Conv1D` | one contraction, the weight read untransposed |
+| `logsumexp`, `rsqrt`, `F.dropout` (off) | Reformer, BART | a max-shifted reduction; a reciprocal square root; the identity |
+| an empty key/value cache concatenated on | gpt2, BART | an empty part contributes nothing to a `cat` |
+| a forward that swaps its own attention module | BigBird | the swap is made before tracing, under the same condition |
+| float16 weights | OPT | widened exactly to float32; the result rounded to the reference's dtype |
+
+| Model | Tasks | Result |
+|---|---|---|
+| gpt2 | 7, 16, 19 | **matched** (16 at declared size) |
+| electra-small | 11, 12, 14 | **matched** (11 at declared size) |
+| bigbird-roberta-base, short sequences | 9, 10 | **matched**, reduced |
+| reformer-enwik8 | 13, 15 | **matched**, reduced |
+| bart-large | 6, 17, 20 | 6 does not fit; 17 and 20 mismatch, the reference being the less accurate |
+| opt-1.3b | 2, 4, 8 | 2 and 4 do not fit; 8 mismatches, the reference being the less accurate |
+| gpt-neo-2.7B | 1, 3, 18 | certified; weights exceed this card |
+| bigbird, block-sparse | 5 | not lowered |
+
+Against a float64 ground truth (`max |diff|`, one batch):
+
+| | ours | PyTorch, as the benchmark runs it |
+|---|---|---|
+| bart-large, bs32 seq256 | 5.4e-2 | 1.4 |
+| bart-large, bs1024 seq32 | 5.6e-2 - 6.1e-2 | 7.6 - 35 |
+| opt-1.3b (a float16 checkpoint), bs512 seq32 | 6.3e-3 - 6.9e-3 | 5.5e-2 - 6.2e-2 |
+
+BART-large's activations carry large outliers, so a float32 `q . k` sums large terms
+that cancel; PyTorch's result moves by whole units in the logits. OPT's reference
+computes in float16. In both the kernel, computing in float32, is an order of
+magnitude or more closer to the mathematics than what it is checked against.
+
+### Two bugs Level 4 found, neither visible to a proof
+
+**`cat([h, h])`.** A stage reads each buffer at one index map, and concatenation kept
+its maps in a table keyed by buffer -- so a tensor joined to itself, Reformer's
+reversible residual, had its second part's map silently replace the first's. Every
+stage was still certified, against a spec that was not the model's. Found by
+`harness/stagechk.py`, which runs the traced, rewritten graph on real tensors and
+compares each stage's buffer to its node. A repeat now gets a copy of its own, and
+`relocate` refuses any two operands that would read one buffer through different
+maps.
+
+**The memory plan ignored intermediates.** It counted inputs, output and weights,
+while the launcher allocates every intermediate up front. Reformer at batch 1024
+broadcasts its axial position table to the whole batch before selecting 32
+positions -- an intermediate of 1.7e10 elements. Intermediates now count, which is
+what moves several Level 4 tasks to a reduced size and three to "does not fit".
+
+### A wrong spec caught by its shape
+
+The single-operator pointwise table read `torch.max(x, 1)` -- a reduction over axis
+one -- as the elementwise maximum of `x` and the constant 1. The `logsumexp` rewrite
+produced exactly that call; over an axis of extent one the shapes agree, so the
+pointwise family accepted it, and two Level 2 tasks stopped lowering only because
+that family cannot sit in a chain. An integer second argument to `max`/`min` is now
+always a dimension.
 
 ## Built
 
@@ -203,6 +409,8 @@ depend only on `propext`, `Quot.sound` and `Classical.choice`):
 | `Kernels/MaxRed.lean` | `MaxRed.prog_implements` — clamping rather than masking |
 | `Kernels/ProdRed.lean` | `ProdRed.prog_implements` — the same, multiplicatively |
 | `Pipeline.lean`, `Pipeline3.lean` | `two_stage`, `three_stage`, and the `Loc` obligations |
+| `Stages.lean` | `stages_correct` -- a chain of any length, with linear locality obligations |
+| `Recur.lean` | `gstages_correct`, `Recur.impl`, `Recur.spec_local` -- a body chain run `T` times |
 
 **Families and what they cover:**
 
@@ -244,12 +452,20 @@ found this way lived here:
   dilation the window is a strided set (tasks 41, 43);
 - ignoring an `unsqueeze` silently transposed a broadcast (task 12).
 
-Neither was catchable by proof. Running the kernels is what found them.
+Neither was catchable by proof. Running the kernels is what found them. Two more of
+the same kind turned up in Level 3's second pass, both caught before they shipped:
+
+- `x[0]` on a tensor was treated as "field 0 of a `(values, indices)` pair" and
+  aliased to `x` -- it is a slice, and drops an axis;
+- a `torch.randn` inside a forward was evaluated once at trace time and would have
+  become a constant of the spec. Random factories now refuse during tracing.
 
 ### The trusted last mile
 `Render.lean` (one string template per node), the modelled `tl.*` semantics
 (differential-tested by `harness/axiom_tests.py`), the Lean kernel, and Triton's
-own compiler.
+own compiler. Since the recurrences, also the launcher's loop in `Render3.lean`: that
+a slice of a flat tensor at offset `o` reads element `o + i` as its `i`, which is
+what `Recur.envAt` assumes of a view.
 
 ## Design notes worth keeping
 
@@ -286,3 +502,23 @@ lowered and certified at the size it runs** — nothing is verified at one shape
 measured at another. Because the family theorems are generic in every shape, the
 certificate for the declared size holds regardless; only the empirical check is
 size-limited. The run summary reports reduced and full-size passes separately.
+
+Three more rules, all about what gets *run*, none about what gets proved:
+
+  * **Too slow is treated like too big.** A kernel that exceeds the per-task time
+    limit is retried at an eighth of the size, re-lowered and re-certified there,
+    and reported as reduced. The kernels are correctness-first (one program per
+    output, no data reuse), so a 2G-parameter MLP at batch 128 does not finish in
+    four minutes; at batch 16 it does.
+  * **Weights need no margin.** The memory budget is 60% of free memory, the margin
+    being for the reference's temporaries, which cannot be estimated. Weights are
+    exact and shared with the reference, so they are counted at their size; a
+    float16 weight is counted twice, since the kernel reads a widened copy.
+  * **What cannot fit at any size is certified, not dropped.** When shrinking no
+    longer changes the inputs (the batch is already one), or the weights alone
+    exceed the card, the task is lowered and certified at that size and reported
+    as "does not fit". It is not counted as matched, and not as unlowered.
+
+Certificates are checked in batches of at most 1500 stages per Lean file: checking a
+whole level at once held every certificate in memory and exhausted the machine's.
+Each batch is still checked in full before any of its kernels is emitted.

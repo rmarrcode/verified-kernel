@@ -76,6 +76,14 @@ class Lowered:
     idx_slot: int = NO_IDX_SLOT
     # Output dtype, when it is not float32 (an argmax returns indices).
     out_dtype: Optional[str] = None
+    # Tensors a forward builds from nothing (`tril(ones(T, T))`), which `fx` lifts
+    # into attributes. They are inputs to the kernel like any parameter, but no
+    # module owns them, so their values are recorded here for the launcher.
+    consts: Dict[str, Any] = field(default_factory=dict)
+    # `recur` family: a loop (see `Recur.lean`). Keys: T, S, init (buffer), views
+    # [(src buffer, stride)], body [Lowered], body_sizes, and once placed, base
+    # (the state's buffer number) and body_bounds.
+    recur: Dict[str, Any] = field(default_factory=dict)
     # `genred` family: out[q] = guard(q) * post(sum_{k<K} range(q,k) * body(ins at offs(q,k)))
     K: int = 0
     offs: List[I.IE] = field(default_factory=list)
@@ -169,6 +177,7 @@ def _pointwise_functions() -> Dict[Any, Callable]:
     reg([torch.exp, "exp"], lambda a, n: S.exp(a[0]))
     reg([torch.log, "log"], lambda a, n: S.log(a[0]))
     reg([torch.sqrt, "sqrt"], lambda a, n: S.sqrt(a[0]))
+    reg([torch.rsqrt, "rsqrt"], lambda a, n: S.Recip(S.sqrt(a[0])))
     reg([torch.abs, abs, "abs"], lambda a, n: S.absv(a[0]))
     reg([torch.erf, "erf"], lambda a, n: S.erf(a[0]))
     reg([torch.neg, operator.neg, "neg"], lambda a, n: -S.lift(a[0]))
@@ -179,15 +188,38 @@ def _pointwise_functions() -> Dict[Any, Callable]:
     reg([operator.truediv, torch.div, "div", "divide"],
         lambda a, n: S.lift(a[0]) / S.lift(a[1]))
 
+    # `x += y` in a traced forward is `operator.iadd`. The value it denotes is the
+    # sum, and the chain gives that a fresh buffer rather than mutating one -- which
+    # is the same thing only if nothing else reads the tensor that was mutated.
+    def _inplace(f):
+        def build(a, n):
+            orig = getattr(n, "orig", n)
+            tgt = orig.args[0] if orig.args else None
+            if isinstance(tgt, fx.Node) and len(tgt.users) > 1:
+                raise Unsupported(f"in-place {op_name(n.target)} of a tensor that "
+                                  "is read elsewhere")
+            return f(S.lift(a[0]), S.lift(a[1]))
+        return build
+    reg([operator.iadd, "add_"], _inplace(lambda x, y: x + y))
+    reg([operator.isub, "sub_"], _inplace(lambda x, y: x - y))
+    reg([operator.imul, "mul_"], _inplace(lambda x, y: x * y))
+    reg([operator.itruediv, "div_"], _inplace(lambda x, y: x / y))
+
+    def _is_reduction(a, n) -> bool:
+        # `torch.max(x, dim=d)` is a reduction, not a pointwise op, and so is
+        # `torch.max(x, 1)`: a plain int in second place is a dim, never an operand
+        # (`torch.max` takes no scalar operand). Only the two-tensor form is
+        # pointwise.
+        return (len(a) != 2 or "dim" in n.kwargs or "keepdim" in n.kwargs
+                or (isinstance(a[1], int) and not isinstance(a[1], bool)))
+
     def _binmax(a, n):
-        # `torch.max(x, dim=d)` is a reduction, not a pointwise op; only the
-        # two-operand form belongs here.
-        if len(a) != 2 or "dim" in n.kwargs:
+        if _is_reduction(a, n):
             raise Unsupported("torch.max/min with a dim is a reduction")
         return S.maxv(a[0], a[1])
 
     def _binmin(a, n):
-        if len(a) != 2 or "dim" in n.kwargs:
+        if _is_reduction(a, n):
             raise Unsupported("torch.max/min with a dim is a reduction")
         return S.minv(a[0], a[1])
     reg([torch.maximum, torch.max], _binmax)
@@ -212,6 +244,55 @@ def _pointwise_functions() -> Dict[Any, Callable]:
             raise Unsupported(f"non-integer exponent {e!r}")
         return S.powi(a[0], e)
     reg([torch.pow, operator.pow, "pow"], _pow)
+
+    # Comparisons denote their indicator: a boolean is embedded as 0 or 1, which is
+    # what PyTorch does when one meets a float, and what the runtime does with a
+    # boolean input buffer. Each is a `selLe`, so an exact comparison in the spec
+    # is an exact comparison in the kernel.
+    def _le(a, b): return S.SelLe(S.lift(a), S.lift(b), S.lit(1), S.lit(0))
+    def _eq(a, b): return S.SelLe(S.lift(a), S.lift(b), _le(b, a), S.lit(0))
+    reg([torch.eq, operator.eq, "eq"], lambda a, n: _eq(a[0], a[1]))
+    reg([torch.ne, operator.ne, "ne"], lambda a, n: S.lit(1) - _eq(a[0], a[1]))
+    reg([torch.le, operator.le, "le"], lambda a, n: _le(a[0], a[1]))
+    reg([torch.ge, operator.ge, "ge"], lambda a, n: _le(a[1], a[0]))
+    reg([torch.lt, operator.lt, "lt"], lambda a, n: S.lit(1) - _le(a[1], a[0]))
+    reg([torch.gt, operator.gt, "gt"], lambda a, n: S.lit(1) - _le(a[0], a[1]))
+    reg([torch.logical_not, operator.invert, "logical_not", "bitwise_not",
+         "__invert__"], lambda a, n: S.lit(1) - S.lift(a[0]))
+
+    # Selecting by a mask. The mask is 0 or 1, so `mask <= 1/2` is exactly
+    # "not set". A fill value must be finite: `-inf` is not in the field the spec
+    # is stated over, and a fill of `-inf` is removed before lowering by
+    # `graph.rewrite_neg_inf`, which knows what its consumer makes of it.
+    def _fill_value(v):
+        if isinstance(v, float) and not math.isfinite(v):
+            raise Unsupported(f"masked_fill with {v}: not a value in the field")
+        return S.lift(v)
+
+    def _masked_fill(a, n):
+        v = a[2] if len(a) > 2 else n.kwargs.get("value")
+        m = a[1] if len(a) > 1 else n.kwargs.get("mask")
+        return S.SelLe(S.lift(m), S.lit(Fraction(1, 2)), S.lift(a[0]),
+                       v if isinstance(v, S.SE) else _fill_value(v))
+    reg([torch.masked_fill, "masked_fill"], _masked_fill)
+
+    def _where(a, n):
+        if len(a) != 3:
+            raise Unsupported("torch.where with one argument returns indices")
+        return S.SelLe(S.lift(a[0]), S.lit(Fraction(1, 2)),
+                       _fill_value(a[2]) if not isinstance(a[2], S.SE) else a[2],
+                       _fill_value(a[1]) if not isinstance(a[1], S.SE) else a[1])
+    reg([torch.where, "where"], _where)
+
+    def _dropout(a, n):
+        # The identity when it is off; a random mask when it is on, which is not a
+        # function of the inputs and so has no spec.
+        pv = _kw(n, "p", 1, 0.5)
+        training = _kw(n, "training", 2, True)
+        if training and pv not in (0, 0.0):
+            raise Unsupported(f"dropout with p={pv} in training mode is random")
+        return S.lift(a[0])
+    reg([F.dropout, "dropout"], _dropout)
 
     return T
 
@@ -2082,6 +2163,9 @@ def lower_linear(model: nn.Module, example_args: List[Any]) -> Lowered:
     gm = fx.symbolic_trace(model)
     gm.graph.lint()
     lin = None
+    fn_nodes = [n for n in gm.graph.nodes if n.op in ("call_function", "call_method")]
+    if len(fn_nodes) == 1 and op_name(fn_nodes[0].target) == "linear":
+        return _lower_f_linear(gm, fn_nodes[0], example_args)
     for node in gm.graph.nodes:
         if node.op == "call_module":
             sub = gm.get_submodule(node.target)
@@ -2125,6 +2209,158 @@ def lower_linear(model: nn.Module, example_args: List[Any]) -> Lowered:
         param_paths=[f"{lin_name}.{pp}" for pp in params],
         notes=[f"linear: {rows} rows, {Cin} -> {Cout}"
                + (" +bias" if lin.bias is not None else "")])
+
+
+def _lower_f_linear(gm: fx.GraphModule, node: fx.Node,
+                    example_args: List[Any]) -> Lowered:
+    """`F.linear(x, W, b)` with every operand a tensor argument: the same
+    contraction as `nn.Linear`, with the weight and bias read as inputs rather than
+    as module state."""
+    ph = [n for n in gm.graph.nodes if n.op == "placeholder"]
+    x_arg = _kw(node, "input", 0, None)
+    w_arg = _kw(node, "weight", 1, None)
+    b_arg = _kw(node, "bias", 2, None)
+    ops = [a for a in (x_arg, w_arg, b_arg) if isinstance(a, fx.Node)]
+    if not isinstance(x_arg, fx.Node) or not isinstance(w_arg, fx.Node) \
+            or any(o not in ph for o in ops):
+        raise Unsupported("F.linear whose operands are not the arguments")
+    slot = {n: i for i, n in enumerate(ph)}
+    x, w = example_args[slot[x_arg]], example_args[slot[w_arg]]
+    sx, sw = tuple(x.shape), tuple(w.shape)
+    if len(sw) != 2 or sx[-1] != sw[1]:
+        raise Unsupported(f"F.linear of {sx} by {sw}")
+    Cout, Cin = sw
+    rows = _prod(sx[:-1])
+    has_b = isinstance(b_arg, fx.Node)
+    if has_b and tuple(example_args[slot[b_arg]].shape) != (Cout,):
+        raise Unsupported("F.linear bias of the wrong shape")
+    q = I.Pid()
+    r, o = q // I.Lit(Cout), q % I.Lit(Cout)
+    nbuf = len(ph)
+    offs = [I.Lit(0)] * nbuf
+    offs[slot[x_arg]] = r * I.Lit(Cin) + I.Rk()
+    offs[slot[w_arg]] = o * I.Lit(Cin) + I.Rk()
+    post_offs = [I.Lit(0)] * nbuf
+    post: S.SE = S.Inp(0)
+    if has_b:
+        post_offs[slot[b_arg]] = o
+        post = S.Bin("add", S.Inp(0), S.Inp(slot[b_arg] + 1))
+    return Lowered(
+        family="genred",
+        body=S.Inp(slot[x_arg]) * S.Inp(slot[w_arg]), arity=nbuf,
+        out_size=rows * Cout, out_shape=tuple(sx[:-1]) + (Cout,),
+        tensor_arg_index=list(range(nbuf)), K=Cin, offs=offs,
+        post_offs=post_offs, post=post,
+        notes=[f"F.linear: {rows} rows, {Cin} -> {Cout}" + (" +bias" if has_b else "")])
+
+
+def lower_einsum(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """`torch.einsum` over any number of operands, as one contraction.
+
+    An einsum is the reducing family with nothing added: the output letters index
+    the lane `q`, the letters that appear only on the left are summed over and
+    index `k`, and each operand's index map packs its own letters from those two.
+    The body is the product of the operands. `bclhn,bcshn,bhcls,bcshp->bclhp` is
+    therefore the same theorem as a matrix product, with a four-way product for a
+    summand and `K = |s| * |n|`.
+    """
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    ph = [n for n in gm.graph.nodes if n.op == "placeholder"]
+    calls = [n for n in gm.graph.nodes if n.op in ("call_function", "call_method")]
+    if len(calls) != 1 or op_name(calls[0].target) != "einsum":
+        raise Unsupported("not a single einsum")
+    node = calls[0]
+    eq = node.args[0]
+    ops = list(node.args[1:])
+    if len(ops) == 1 and isinstance(ops[0], (list, tuple)):
+        ops = list(ops[0])
+    if not isinstance(eq, str) or "->" not in eq or "." in eq:
+        raise Unsupported(f"einsum {eq!r}: explicit output, no ellipsis")
+    if any(o not in ph for o in ops):
+        raise Unsupported("einsum operands are not the arguments")
+    lhs, out = eq.replace(" ", "").split("->")
+    terms = lhs.split(",")
+    if len(terms) != len(ops):
+        raise Unsupported("einsum term count does not match its operands")
+    slot = {n: i for i, n in enumerate(ph)}
+    size: Dict[str, int] = {}
+    for t, o in zip(terms, ops):
+        sh = tuple(example_args[slot[o]].shape)
+        if len(sh) != len(t) or len(set(t)) != len(t):
+            raise Unsupported(f"einsum term {t!r} against shape {sh}")
+        for c, d in zip(t, sh):
+            if size.setdefault(c, d) != d:
+                raise Unsupported(f"einsum letter {c!r} has extents {size[c]} and {d}")
+    if any(c not in size for c in out) or len(set(out)) != len(out):
+        raise Unsupported(f"einsum output {out!r}")
+    red = [c for c in dict.fromkeys(lhs.replace(",", "")) if c not in out]
+    out_dims = [size[c] for c in out]
+    red_dims = [size[c] for c in red]
+    coord: Dict[str, I.IE] = {}
+    coord.update(zip(out, unpack(I.Pid(), out_dims) if out else []))
+    coord.update(zip(red, unpack(I.Rk(), red_dims) if red else []))
+    nbuf = len(ph)
+    offs = [I.Lit(0)] * nbuf
+    body: Optional[S.SE] = None
+    for t, o in zip(terms, ops):
+        b = slot[o]
+        offs[b] = pack([coord[c] for c in t], [size[c] for c in t])
+        body = S.Inp(b) if body is None else body * S.Inp(b)
+    K = _prod(red_dims)
+    return Lowered(
+        family="genred", body=body, arity=nbuf,
+        out_size=_prod(out_dims), out_shape=tuple(out_dims),
+        tensor_arg_index=list(range(nbuf)), K=K, offs=offs,
+        post_offs=[I.Lit(0)] * nbuf, post=S.Inp(0),
+        notes=[f"einsum {eq}: {len(ops)} operands, summing {''.join(red) or 'nothing'}"
+               f" (K={K})"])
+
+
+def lower_addmm(model: nn.Module, example_args: List[Any]) -> Lowered:
+    """`torch.addmm(b, A, W) = b + A @ W`, with `b` a vector over the columns or a
+    full matrix -- GPT-2's `Conv1D`. The contraction of `lower_f_linear`, with the
+    weight read untransposed."""
+    gm = fx.symbolic_trace(model)
+    gm.graph.lint()
+    ph = [n for n in gm.graph.nodes if n.op == "placeholder"]
+    calls = [n for n in gm.graph.nodes if n.op in ("call_function", "call_method")]
+    if len(calls) != 1 or op_name(calls[0].target) != "addmm":
+        raise Unsupported("not a single addmm")
+    node = calls[0]
+    if node.kwargs.get("beta", 1) != 1 or node.kwargs.get("alpha", 1) != 1:
+        raise Unsupported("addmm with alpha/beta")
+    b_arg, a_arg, w_arg = node.args[:3]
+    if any(x not in ph for x in (b_arg, a_arg, w_arg)):
+        raise Unsupported("addmm operands are not the arguments")
+    slot = {n: i for i, n in enumerate(ph)}
+    sa = tuple(example_args[slot[a_arg]].shape)
+    sw = tuple(example_args[slot[w_arg]].shape)
+    sb = tuple(example_args[slot[b_arg]].shape)
+    if len(sa) != 2 or len(sw) != 2 or sa[1] != sw[0]:
+        raise Unsupported(f"addmm of {sa} by {sw}")
+    M, K = sa
+    N = sw[1]
+    q = I.Pid()
+    r, o = q // I.Lit(N), q % I.Lit(N)
+    if sb in ((N,), (1, N)):
+        bmap = o
+    elif sb == (M, N):
+        bmap = q
+    else:
+        raise Unsupported(f"addmm bias of shape {sb}")
+    nbuf = len(ph)
+    offs = [I.Lit(0)] * nbuf
+    offs[slot[a_arg]] = r * I.Lit(K) + I.Rk()
+    offs[slot[w_arg]] = I.Rk() * I.Lit(N) + o
+    post_offs = [I.Lit(0)] * nbuf
+    post_offs[slot[b_arg]] = bmap
+    return Lowered(
+        family="genred", body=S.Inp(slot[a_arg]) * S.Inp(slot[w_arg]), arity=nbuf,
+        out_size=M * N, out_shape=(M, N), tensor_arg_index=list(range(nbuf)), K=K,
+        offs=offs, post_offs=post_offs,
+        post=S.Bin("add", S.Inp(0), S.Inp(slot[b_arg] + 1)),
+        notes=[f"addmm: {M}x{K} by {K}x{N}, plus a bias of {sb}"])
 
 
 def lower_sepconv(model: nn.Module, example_args: List[Any]) -> Lowered:
@@ -2686,8 +2922,30 @@ def lower_broadcast_pointwise(model: nn.Module, example_args: List[Any]) -> Lowe
 FAMILIES: List[Callable[[nn.Module, List[Any]], Lowered]] = [
     lower_pointwise, lower_reduce, lower_matmul, lower_conv, lower_avgpool,
     lower_maxpool, lower_maxmin, lower_argmaxmin, lower_rownorm, lower_normalize, lower_triplet, lower_cross_entropy, lower_attention,
-    lower_sepconv, lower_scan, lower_linear,
+    lower_sepconv, lower_scan, lower_linear, lower_einsum, lower_addmm,
     lower_broadcast_pointwise]
+
+
+class preserved_state:
+    """Restore every module's plain attributes after a trace.
+
+    A forward that assigns to `self` (`self.hidden = tanh(...)`) runs during
+    tracing with proxies, and leaves a proxy of *that* graph on the module. The
+    next trace would then read it as if it were the module's state, and fail --
+    or worse, record a node from a graph that no longer exists."""
+
+    def __init__(self, model: nn.Module):
+        self.saved = [(m, dict(m.__dict__)) for m in model.modules()]
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        for m, d in self.saved:
+            for k in [k for k in m.__dict__ if k not in d]:
+                del m.__dict__[k]
+            m.__dict__.update(d)
+        return False
 
 
 def lower(model: nn.Module, example_args: List[Any]) -> Tuple[Optional[Lowered], List[str]]:
@@ -2696,7 +2954,8 @@ def lower(model: nn.Module, example_args: List[Any]) -> Tuple[Optional[Lowered],
     reasons: List[str] = []
     for fam in FAMILIES:
         try:
-            return fam(model, example_args), reasons
+            with preserved_state(model):
+                return fam(model, example_args), reasons
         except Unsupported as e:
             reasons.append(f"{fam.__name__}: {e}")
         except Exception as e:  # tracing failures etc.

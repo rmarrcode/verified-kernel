@@ -38,6 +38,10 @@ from vk import graph
 from vk.runtime import GeneratedModel
 
 GB = 1024 ** 3
+#: The fraction of free device memory `evaluate.budget_bytes` hands out.
+BUDGET_FRAC = 0.60
+#: The fraction of free memory weights may occupy before the activations' margin.
+WEIGHT_FRAC = 0.92
 
 
 @dataclass
@@ -61,10 +65,21 @@ def make_plan(task, budget: int, min_scale: int = 1) -> Tuple[Optional[Plan], Li
     """
     reasons: List[str] = []
     scale = min_scale
+    prev_shapes = None
     while scale <= (1 << 24):
         mode_fake, model, inputs = fake_instance(task)
         with mode_fake:
             red = E.shrink(list(inputs), scale)
+            shapes_now = [tuple(t.shape) for t in red if isinstance(t, torch.Tensor)]
+            if shapes_now == prev_shapes:
+                # Shrinking no longer changes anything -- the batch is already
+                # one -- so no size this card can run exists. The lowering at this
+                # size is still certified; it is reported as not runnable here,
+                # not as not lowered.
+                return Plan(task=task, low=last_low, key=f"t{task.num:03d}",
+                            mode="nofit", scale=scale // 2,
+                            out_size=last_out[1], out_shape=last_out[0]), reasons
+            prev_shapes = shapes_now
             low, reasons = frontend.lower(model, red)
         if low is None:
             # A single-operator lowering did not apply; compile the whole graph as
@@ -74,11 +89,27 @@ def make_plan(task, budget: int, min_scale: int = 1) -> Tuple[Optional[Plan], Li
             except Exception as e:
                 return None, reasons + [f"compile_chain: {type(e).__name__}: {e}"]
         with mode_fake:
-            out = model(*red)
+            try:
+                out = model(*red)
+            except Exception:
+                # A forward that reads a value back (`.item()`) cannot run on fake
+                # tensors. The lowering has already derived the output's shape
+                # from the trace, which is all this needs.
+                out = torch.empty(tuple(low.out_shape), dtype=torch.float32)
             # reference output + our output + headroom for the reference module's
-            # own temporaries, plus the inputs and any weights
+            # own temporaries, plus the inputs
             need = out.numel() * 4 * 3 + sum(
                 t.numel() * 4 for t in red if isinstance(t, torch.Tensor))
+            # A chain's intermediates count too. A model that broadcasts a table to
+            # the whole batch before selecting from it -- Reformer's axial
+            # position embedding -- is decided by this term.
+            if low.family == "chain":
+                # The launcher allocates each intermediate when its stage runs and
+                # releases it after its last reader, so what counts is the most
+                # alive at once.
+                from vk.compile import chain_lifetimes
+                need += 4 * chain_lifetimes(low)[1]
+            wbytes = 0
             for nm in low.param_paths:
                 p_ = dict(model.named_parameters()).get(nm)
                 if p_ is None:
@@ -86,13 +117,44 @@ def make_plan(task, budget: int, min_scale: int = 1) -> Tuple[Optional[Plan], Li
                 if p_ is None:
                     p_ = getattr(model, nm, None)
                 if p_ is not None:
-                    need += p_.numel() * 4
-            fits = need <= budget
+                    # The kernel reads float32. A half-precision weight is widened
+                    # (exactly) into a copy, so the reference's tensor and the copy
+                    # are both resident.
+                    extra = p_.element_size() if p_.dtype != torch.float32 else 0
+                    wbytes += p_.numel() * (4 + extra)
+            # `budget` is a fraction of free memory, and the margin it leaves is
+            # for what cannot be estimated: the reference's temporaries, which
+            # scale with the activations. Weights are exact and shared -- the kernel
+            # reads the reference's own tensors -- so they need no margin. Without
+            # this a model whose weights alone exceed the fraction (a 2G-parameter
+            # MLP) is refused even though weights plus activations fit.
+            free = budget / BUDGET_FRAC
+            fits = (need + wbytes <= budget
+                    or need <= BUDGET_FRAC * (WEIGHT_FRAC * free - wbytes))
             out_shape, out_size = tuple(out.shape), out.numel()
+            if out.dtype in (torch.float16, torch.bfloat16) and low.out_dtype is None:
+                # A reduced-precision reference is compared at its own precision:
+                # the kernel computes in float32 and its result is rounded to the
+                # reference's dtype on the way out.
+                low.out_dtype = str(out.dtype).replace("torch.", "")
         if fits:
+            # A "reduction" that changed nothing -- the batch was already one -- is
+            # the declared size, and is reported as such.
+            same = [tuple(t.shape) for t in inputs if isinstance(t, torch.Tensor)] \
+                == shapes_now
+            eff = 1 if same else scale
             return Plan(task=task, low=low, key=f"t{task.num:03d}",
-                        mode="full" if scale == 1 else "reduced", scale=scale,
+                        mode="full" if eff == 1 else "reduced", scale=eff,
                         out_size=out_size, out_shape=out_shape), reasons
+        last_low, last_out = low, (out_shape, out_size)
+        if wbytes > WEIGHT_FRAC * free:
+            # The weights alone exceed the device, and shrinking the batch does not
+            # shrink them. The lowering is still a lowering and its certificate
+            # still checks; what cannot happen here is running it. Certify at
+            # the declared size and say so, rather than re-lowering at two dozen
+            # sizes that cannot help.
+            return Plan(task=task, low=low, key=f"t{task.num:03d}", mode="nofit",
+                        scale=scale, out_size=out_size, out_shape=out_shape), reasons
         scale *= 2
     return None, reasons + ["does not fit in GPU memory at any scale"]
 
